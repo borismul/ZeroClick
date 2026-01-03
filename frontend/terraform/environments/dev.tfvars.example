@@ -1,0 +1,17 @@
+project_id = "mileage-tracker-482013"
+region     = "europe-west4"
+
+# API URL (set after API deployment)
+api_url = "https://mileage-api-ivdikzmo7a-ez.a.run.app"
+
+# Custom domain
+domain = "mileage.borism.nl"
+
+# NextAuth OAuth Configuration
+# Generate with: openssl rand -base64 32
+nextauth_secret = "REPLACE_ME"
+
+# Google OAuth Credentials
+# Create at: https://console.cloud.google.com/apis/credentials
+google_client_id     = "REPLACE_ME"
+google_client_secret = "REPLACE_ME"

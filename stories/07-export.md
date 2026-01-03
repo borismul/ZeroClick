@@ -1,0 +1,254 @@
+# Epic 7: Export & Integrations
+
+**Priority:** P0 (CSV, Sheets), P1 (PDF), P2 (Calendar, Photos)
+**Why:** Users need to get data out for tax/accounting
+
+---
+
+## 7.1 Data Export
+
+### Story 7.1.1: CSV Export
+```
+As a user
+I want to export my trips to CSV
+So that I can use the data in Excel/Sheets
+```
+
+**Acceptance Criteria:**
+- [ ] Export button in settings or history
+- [ ] Filter options:
+  - All trips
+  - Date range
+  - Specific car
+  - Classification (business only)
+- [ ] CSV format with headers
+- [ ] All relevant fields included
+- [ ] Download or share via iOS share sheet
+
+**Technical Notes:**
+- Generate client-side for < 1000 trips
+- Server-side for larger exports
+- UTF-8 encoding with BOM for Excel
+
+**CSV Columns:**
+```
+Date,Start Time,End Time,From,To,Distance (km),
+Duration (min),Car,Classification,Business KM,
+Private KM,Notes
+```
+
+**Size:** M
+
+---
+
+### Story 7.1.2: Google Sheets Export
+```
+As a user
+I want to export to Google Sheets
+So that I have a live cloud spreadsheet
+```
+
+**Acceptance Criteria:**
+- [ ] Enter spreadsheet ID or paste URL
+- [ ] Auto-extract ID from Google Sheets URL
+- [ ] Creates new sheet or updates existing
+- [ ] All trip data included
+- [ ] Headers in first row
+- [ ] One-click sync (append new trips)
+- [ ] Plus tier and above
+
+**Technical Notes:**
+- Existing functionality
+- Google Sheets API
+- Service account authentication
+
+**Size:** S (existing)
+
+---
+
+### Story 7.1.3: PDF Report (P1)
+```
+As a user
+I want to generate a PDF report
+So that I can share or print my trips
+```
+
+**Acceptance Criteria:**
+- [ ] Professional PDF layout
+- [ ] Company logo option
+- [ ] Date range selection
+- [ ] Trip table with all details
+- [ ] Statistics summary
+- [ ] Map of destinations (optional)
+- [ ] IAP: €4.99 for tax report template
+
+**Technical Notes:**
+- Server-side PDF generation
+- Multiple templates:
+  - Basic (free with Plus)
+  - Tax Report (IAP)
+  - Year in Review (IAP)
+
+**Size:** L
+
+---
+
+### Story 7.1.4: Email Report
+```
+As a user
+I want to receive monthly reports by email
+So that I have automatic backups
+```
+
+**Acceptance Criteria:**
+- [ ] Toggle in settings
+- [ ] Monthly email with:
+  - Summary stats
+  - CSV attachment
+  - Link to web dashboard
+- [ ] Pro tier feature
+
+**Technical Notes:**
+- Cloud Function on schedule
+- SendGrid or similar for email
+
+**Size:** M
+
+---
+
+## 7.2 Integrations (P2)
+
+### Story 7.2.1: Calendar Integration
+```
+As a user
+I want to see trips in my calendar
+So that I have a complete schedule
+```
+
+**Acceptance Criteria:**
+- [ ] Export trips as calendar events
+- [ ] Event title: "Trip: A → B"
+- [ ] Event time: start to end time
+- [ ] Event notes: distance, car, classification
+- [ ] Sync with Apple Calendar
+- [ ] Option: auto-sync new trips
+
+**Technical Notes:**
+- EventKit framework
+- One-way sync (app → calendar)
+- Event identifier for updates
+
+**Size:** L
+
+---
+
+### Story 7.2.2: Photos App Integration
+```
+As a Diary mode user
+I want to import photos from my trip dates
+So that I can add memories easily
+```
+
+**Acceptance Criteria:**
+- [ ] "Add Photos" button in trip detail
+- [ ] Suggest photos from:
+  - Same date as trip
+  - Same location as trip
+  - Time range of trip
+- [ ] Import selected photos
+- [ ] Store with trip
+
+**Technical Notes:**
+- PhotoKit framework
+- Request photo library access
+- Compress before upload
+
+**Size:** L
+
+---
+
+### Story 7.2.3: Accounting Software (P2)
+```
+As a business user
+I want to export to my accounting software
+So that I can streamline my administration
+```
+
+**Acceptance Criteria:**
+- [ ] Export format compatible with:
+  - Exact Online
+  - Moneybird
+  - e-Boekhouden
+- [ ] Map fields to accounting categories
+- [ ] One-click export
+
+**Technical Notes:**
+- Research Dutch accounting software APIs
+- Partner integrations
+
+**Size:** XL
+
+---
+
+## Export Formats
+
+### CSV Format
+```csv
+Date,Start,End,From,To,Distance,Duration,Car,Type,Business,Private,Notes
+2024-01-15,08:30,09:15,Thuis,Kantoor,45.2,45,Audi Q4,business,45.2,0,Woon-werk
+2024-01-15,17:30,18:20,Kantoor,Thuis,46.1,50,Audi Q4,business,46.1,0,
+```
+
+### Google Sheets Columns
+| Column | Description |
+|--------|-------------|
+| ID | Trip ID |
+| Date | YYYY-MM-DD |
+| Start Time | HH:MM |
+| End Time | HH:MM |
+| From | Start address |
+| To | End address |
+| From Lat | Latitude |
+| From Lon | Longitude |
+| To Lat | Latitude |
+| To Lon | Longitude |
+| Distance | Kilometers |
+| Duration | Minutes |
+| Car | Car name |
+| Type | business/private/mixed |
+| Business KM | Business kilometers |
+| Private KM | Private kilometers |
+| Notes | User notes |
+| Created | Timestamp |
+
+### PDF Report Sections
+1. **Header**
+   - Logo (optional)
+   - Report title
+   - Date range
+   - Generated date
+
+2. **Summary**
+   - Total trips
+   - Total km
+   - Business km
+   - Private km
+
+3. **Trip Table**
+   - All trips in date order
+   - Key fields
+
+4. **Footer**
+   - Page numbers
+   - Generated by ZeroClick
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /export/csv | Download CSV file |
+| POST | /export/sheets | Export to Google Sheets |
+| POST | /export/pdf | Generate PDF report |
+| GET | /export/pdf/{id} | Download generated PDF |

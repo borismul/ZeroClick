@@ -1,0 +1,24 @@
+[project]
+name = "mileage-api"
+version = "1.0.0"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "fastapi>=0.126.0",
+    "uvicorn[standard]>=0.39.0",
+    "requests>=2.32.0",
+    "google-cloud-firestore>=2.22.0",
+    "google-api-python-client>=2.187.0",
+    "google-auth>=2.37.0",
+    "pydantic>=2.12.5",
+    "carconnectivity>=0.10",
+    "carconnectivity-connector-audi>=0.2.0",
+    "carconnectivity-connector-volkswagen>=0.1.0",
+    "carconnectivity-connector-skoda>=0.1.0",
+    "carconnectivity-connector-seatcupra>=0.1.0",
+    "renault-api>=0.2.0",
+    "aiohttp>=3.9.0",
+    "TeslaPy>=2.8.0",
+]
+
+[dependency-groups]
+dev = []

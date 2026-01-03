@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "269285054406",
+    "project_id": "mileage-tracker-482013",
+    "storage_bucket": "mileage-tracker-482013.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:269285054406:android:mileage_tracker",
+        "android_client_info": {
+          "package_name": "nl.borism.mileage_tracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "269285054406-55t6r2i1o2995m1ggehel6n85s573kds.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "nl.borism.mileage_tracker",
+            "certificate_hash": "d5d1b64b6ffc618eab45a67c4da2b9dd2de6cd3e"
+          }
+        },
+        {
+          "client_id": "269285054406-mehvd44e88dfk6tbl69rou5g920r3lq1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": ""
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "269285054406-mehvd44e88dfk6tbl69rou5g920r3lq1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
