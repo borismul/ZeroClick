@@ -1,27 +1,32 @@
 import Flutter
 import UIKit
-import AVFoundation
 import CoreLocation
+import CoreMotion
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, CLLocationManagerDelegate {
-    private var carPlayChannel: FlutterMethodChannel?
-    private var bluetoothChannel: FlutterMethodChannel?
-    private var backgroundChannel: FlutterMethodChannel?
-    private var isCarPlayConnected = false
-    private var lastBluetoothDevice: String?
-    private var locationManager: CLLocationManager?
-    private var wasBluetoothConnected = false
 
-    // API config - loaded from Flutter
+    // MARK: - Properties
+    private var backgroundChannel: FlutterMethodChannel?
+    private var locationManager: CLLocationManager!
+    private var motionManager: CMMotionActivityManager!
+
+    // API config
     private var apiBaseUrl: String?
     private var userEmail: String?
+
+    // Drive state
+    private var isDriving = false
+    private var isActivelyTracking = false
+    private var lastLocation: CLLocation?
+    private var driveStartTime: Date?
+    private var pingTimer: Timer?
+
+    // Debounce
     private var lastApiCallTime: Date?
     private var lastPingTime: Date?
 
-    // Active trip tracking
-    private var isActivelyTracking = false
-    private var pingTimer: Timer?
+    // MARK: - App Lifecycle
 
     override func application(
         _ application: UIApplication,
@@ -29,42 +34,13 @@ import CoreLocation
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
 
-        // Check if we were launched due to a location event
-        let launchedForLocation = launchOptions?[.location] != nil
-        if launchedForLocation {
-            print("[Background] App launched by iOS for location update!")
+        // Check if launched for location
+        if launchOptions?[.location] != nil {
+            print("[App] Launched by iOS for location update")
         }
 
-        // Setup channels
+        // Setup Flutter channel
         if let controller = window?.rootViewController as? FlutterViewController {
-            carPlayChannel = FlutterMethodChannel(
-                name: "nl.borism.mileage/carplay",
-                binaryMessenger: controller.binaryMessenger
-            )
-
-            carPlayChannel?.setMethodCallHandler { [weak self] (call, result) in
-                if call.method == "isCarPlayConnected" {
-                    result(self?.isCarPlayConnected ?? false)
-                } else {
-                    result(FlutterMethodNotImplemented)
-                }
-            }
-
-            bluetoothChannel = FlutterMethodChannel(
-                name: "nl.borism.mileage/bluetooth",
-                binaryMessenger: controller.binaryMessenger
-            )
-
-            bluetoothChannel?.setMethodCallHandler { [weak self] (call, result) in
-                if call.method == "getConnectedDevice" {
-                    result(self?.getBluetoothDeviceName())
-                } else if call.method == "isBluetoothConnected" {
-                    result(self?.lastBluetoothDevice != nil)
-                } else {
-                    result(FlutterMethodNotImplemented)
-                }
-            }
-
             backgroundChannel = FlutterMethodChannel(
                 name: "nl.borism.mileage/background",
                 binaryMessenger: controller.binaryMessenger
@@ -72,275 +48,247 @@ import CoreLocation
 
             backgroundChannel?.setMethodCallHandler { [weak self] (call, result) in
                 switch call.method {
-                case "startBackgroundMonitoring":
-                    self?.startBackgroundLocationMonitoring()
-                    result(true)
-                case "stopBackgroundMonitoring":
-                    self?.stopBackgroundLocationMonitoring()
-                    result(true)
-                case "startActiveTracking":
-                    self?.startActiveTracking()
-                    result(true)
-                case "stopActiveTracking":
-                    self?.stopActiveTracking()
-                    result(true)
-                case "isMonitoring":
-                    result(self?.locationManager != nil)
-                case "isActivelyTracking":
-                    result(self?.isActivelyTracking ?? false)
                 case "setApiConfig":
                     if let args = call.arguments as? [String: Any],
                        let baseUrl = args["baseUrl"] as? String,
                        let email = args["userEmail"] as? String {
                         self?.apiBaseUrl = baseUrl
                         self?.userEmail = email
-                        // Also save to UserDefaults for persistence
                         UserDefaults.standard.set(baseUrl, forKey: "api_base_url")
                         UserDefaults.standard.set(email, forKey: "user_email")
-                        print("[Native] API config set: \(baseUrl), \(email)")
+                        print("[Config] API: \(baseUrl), User: \(email)")
                         result(true)
                     } else {
                         result(false)
                     }
+                case "startBackgroundMonitoring":
+                    self?.startMonitoring()
+                    result(true)
+                case "stopBackgroundMonitoring":
+                    self?.stopMonitoring()
+                    result(true)
+                case "isMonitoring":
+                    result(self?.locationManager != nil)
+                case "isActivelyTracking":
+                    result(self?.isActivelyTracking ?? false)
                 default:
                     result(FlutterMethodNotImplemented)
                 }
             }
-
-            // Load saved API config
-            apiBaseUrl = UserDefaults.standard.string(forKey: "api_base_url")
-            userEmail = UserDefaults.standard.string(forKey: "user_email")
         }
 
-        // Setup audio session for Bluetooth detection
-        setupAudioSession()
+        // Load saved config
+        apiBaseUrl = UserDefaults.standard.string(forKey: "api_base_url")
+        userEmail = UserDefaults.standard.string(forKey: "user_email")
 
-        // Listen for screen connect/disconnect (CarPlay)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(screenDidConnect),
-            name: UIScreen.didConnectNotification,
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(screenDidDisconnect),
-            name: UIScreen.didDisconnectNotification,
-            object: nil
-        )
-
-        // Check if CarPlay is already connected
-        checkCarPlayStatus()
-
-        // Start background location monitoring
-        startBackgroundLocationMonitoring()
-
-        // Check Bluetooth immediately on launch
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.checkBluetoothAndNotify()
-        }
+        // Start monitoring
+        setupLocationManager()
+        setupMotionManager()
+        startMonitoring()
 
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
-    // MARK: - Background Location Monitoring
+    // MARK: - Location Manager Setup
 
-    private func startBackgroundLocationMonitoring() {
-        if locationManager != nil {
-            print("[Background] Location monitoring already active")
-            return
-        }
-
-        print("[Background] Starting background location monitoring...")
-
+    private func setupLocationManager() {
         locationManager = CLLocationManager()
-        locationManager?.delegate = self
-        locationManager?.allowsBackgroundLocationUpdates = true
-        locationManager?.pausesLocationUpdatesAutomatically = false
-        locationManager?.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManager?.distanceFilter = 100
+        locationManager.delegate = self
+        locationManager.allowsBackgroundLocationUpdates = true
+        locationManager.pausesLocationUpdatesAutomatically = false
+        locationManager.activityType = .automotiveNavigation
 
+        // Start with low accuracy to save battery
+        setLowAccuracy()
+    }
+
+    private func setHighAccuracy() {
+        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        locationManager.distanceFilter = kCLDistanceFilterNone
+        if #available(iOS 11.0, *) {
+            locationManager.showsBackgroundLocationIndicator = true
+        }
+        print("[Location] High accuracy mode")
+    }
+
+    private func setLowAccuracy() {
+        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        locationManager.distanceFilter = 500
+        if #available(iOS 11.0, *) {
+            locationManager.showsBackgroundLocationIndicator = false
+        }
+        print("[Location] Low accuracy mode (battery saver)")
+    }
+
+    // MARK: - Motion Manager Setup
+
+    private func setupMotionManager() {
+        motionManager = CMMotionActivityManager()
+    }
+
+    // MARK: - Monitoring
+
+    private func startMonitoring() {
+        print("[Monitor] Starting...")
+
+        // Request location permission
         let status: CLAuthorizationStatus
         if #available(iOS 14.0, *) {
-            status = locationManager?.authorizationStatus ?? .notDetermined
+            status = locationManager.authorizationStatus
         } else {
             status = CLLocationManager.authorizationStatus()
         }
 
         if status == .notDetermined {
-            locationManager?.requestAlwaysAuthorization()
+            locationManager.requestAlwaysAuthorization()
         } else if status == .authorizedAlways || status == .authorizedWhenInUse {
-            locationManager?.startMonitoringSignificantLocationChanges()
-            locationManager?.startUpdatingLocation()
-            print("[Background] Location monitoring started")
+            locationManager.startUpdatingLocation()
+            locationManager.startMonitoringSignificantLocationChanges()
+            startMotionUpdates()
+            print("[Monitor] Location updates started")
         }
     }
 
-    private func stopBackgroundLocationMonitoring() {
-        print("[Background] Stopping background location monitoring")
-        locationManager?.stopMonitoringSignificantLocationChanges()
-        locationManager?.stopUpdatingLocation()
-        locationManager = nil
+    private func stopMonitoring() {
+        print("[Monitor] Stopping...")
+        locationManager.stopUpdatingLocation()
+        locationManager.stopMonitoringSignificantLocationChanges()
+        motionManager.stopActivityUpdates()
+        stopDriveTracking()
     }
 
-    // MARK: - Active Trip Tracking (continuous GPS during trip)
-
-    private func startActiveTracking() {
-        guard !isActivelyTracking else {
-            print("[ActiveTracking] Already tracking")
+    private func startMotionUpdates() {
+        guard CMMotionActivityManager.isActivityAvailable() else {
+            print("[Motion] Activity not available on this device")
             return
         }
 
-        print("[ActiveTracking] Starting active trip tracking...")
-        isActivelyTracking = true
+        motionManager.startActivityUpdates(to: .main) { [weak self] activity in
+            guard let activity = activity else { return }
+            self?.handleMotionActivity(activity)
+        }
+        print("[Motion] Activity updates started")
+    }
 
-        // Upgrade location manager for continuous tracking
-        locationManager?.stopUpdatingLocation()
-        locationManager?.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager?.distanceFilter = kCLDistanceFilterNone  // Continuous updates
-        locationManager?.activityType = .automotiveNavigation
+    // MARK: - Motion Activity Handling
 
-        if #available(iOS 11.0, *) {
-            locationManager?.showsBackgroundLocationIndicator = true  // Blue bar - keeps app alive!
+    private func handleMotionActivity(_ activity: CMMotionActivity) {
+        let wasdriving = isDriving
+
+        if activity.automotive && activity.confidence != .low {
+            isDriving = true
+            if !wasdriving {
+                print("[Motion] Started DRIVING")
+                startDriveTracking()
+            }
+        } else if activity.stationary && activity.confidence != .low {
+            if isDriving {
+                print("[Motion] Stopped driving (stationary)")
+                // Don't immediately stop - wait for a few stationary readings
+                // The backend handles this via parked_count
+            }
+        } else if (activity.walking || activity.running) && activity.confidence != .low {
+            if isDriving {
+                print("[Motion] Stopped driving (walking/running)")
+                isDriving = false
+                stopDriveTracking()
+            }
+        }
+    }
+
+    // MARK: - Drive Tracking
+
+    private func startDriveTracking() {
+        guard !isActivelyTracking else {
+            print("[Drive] Already tracking")
+            return
         }
 
-        locationManager?.startUpdatingLocation()
+        isActivelyTracking = true
+        driveStartTime = Date()
 
-        // Start ping timer - send location every 60 seconds
+        // Switch to high accuracy FIRST
+        setHighAccuracy()
+
+        // Wait 2 sec for fresh GPS before first ping
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self, self.isActivelyTracking else { return }
+            if let location = self.locationManager.location {
+                self.callStartTripAPI(lat: location.coordinate.latitude, lng: location.coordinate.longitude)
+            }
+        }
+
+        // Start ping timer
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
-            self?.sendPingFromNative()
+            self?.sendPing()
         }
 
-        // Send initial ping
-        sendPingFromNative()
+        // Notify Flutter
+        backgroundChannel?.invokeMethod("onCarDetected", arguments: [
+            "deviceName": "Motion",
+            "latitude": lastLocation?.coordinate.latitude ?? 0,
+            "longitude": lastLocation?.coordinate.longitude ?? 0
+        ])
 
-        print("[ActiveTracking] Active tracking started with blue bar indicator")
+        print("[Drive] Tracking started")
     }
 
-    private func stopActiveTracking() {
-        guard isActivelyTracking else {
-            print("[ActiveTracking] Not tracking")
-            return
-        }
+    private func stopDriveTracking() {
+        guard isActivelyTracking else { return }
 
-        print("[ActiveTracking] Stopping active tracking...")
         isActivelyTracking = false
-
-        // Stop ping timer
         pingTimer?.invalidate()
         pingTimer = nil
+        setLowAccuracy()
 
-        // Downgrade to passive monitoring
-        locationManager?.stopUpdatingLocation()
-        locationManager?.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManager?.distanceFilter = 100
-
-        if #available(iOS 11.0, *) {
-            locationManager?.showsBackgroundLocationIndicator = false
+        // Send end event
+        if let location = lastLocation ?? locationManager.location {
+            callEndTripAPI(lat: location.coordinate.latitude, lng: location.coordinate.longitude)
         }
 
-        locationManager?.startMonitoringSignificantLocationChanges()
-        locationManager?.startUpdatingLocation()
+        // Notify Flutter
+        backgroundChannel?.invokeMethod("onTripEnded", arguments: ["status": "ended"])
 
-        print("[ActiveTracking] Reverted to passive monitoring")
+        print("[Drive] Tracking stopped")
     }
 
-    private func sendPingFromNative() {
+    private func sendPing() {
         guard isActivelyTracking else { return }
-        guard let location = locationManager?.location else {
-            print("[ActiveTracking] No location available for ping")
+        guard let location = locationManager.location else {
+            print("[Ping] No location available")
             return
         }
 
-        // Debounce - don't ping more than once per 50 seconds
+        // Debounce
         if let lastPing = lastPingTime, Date().timeIntervalSince(lastPing) < 50 {
-            print("[ActiveTracking] Ping debounced")
             return
         }
         lastPingTime = Date()
 
-        let lat = location.coordinate.latitude
-        let lng = location.coordinate.longitude
+        callPingAPI(lat: location.coordinate.latitude, lng: location.coordinate.longitude)
 
-        print("[ActiveTracking] Sending ping: \(lat), \(lng)")
-        callPingAPI(lat: lat, lng: lng)
-
-        // Also notify Flutter if it's alive
+        // Also notify Flutter
         backgroundChannel?.invokeMethod("onLocationUpdate", arguments: [
-            "latitude": lat,
-            "longitude": lng
+            "latitude": location.coordinate.latitude,
+            "longitude": location.coordinate.longitude
         ])
-    }
-
-    private func callPingAPI(lat: Double, lng: Double) {
-        guard let baseUrl = apiBaseUrl, let email = userEmail, !email.isEmpty else {
-            print("[Native API] No API config for ping")
-            return
-        }
-
-        let urlString = "\(baseUrl)/webhook/ping?user=\(email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email)"
-
-        guard let url = URL(string: urlString) else {
-            print("[Native API] Invalid ping URL")
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: Any] = ["lat": lat, "lng": lng]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        print("[Native API] Ping: \(lat), \(lng)")
-
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("[Native API] Ping error: \(error.localizedDescription)")
-                return
-            }
-
-            if let httpResponse = response as? HTTPURLResponse {
-                print("[Native API] Ping response: \(httpResponse.statusCode)")
-
-                // Check if trip ended
-                if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let status = json["status"] as? String {
-                    if status == "finalized" || status == "cancelled" || status == "skipped" {
-                        print("[Native API] Trip ended: \(status)")
-                        DispatchQueue.main.async { [weak self] in
-                            self?.stopActiveTracking()
-                            self?.backgroundChannel?.invokeMethod("onTripEnded", arguments: ["status": status])
-                        }
-                    }
-                }
-            }
-        }
-        task.resume()
     }
 
     // MARK: - CLLocationManagerDelegate
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        print("[Background] Location update: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+        lastLocation = location
 
-        // Check Bluetooth status on every location update
-        checkBluetoothAndNotify()
-
-        // Also check CarPlay
-        checkCarPlayStatus()
-        if isCarPlayConnected {
-            print("[Background] CarPlay is connected!")
-            carPlayChannel?.invokeMethod("onCarPlayConnected", arguments: nil)
+        // During active tracking, send pings on significant movement
+        if isActivelyTracking {
+            sendPing()
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("[Background] Location error: \(error.localizedDescription)")
+        print("[Location] Error: \(error.localizedDescription)")
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -350,192 +298,106 @@ import CoreLocation
         } else {
             status = CLLocationManager.authorizationStatus()
         }
-        print("[Background] Authorization changed: \(status.rawValue)")
+        print("[Location] Authorization: \(status.rawValue)")
 
         if status == .authorizedAlways || status == .authorizedWhenInUse {
-            manager.startMonitoringSignificantLocationChanges()
             manager.startUpdatingLocation()
-            print("[Background] Location monitoring started after authorization")
+            manager.startMonitoringSignificantLocationChanges()
+            startMotionUpdates()
         }
     }
 
-    // MARK: - Bluetooth Check
+    // MARK: - API Calls
 
-    private func checkBluetoothAndNotify() {
-        let deviceName = getBluetoothDeviceName()
-        let isConnected = deviceName != nil
-
-        print("[Background] Bluetooth check - Device: \(deviceName ?? "none"), wasConnected: \(wasBluetoothConnected), isConnected: \(isConnected)")
-
-        if isConnected && !wasBluetoothConnected {
-            print("[Background] Bluetooth just connected to: \(deviceName!)")
-            lastBluetoothDevice = deviceName
-            wasBluetoothConnected = true
-
-            let lat = locationManager?.location?.coordinate.latitude ?? 0
-            let lng = locationManager?.location?.coordinate.longitude ?? 0
-
-            // DIRECT API CALL - doesn't rely on Flutter being awake
-            callStartTripAPI(deviceName: deviceName!, lat: lat, lng: lng)
-
-            // Start active tracking for continuous GPS during trip
-            startActiveTracking()
-
-            // Also try Flutter (might be awake)
-            bluetoothChannel?.invokeMethod("onBluetoothConnected", arguments: ["deviceName": deviceName!])
-            backgroundChannel?.invokeMethod("onCarDetected", arguments: [
-                "deviceName": deviceName!,
-                "latitude": lat,
-                "longitude": lng
-            ])
-        } else if !isConnected && wasBluetoothConnected {
-            print("[Background] Bluetooth disconnected")
-            lastBluetoothDevice = nil
-            wasBluetoothConnected = false
-            bluetoothChannel?.invokeMethod("onBluetoothDisconnected", arguments: nil)
-        }
-    }
-
-    private func checkCarPlayStatus() {
-        isCarPlayConnected = UIScreen.screens.count > 1
-    }
-
-    @objc private func screenDidConnect(_ notification: Notification) {
-        guard let screen = notification.object as? UIScreen else { return }
-        if screen != UIScreen.main {
-            isCarPlayConnected = true
-            print("CarPlay connected!")
-            carPlayChannel?.invokeMethod("onCarPlayConnected", arguments: nil)
-        }
-    }
-
-    @objc private func screenDidDisconnect(_ notification: Notification) {
-        guard let screen = notification.object as? UIScreen else { return }
-        if screen != UIScreen.main {
-            isCarPlayConnected = false
-            print("CarPlay disconnected!")
-            carPlayChannel?.invokeMethod("onCarPlayDisconnected", arguments: nil)
-        }
-    }
-
-    // MARK: - Bluetooth Audio Detection
-
-    private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
-            try session.setActive(true)
-
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(audioRouteChanged),
-                name: AVAudioSession.routeChangeNotification,
-                object: nil
-            )
-
-            checkBluetoothConnection()
-        } catch {
-            print("Failed to setup audio session: \(error)")
-        }
-    }
-
-    private func checkBluetoothConnection() {
-        let deviceName = getBluetoothDeviceName()
-        if deviceName != lastBluetoothDevice {
-            lastBluetoothDevice = deviceName
-            wasBluetoothConnected = deviceName != nil
-            if let name = deviceName {
-                print("Bluetooth connected: \(name)")
-                bluetoothChannel?.invokeMethod("onBluetoothConnected", arguments: ["deviceName": name])
-            } else if lastBluetoothDevice != nil {
-                print("Bluetooth disconnected")
-                bluetoothChannel?.invokeMethod("onBluetoothDisconnected", arguments: nil)
-            }
-        }
-    }
-
-    private func getBluetoothDeviceName() -> String? {
-        let session = AVAudioSession.sharedInstance()
-        let currentRoute = session.currentRoute
-
-        for output in currentRoute.outputs {
-            let portType = output.portType
-            if portType == .bluetoothA2DP || portType == .bluetoothHFP || portType == .bluetoothLE || portType == .carAudio {
-                return output.portName
-            }
-        }
-
-        for input in currentRoute.inputs {
-            let portType = input.portType
-            if portType == .bluetoothHFP {
-                return input.portName
-            }
-        }
-
-        return nil
-    }
-
-    @objc private func audioRouteChanged(_ notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
-            return
-        }
-
-        switch reason {
-        case .newDeviceAvailable, .oldDeviceUnavailable, .categoryChange, .override, .routeConfigurationChange:
-            checkBluetoothConnection()
-            checkBluetoothAndNotify()
-        default:
-            break
-        }
-    }
-
-    // MARK: - Direct API Call (bypasses Flutter for reliability)
-
-    private func callStartTripAPI(deviceName: String, lat: Double, lng: Double) {
+    private func callStartTripAPI(lat: Double, lng: Double) {
         guard let baseUrl = apiBaseUrl, let email = userEmail, !email.isEmpty else {
-            print("[Native API] No API config set, skipping direct call")
+            print("[API] No config")
             return
         }
 
-        // Debounce - don't call more than once per 30 seconds
+        // Debounce
         if let lastCall = lastApiCallTime, Date().timeIntervalSince(lastCall) < 30 {
-            print("[Native API] Debounced - called recently")
+            print("[API] Debounced")
             return
         }
         lastApiCallTime = Date()
 
-        let urlString = "\(baseUrl)/webhook/start?user=\(email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email)&device_id=\(deviceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? deviceName)"
-
-        guard let url = URL(string: urlString) else {
-            print("[Native API] Invalid URL: \(urlString)")
-            return
-        }
+        let urlString = "\(baseUrl)/webhook/ping?user=\(email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email)"
+        guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(email, forHTTPHeaderField: "X-User-Email")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
-        let body: [String: Any] = ["lat": lat, "lng": lng]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        print("[API] Start trip: \(lat), \(lng)")
 
-        print("[Native API] Calling: \(urlString)")
-
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("[Native API] Error: \(error.localizedDescription)")
+                print("[API] Error: \(error.localizedDescription)")
+                return
+            }
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[API] Response: \(httpResponse.statusCode)")
+            }
+        }.resume()
+    }
+
+    private func callPingAPI(lat: Double, lng: Double) {
+        guard let baseUrl = apiBaseUrl, let email = userEmail, !email.isEmpty else { return }
+
+        let urlString = "\(baseUrl)/webhook/ping?user=\(email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email)"
+        guard let url = URL(string: urlString) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
+
+        print("[API] Ping: \(lat), \(lng)")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error = error {
+                print("[API] Ping error: \(error.localizedDescription)")
                 return
             }
 
-            if let httpResponse = response as? HTTPURLResponse {
-                print("[Native API] Response: \(httpResponse.statusCode)")
-                if let data = data, let body = String(data: data, encoding: .utf8) {
-                    print("[Native API] Body: \(body)")
+            // Check if trip ended by backend
+            if let data = data,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let status = json["status"] as? String {
+                if status == "finalized" || status == "cancelled" || status == "skipped" {
+                    print("[API] Trip ended by backend: \(status)")
+                    DispatchQueue.main.async {
+                        self?.isDriving = false
+                        self?.stopDriveTracking()
+                    }
                 }
             }
-        }
-        task.resume()
+        }.resume()
+    }
+
+    private func callEndTripAPI(lat: Double, lng: Double) {
+        guard let baseUrl = apiBaseUrl, let email = userEmail, !email.isEmpty else { return }
+
+        let urlString = "\(baseUrl)/webhook/end?user=\(email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email)"
+        guard let url = URL(string: urlString) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
+
+        print("[API] End trip: \(lat), \(lng)")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("[API] End error: \(error.localizedDescription)")
+                return
+            }
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[API] End response: \(httpResponse.statusCode)")
+            }
+        }.resume()
     }
 }

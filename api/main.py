@@ -508,12 +508,25 @@ def check_car_driving_status(car_info: dict) -> dict | None:
         return None
 
 
-def find_driving_car(user_id: str) -> dict | None:
-    """Find which car (if any) is currently driving"""
+def find_driving_car(user_id: str, preferred_car_id: str | None = None) -> dict | None:
+    """Find which car (if any) is currently driving. Checks preferred car first."""
     cars = get_cars_with_credentials(user_id)
-    logger.info(f"Checking {len(cars)} cars for driving status")
+    logger.info(f"Checking {len(cars)} cars for driving status, preferred: {preferred_car_id}")
 
+    # Check preferred car first (from device mapping or explicit car_id)
+    if preferred_car_id:
+        preferred_car = next((c for c in cars if c["car_id"] == preferred_car_id), None)
+        if preferred_car:
+            status = check_car_driving_status(preferred_car)
+            if status and status["is_driving"]:
+                logger.info(f"Preferred car is driving: {status['name']} ({status['car_id']})")
+                return status
+            logger.info(f"Preferred car {preferred_car_id} is not driving, checking others")
+
+    # Fall back to checking all cars
     for car_info in cars:
+        if car_info["car_id"] == preferred_car_id:
+            continue  # Already checked
         status = check_car_driving_status(car_info)
         if status and status["is_driving"]:
             logger.info(f"Found driving car: {status['name']} ({status['car_id']})")
@@ -574,8 +587,8 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
     start_odo = cache.get("start_odo")
 
     if start_odo is None:
-        # First phase: find which car is driving
-        driving_car = find_driving_car(user_id)
+        # First phase: find which car is driving (prefer car from device mapping)
+        driving_car = find_driving_car(user_id, cache.get("car_id"))
 
         if not driving_car:
             no_driving_count = cache.get("no_driving_count", 0) + 1
@@ -599,8 +612,9 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
         cache["no_driving_count"] = 0
         cache["parked_count"] = 0
 
+        # Store Audi GPS - this is the LAST PARKED position = trip start!
         if driving_car.get("lat") and driving_car.get("lng"):
-            cache["gps_trail"] = [{"lat": driving_car["lat"], "lng": driving_car["lng"], "timestamp": timestamp}]
+            cache["audi_start_gps"] = {"lat": driving_car["lat"], "lng": driving_car["lng"], "timestamp": timestamp}
             cache["audi_gps"] = {"lat": driving_car["lat"], "lng": driving_car["lng"], "timestamp": timestamp}
 
         set_trip_cache(cache, user_id)
@@ -648,16 +662,17 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
         logger.warning(f"Odometer went backwards: {current_odo} < {last_odo} - ignoring bad data")
         current_odo = last_odo  # Use last known good value
 
-    # Track parked count
-    if is_parked or current_odo == last_odo:
+    # Track parked count - only if car state is actually PARKED (not just slow driving)
+    if is_parked:
         cache["parked_count"] = cache.get("parked_count", 0) + 1
     else:
         cache["parked_count"] = 0
         cache["skip_pause_count"] = 0  # Reset skip location counter when moving
-        cache["last_odo"] = current_odo
-        # Clear end_triggered only if car is actually moving (odometer increased)
+        if current_odo != last_odo:
+            cache["last_odo"] = current_odo
+        # Clear end_triggered if car is not parked (still driving)
         if cache.get("end_triggered"):
-            logger.info(f"Clearing end_triggered - car is moving, continuing trip")
+            logger.info(f"Clearing end_triggered - car is not parked, continuing trip")
             cache["end_triggered"] = None
 
     parked_count = cache.get("parked_count", 0)
@@ -673,29 +688,33 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
             set_trip_cache(None, user_id)
             return {"status": "skipped", "reason": "zero_or_negative_km", "user": user_id}
 
-        # Check if parked at skip location (but don't wait forever - max 6 pings ~30min)
+        # At skip location (daycare) - NEVER finalize, always wait for user to continue
         if car_gps and is_skip_location(car_gps["lat"], car_gps["lng"]):
             skip_pause_count = cache.get("skip_pause_count", 0) + 1
             cache["skip_pause_count"] = skip_pause_count
-            if skip_pause_count < 6:
-                logger.info(f"Parked at skip location - pausing ({skip_pause_count}/6). Total km: {total_km}")
-                set_trip_cache(cache, user_id)
-                return {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
-            else:
-                logger.info(f"Skip location timeout after {skip_pause_count} pings - finalizing anyway")
+            logger.info(f"Parked at skip location - waiting indefinitely ({skip_pause_count} pings). Total km: {total_km}")
+            set_trip_cache(cache, user_id)
+            return {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
 
         # Finalize trip
         logger.info(f"Trip complete! {total_km} km driven")
-        start_gps = gps_events[0] if gps_events else None
+        # Start: Audi last parked position, Trail: iPhone, End: Audi current parked
+        audi_start = cache.get("audi_start_gps")
+        start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
         if not start_gps:
-            logger.warning("No start GPS from iPhone")
+            logger.warning("No start GPS")
             set_trip_cache(None, user_id)
             return {"status": "skipped", "reason": "no_start_gps", "user": user_id}
 
         if not car_gps:
-            logger.warning("No end GPS from car")
-            set_trip_cache(None, user_id)
-            return {"status": "skipped", "reason": "no_end_gps", "user": user_id}
+            # Fallback to last iPhone GPS if car GPS unavailable
+            if gps_events:
+                car_gps = gps_events[-1]
+                logger.info(f"Using iPhone GPS as fallback for end location")
+            else:
+                logger.warning("No end GPS from car or iPhone")
+                set_trip_cache(None, user_id)
+                return {"status": "skipped", "reason": "no_end_gps", "user": user_id}
 
         trip_result = finalize_trip_from_audi(
             start_gps=start_gps,
@@ -703,7 +722,7 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
             start_odo=start_odo,
             end_odo=current_odo,
             start_time=cache.get("start_time"),
-            gps_trail=cache.get("gps_trail", []),
+            gps_trail=gps_events,  # iPhone trail for route visualization
             user_id=user_id,
             car_id=assigned_car_id,
         )
@@ -754,7 +773,7 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
 
     # If we never got odometer data, try one more time
     if start_odo is None:
-        driving_car = find_driving_car(user_id)
+        driving_car = find_driving_car(user_id, assigned_car_id)
         if driving_car:
             cache["car_id"] = driving_car["car_id"]
             cache["car_name"] = driving_car["name"]
@@ -797,7 +816,9 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
                         set_trip_cache(cache, user_id)
                         return {"status": "paused_at_skip", "total_km": total_km, "user": user_id}
 
-                    start_gps = gps_events[0] if gps_events else None
+                    # Start: Audi last parked position
+                    audi_start = cache.get("audi_start_gps")
+                    start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
                     if start_gps and car_gps:
                         logger.info(f"End event: finalizing trip, {total_km} km")
                         trip_result = finalize_trip_from_audi(
@@ -806,7 +827,7 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
                             start_odo=start_odo,
                             end_odo=current_odo,
                             start_time=cache.get("start_time"),
-                            gps_trail=cache.get("gps_trail", []),
+                            gps_trail=gps_events,  # iPhone trail
                             user_id=user_id,
                             car_id=assigned_car_id,
                         )
@@ -2518,7 +2539,7 @@ def check_stale_trips():
 
         # If we never got odometer, try to get it now
         if start_odo is None or not assigned_car_id:
-            driving_car = find_driving_car(user_id)
+            driving_car = find_driving_car(user_id, assigned_car_id)
             if driving_car:
                 cache["car_id"] = driving_car["car_id"]
                 cache["car_name"] = driving_car["name"]
@@ -2560,7 +2581,9 @@ def check_stale_trips():
 
         total_km = current_odo - start_odo
         car_gps = cache.get("audi_gps")
-        start_gps = gps_events[0]
+        # Start: Audi last parked position
+        audi_start = cache.get("audi_start_gps")
+        start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
 
         if total_km <= 0:
             logger.info(f"Safety net: skipping trip for {user_id} - {total_km} km (zero or negative)")
@@ -2580,7 +2603,7 @@ def check_stale_trips():
             start_odo=start_odo,
             end_odo=current_odo,
             start_time=cache.get("start_time"),
-            gps_trail=cache.get("gps_trail", []),
+            gps_trail=gps_events,  # iPhone trail
             user_id=user_id,
             car_id=assigned_car_id,
         )

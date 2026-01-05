@@ -48,7 +48,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We hebben je locatie nodig om ritten te registreren.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We hebben je locatie nodig om automatisch te detecteren wanneer je in de auto stapt, ook als de app is afgesloten.</string>
+	<string>We hebben je locatie nodig om automatisch te detecteren wanneer je rijdt, ook als de app is afgesloten.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>We gebruiken bewegingssensoren om te detecteren wanneer je in een auto rijdt.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>We gebruiken Bluetooth om te detecteren wanneer je verbinding maakt met je auto.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

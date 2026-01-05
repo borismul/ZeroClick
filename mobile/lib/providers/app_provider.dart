@@ -43,6 +43,12 @@ class AppProvider extends ChangeNotifier {
   String? _connectedBluetoothDevice;
   String? _pendingUnknownDevice; // Device waiting to be linked to a car
 
+  // Loading states for each section (start true so spinners show on boot)
+  bool _isLoadingCars = true;
+  bool _isLoadingCarData = true;
+  bool _isLoadingStats = true;
+  bool _isLoadingTrips = true;
+
   // Multi-car state
   List<Car> _cars = [];
   Car? _selectedCar; // Selected car (required, auto-selects default)
@@ -62,6 +68,10 @@ class AppProvider extends ChangeNotifier {
   Stats? get stats => _stats;
   CarData? get carData => _carData;
   bool get isLoading => _isLoading;
+  bool get isLoadingCars => _isLoadingCars;
+  bool get isLoadingCarData => _isLoadingCarData;
+  bool get isLoadingStats => _isLoadingStats;
+  bool get isLoadingTrips => _isLoadingTrips;
   String? get error => _error;
   int get queueLength => _queueLength;
   bool get isOnline => _isOnline;
@@ -75,7 +85,7 @@ class AppProvider extends ChangeNotifier {
   List<Car> get cars => _cars;
   Car? get selectedCar => _selectedCar;
   String? get selectedCarId => _selectedCarId;
-  Car? get defaultCar => _cars.firstWhere((c) => c.isDefault, orElse: () => _cars.isNotEmpty ? _cars.first : Car(id: '', name: ''));
+  Car? get defaultCar => _cars.isEmpty ? null : _cars.firstWhere((c) => c.isDefault, orElse: () => _cars.first);
 
   // Navigation getter
   int get navigationIndex => _navigationIndex;
@@ -367,11 +377,11 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshTrips() async {
     if (!isConfigured) return;
 
+    _isLoadingTrips = true;
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Use selected car or default car for filtering
       final carId = _selectedCarId ?? defaultCar?.id;
       _trips = await _api.getTripsForCar(carId);
       _error = null;
@@ -380,6 +390,7 @@ class AppProvider extends ChangeNotifier {
       _error = 'Kon ritten niet laden';
     }
 
+    _isLoadingTrips = false;
     _isLoading = false;
     notifyListeners();
   }
@@ -387,14 +398,18 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshStats() async {
     if (!isConfigured) return;
 
+    _isLoadingStats = true;
+    notifyListeners();
+
     try {
-      // Use selected car or default car for filtering
       final carId = _selectedCarId ?? defaultCar?.id;
       _stats = await _api.getStatsForCar(carId);
       _error = null;
     } catch (e) {
       print('Error refreshing stats: $e');
     }
+
+    _isLoadingStats = false;
     notifyListeners();
   }
 
@@ -451,9 +466,14 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshCarData() async {
     if (!isConfigured) return;
 
+    _isLoadingCarData = true;
+    notifyListeners();
+
     try {
-      // Use selected car or default car for data
-      final carId = _selectedCarId ?? defaultCar?.id;
+      var carId = _selectedCarId;
+      if (carId == null || carId.isEmpty) {
+        carId = _cars.isNotEmpty ? _cars.first.id : null;
+      }
       if (carId != null && carId.isNotEmpty) {
         _carData = await _api.getCarDataById(carId);
       } else {
@@ -464,17 +484,22 @@ class AppProvider extends ChangeNotifier {
       print('Error refreshing car data: $e');
       _carData = null;
     }
+
+    _isLoadingCarData = false;
     notifyListeners();
   }
 
   Future<void> refreshAll() async {
+    // First load cars to set selectedCarId
+    await refreshCars();
+    // Then load trips and stats in parallel
     await Future.wait([
       refreshActiveTrip(),
       refreshTrips(),
       refreshStats(),
-      refreshCarData(),
-      refreshCars(),
     ]);
+    // Car data last - needs cars loaded and is slow (Audi API)
+    await refreshCarData();
   }
 
   // ============ Multi-Car Management ============
@@ -482,22 +507,27 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshCars() async {
     if (!isConfigured) return;
 
+    _isLoadingCars = true;
+    notifyListeners();
+
     try {
       _cars = await _api.getCars();
       _error = null;
 
       // Auto-select default car if none selected
       if (_selectedCarId == null && _cars.isNotEmpty) {
-        final defaultCar = _cars.firstWhere(
+        final car = _cars.firstWhere(
           (c) => c.isDefault,
           orElse: () => _cars.first,
         );
-        _selectedCar = defaultCar;
-        _selectedCarId = defaultCar.id;
+        _selectedCar = car;
+        _selectedCarId = car.id;
       }
     } catch (e) {
       print('Error refreshing cars: $e');
     }
+
+    _isLoadingCars = false;
     notifyListeners();
   }
 

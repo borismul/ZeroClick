@@ -149,19 +149,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const CarSelector(),
 
               // Car status
-              if (provider.carData != null)
+              if (provider.isLoadingCarData)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (provider.carData != null)
                 CarStatusCard(carData: provider.carData!),
 
               const SizedBox(height: 24),
 
               // Stats
-              if (provider.stats != null)
+              if (provider.isLoadingStats)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (provider.stats != null)
                 StatsCards(stats: provider.stats!),
 
               const SizedBox(height: 24),
 
               // Recent trips
-              _buildRecentTrips(provider),
+              if (provider.isLoadingTrips)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else
+                _buildRecentTrips(provider),
             ],
           ),
         );
