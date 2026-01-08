@@ -5,7 +5,7 @@ mileage-tracker API - Firestore + Export to Sheets
 import os
 import math
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from typing import Optional
 from collections.abc import Sequence
@@ -118,7 +118,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     # Paths that don't require auth
     PUBLIC_PATHS = {"/", "/auth/status", "/docs", "/openapi.json", "/redoc", "/audi/check-trip", "/audi/odometer-now", "/trips/full"}
     # Path prefixes that don't require auth
-    PUBLIC_PREFIXES = ("/webhook/",)
+    PUBLIC_PREFIXES = ("/webhook/", "/charging/")
 
     async def dispatch(self, request: Request, call_next):
         # Skip auth for OPTIONS requests (CORS preflight)
@@ -328,6 +328,7 @@ class Trip(BaseModel):
     google_maps_km: float | None = None  # Shortest route distance from Google Maps
     route_deviation_percent: float | None = None  # How much longer than Google Maps route (%)
     route_flag: str | None = None  # "long_route" if significantly longer than Google Maps
+    distance_source: str | None = None  # "odometer", "osrm", or "gps" - how distance was calculated
 
 
 class TripUpdate(BaseModel):
@@ -437,9 +438,13 @@ def get_cars_with_credentials(user_id: str) -> list[dict]:
         creds_doc = cars_ref.document(car_id).collection("credentials").document("api").get()
         if creds_doc.exists:
             creds = creds_doc.to_dict()
-            if creds.get("username") and creds.get("password"):
+            # Support both username/password and OAuth-based auth
+            has_password_auth = creds.get("username") and creds.get("password")
+            has_oauth_auth = creds.get("oauth_completed") and creds.get("access_token")
+            if has_password_auth or has_oauth_auth:
                 cars_with_creds.append({
                     "car_id": car_id,
+                    "user_id": user_id,
                     "name": car_data.get("name", car_id),
                     "brand": creds.get("brand", car_data.get("brand", "")).lower(),
                     "credentials": creds,
@@ -450,7 +455,7 @@ def get_cars_with_credentials(user_id: str) -> list[dict]:
 
 def check_car_driving_status(car_info: dict) -> dict | None:
     """Check if a specific car is driving. Returns car data if driving, None if parked/error."""
-    from car_providers import VWGroupProvider, RenaultProvider, VW_GROUP_BRANDS
+    from car_providers import AudiProvider, VWGroupProvider, RenaultProvider, VW_GROUP_BRANDS, VehicleState
 
     creds = car_info["credentials"]
     brand = car_info["brand"]
@@ -463,7 +468,30 @@ def check_car_driving_status(car_info: dict) -> dict | None:
                 locale=creds.get("locale", "nl_NL"),
                 vin=creds.get("vin"),
             )
+        elif brand == "audi":
+            # Audi uses OAuth only
+            if not creds.get("oauth_completed") or not creds.get("access_token"):
+                logger.warning(f"Audi car {car_info['car_id']} has no OAuth tokens")
+                return None
+
+            expires_at = creds.get("expires_at")
+            if isinstance(expires_at, str):
+                try:
+                    expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00")).timestamp()
+                except:
+                    expires_at = None
+
+            provider = AudiProvider(
+                country=creds.get("country", "NL"),
+                vin=creds.get("vin"),
+                access_token=creds["access_token"],
+                id_token=creds.get("id_token"),
+                token_type=creds.get("token_type", "bearer"),
+                expires_at=expires_at,
+                refresh_token=creds.get("refresh_token"),
+            )
         elif brand in VW_GROUP_BRANDS:
+            # Use VWGroupProvider for other VW Group brands
             provider = VWGroupProvider(
                 brand=brand,
                 username=creds["username"],
@@ -476,21 +504,57 @@ def check_car_driving_status(car_info: dict) -> dict | None:
             return None
 
         data = provider.get_data()
+
+        # Save refreshed tokens back to Firestore (for Audi OAuth)
+        if brand == "audi" and hasattr(provider, 'get_tokens'):
+            new_tokens = provider.get_tokens()
+            if new_tokens and new_tokens.get("refresh_token"):
+                try:
+                    user_id = car_info.get("user_id")
+                    car_id = car_info["car_id"]
+                    if user_id:
+                        db = get_db()
+                        creds_ref = db.collection("users").document(user_id).collection("cars").document(car_id).collection("credentials").document("api")
+                        creds_ref.update({
+                            "access_token": new_tokens["access_token"],
+                            "id_token": new_tokens["id_token"],
+                            "expires_at": new_tokens["expires_at"],
+                            "refresh_token": new_tokens["refresh_token"],
+                            "updated_at": datetime.utcnow().isoformat(),
+                        })
+                        logger.info(f"Saved refreshed Audi tokens for car {car_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save refreshed tokens: {e}")
+
         provider.disconnect()
 
-        raw = data.raw_data or {}
-
-        # Get vehicle state
-        vehicle_state = raw.get("state", {}).get("val", "unknown")
-        is_parked = "parked" in str(vehicle_state).lower()
+        # Handle state from CarData
+        if data.state == VehicleState.PARKED:
+            is_parked = True
+            vehicle_state = "parked"
+        elif data.state == VehicleState.DRIVING:
+            is_parked = False
+            vehicle_state = "driving"
+        elif data.state == VehicleState.CHARGING:
+            is_parked = True
+            vehicle_state = "charging"
+        else:
+            # Fallback: check raw data for legacy providers
+            raw = data.raw_data or {}
+            vehicle_state = raw.get("state", {}).get("val", "unknown")
+            is_parked = "parked" in str(vehicle_state).lower()
 
         # Get odometer
         odometer = data.odometer_km
 
-        # Get GPS position
-        position = raw.get("position", {})
-        lat = position.get("latitude", {}).get("val")
-        lng = position.get("longitude", {}).get("val")
+        # Get GPS position - use data fields directly (new providers) or fallback to raw (legacy)
+        lat = data.latitude
+        lng = data.longitude
+        if lat is None or lng is None:
+            raw = data.raw_data or {}
+            position = raw.get("position", {})
+            lat = lat or position.get("latitude", {}).get("val")
+            lng = lng or position.get("longitude", {}).get("val")
 
         return {
             "car_id": car_info["car_id"],
@@ -505,35 +569,89 @@ def check_car_driving_status(car_info: dict) -> dict | None:
 
     except Exception as e:
         logger.error(f"Error checking car {car_info['car_id']}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 
-def find_driving_car(user_id: str, preferred_car_id: str | None = None) -> dict | None:
-    """Find which car (if any) is currently driving. Checks preferred car first."""
+def save_last_parked_gps(user_id: str, car_id: str, lat: float, lng: float, timestamp: str):
+    """Save the last parked GPS position for a car"""
+    try:
+        db = get_db()
+        db.collection("users").document(user_id).collection("cars").document(car_id).update({
+            "last_parked_lat": lat,
+            "last_parked_lng": lng,
+            "last_parked_at": timestamp,
+        })
+        logger.info(f"Saved last parked GPS for {car_id}: {lat}, {lng}")
+    except Exception as e:
+        logger.error(f"Failed to save last parked GPS: {e}")
+
+
+def get_last_parked_gps(user_id: str, car_id: str) -> dict | None:
+    """Get the last parked GPS position for a car"""
+    try:
+        db = get_db()
+        car_doc = db.collection("users").document(user_id).collection("cars").document(car_id).get()
+        if car_doc.exists:
+            data = car_doc.to_dict()
+            if data.get("last_parked_lat") and data.get("last_parked_lng"):
+                return {
+                    "lat": data["last_parked_lat"],
+                    "lng": data["last_parked_lng"],
+                    "timestamp": data.get("last_parked_at", ""),
+                }
+    except Exception as e:
+        logger.error(f"Failed to get last parked GPS: {e}")
+    return None
+
+
+def find_driving_car(user_id: str) -> tuple[dict | None, str]:
+    """Find which car (if any) is currently driving.
+
+    Returns:
+        tuple: (car_status, reason) where reason is one of:
+            - "driving": car is driving (car_status contains car info)
+            - "parked": checked cars but none driving
+            - "no_cars": no cars configured with credentials
+            - "api_error": all API checks failed
+    """
     cars = get_cars_with_credentials(user_id)
-    logger.info(f"Checking {len(cars)} cars for driving status, preferred: {preferred_car_id}")
+    logger.info(f"Checking {len(cars)} cars for driving status")
+    timestamp = datetime.utcnow().isoformat() + "Z"
 
-    # Check preferred car first (from device mapping or explicit car_id)
-    if preferred_car_id:
-        preferred_car = next((c for c in cars if c["car_id"] == preferred_car_id), None)
-        if preferred_car:
-            status = check_car_driving_status(preferred_car)
-            if status and status["is_driving"]:
-                logger.info(f"Preferred car is driving: {status['name']} ({status['car_id']})")
-                return status
-            logger.info(f"Preferred car {preferred_car_id} is not driving, checking others")
+    if not cars:
+        logger.info("No cars with credentials configured")
+        return None, "no_cars"
 
-    # Fall back to checking all cars
+    api_errors = 0
     for car_info in cars:
-        if car_info["car_id"] == preferred_car_id:
-            continue  # Already checked
         status = check_car_driving_status(car_info)
-        if status and status["is_driving"]:
-            logger.info(f"Found driving car: {status['name']} ({status['car_id']})")
-            return status
+        if not status:
+            api_errors += 1
+            continue
+
+        # If parked with GPS, save it for future trip starts
+        if status["is_parked"] and status.get("lat") and status.get("lng"):
+            save_last_parked_gps(user_id, car_info["car_id"], status["lat"], status["lng"], timestamp)
+
+        if status["is_driving"]:
+            # Add last parked GPS to status for trip start
+            last_parked = get_last_parked_gps(user_id, car_info["car_id"])
+            if last_parked:
+                status["last_parked_gps"] = last_parked
+                logger.info(f"Found driving car: {status['name']} with last parked GPS: {last_parked['lat']}, {last_parked['lng']}")
+            else:
+                logger.info(f"Found driving car: {status['name']} (no last parked GPS)")
+            return status, "driving"
+
+    # All cars failed API check
+    if api_errors == len(cars):
+        logger.warning(f"All {api_errors} car API checks failed")
+        return None, "api_error"
 
     logger.info("No cars are driving")
-    return None
+    return None, "parked"
 
 
 # === Endpoints ===
@@ -585,21 +703,36 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
 
     # Check car status on each ping
     start_odo = cache.get("start_odo")
+    gps_only_mode = cache.get("gps_only_mode", False)
 
-    if start_odo is None:
-        # First phase: find which car is driving (prefer car from device mapping)
-        driving_car = find_driving_car(user_id, cache.get("car_id"))
+    if start_odo is None and not gps_only_mode:
+        # First phase: find which car is driving
+        driving_car, reason = find_driving_car(user_id)
 
         if not driving_car:
             no_driving_count = cache.get("no_driving_count", 0) + 1
+            api_error_count = cache.get("api_error_count", 0)
+            if reason in ("api_error", "no_cars"):
+                api_error_count += 1
+                cache["api_error_count"] = api_error_count
             cache["no_driving_count"] = no_driving_count
-            logger.info(f"No cars driving, count: {no_driving_count}/3")
+            logger.info(f"No cars driving, count: {no_driving_count}/3, reason: {reason}, api_errors: {api_error_count}")
 
             if no_driving_count >= 3:
-                # Cancel after 3 pings with no car driving
-                logger.info("No tracked car driving after 3 pings - cancelling trip")
-                set_trip_cache(None, user_id)
-                return {"status": "cancelled", "reason": "no_tracked_car_driving", "user": user_id}
+                # Check if we should fall back to GPS-only mode
+                if api_error_count >= 2:
+                    # API keeps failing - switch to GPS-only mode
+                    logger.info("Car API failing - switching to GPS-only mode")
+                    cache["gps_only_mode"] = True
+                    cache["no_driving_count"] = 0
+                    cache["api_error_count"] = 0
+                    set_trip_cache(cache, user_id)
+                    return {"status": "gps_only_mode", "reason": "car_api_unavailable", "user": user_id}
+                else:
+                    # Cancel after 3 pings with car confirmed not driving
+                    logger.info("No tracked car driving after 3 pings - cancelling trip")
+                    set_trip_cache(None, user_id)
+                    return {"status": "cancelled", "reason": "no_tracked_car_driving", "user": user_id}
 
             set_trip_cache(cache, user_id)
             return {"status": "waiting_for_car", "no_driving_count": no_driving_count, "user": user_id}
@@ -611,15 +744,23 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
         cache["last_odo"] = driving_car["odometer"]
         cache["no_driving_count"] = 0
         cache["parked_count"] = 0
+        cache["api_error_count"] = 0
 
-        # Store Audi GPS - this is the LAST PARKED position = trip start!
-        if driving_car.get("lat") and driving_car.get("lng"):
-            cache["audi_start_gps"] = {"lat": driving_car["lat"], "lng": driving_car["lng"], "timestamp": timestamp}
-            cache["audi_gps"] = {"lat": driving_car["lat"], "lng": driving_car["lng"], "timestamp": timestamp}
+        # Use last parked GPS as trip start (where car was before driving)
+        last_parked = driving_car.get("last_parked_gps")
+        if last_parked:
+            cache["gps_trail"] = [{"lat": last_parked["lat"], "lng": last_parked["lng"], "timestamp": last_parked.get("timestamp", timestamp)}]
+            logger.info(f"Trip start from last parked GPS: {last_parked['lat']}, {last_parked['lng']}")
 
         set_trip_cache(cache, user_id)
         logger.info(f"Trip assigned to {driving_car['name']}, start_odo={driving_car['odometer']}")
         return {"status": "trip_started", "car": driving_car["name"], "start_odo": driving_car["odometer"], "user": user_id}
+
+    # GPS-only mode: just collect GPS events, no car API checks
+    if gps_only_mode:
+        set_trip_cache(cache, user_id)
+        logger.info(f"GPS-only mode: collected {len(cache.get('gps_events', []))} GPS events")
+        return {"status": "gps_only_ping", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
 
     # Subsequent pings: check assigned car status
     assigned_car_id = cache.get("car_id")
@@ -632,9 +773,11 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
     car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
 
     if not car_info:
-        logger.warning(f"Car {assigned_car_id} not found - cancelling")
-        set_trip_cache(None, user_id)
-        return {"status": "cancelled", "reason": "car_not_found", "user": user_id}
+        # Car exists but credentials are missing - continue in GPS-only mode instead of cancelling
+        logger.warning(f"Car {assigned_car_id} has no credentials - continuing in GPS-only mode")
+        cache["gps_only_mode"] = True
+        set_trip_cache(cache, user_id)
+        return {"status": "gps_only_ping", "reason": "credentials_missing", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
 
     car_status = check_car_driving_status(car_info)
     if not car_status:
@@ -658,21 +801,23 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
         cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
 
     # Validate odometer (ignore if API returned stale/bad data)
-    if current_odo < last_odo:
+    if current_odo is not None and last_odo is not None and current_odo < last_odo:
         logger.warning(f"Odometer went backwards: {current_odo} < {last_odo} - ignoring bad data")
         current_odo = last_odo  # Use last known good value
 
-    # Track parked count - only if car state is actually PARKED (not just slow driving)
+    # Track parked count - ONLY when car API says parked (not odometer-based)
     if is_parked:
         cache["parked_count"] = cache.get("parked_count", 0) + 1
     else:
         cache["parked_count"] = 0
         cache["skip_pause_count"] = 0  # Reset skip location counter when moving
-        if current_odo != last_odo:
-            cache["last_odo"] = current_odo
-        # Clear end_triggered if car is not parked (still driving)
+
+    # Always update last_odo when it increases
+    if current_odo is not None and current_odo > cache.get("last_odo", 0):
+        cache["last_odo"] = current_odo
+        # Clear end_triggered only if car is actually moving (odometer increased)
         if cache.get("end_triggered"):
-            logger.info(f"Clearing end_triggered - car is not parked, continuing trip")
+            logger.info(f"Clearing end_triggered - car is moving, continuing trip")
             cache["end_triggered"] = None
 
     parked_count = cache.get("parked_count", 0)
@@ -688,33 +833,44 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
             set_trip_cache(None, user_id)
             return {"status": "skipped", "reason": "zero_or_negative_km", "user": user_id}
 
-        # At skip location (daycare) - NEVER finalize, always wait for user to continue
+        # Check if parked at skip location (but don't wait forever - max 6 pings ~30min)
         if car_gps and is_skip_location(car_gps["lat"], car_gps["lng"]):
             skip_pause_count = cache.get("skip_pause_count", 0) + 1
             cache["skip_pause_count"] = skip_pause_count
-            logger.info(f"Parked at skip location - waiting indefinitely ({skip_pause_count} pings). Total km: {total_km}")
-            set_trip_cache(cache, user_id)
-            return {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
+            if skip_pause_count < 6:
+                logger.info(f"Parked at skip location - pausing ({skip_pause_count}/6). Total km: {total_km}")
+                set_trip_cache(cache, user_id)
+                return {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
+            else:
+                logger.info(f"Skip location timeout after {skip_pause_count} pings - finalizing anyway")
 
         # Finalize trip
         logger.info(f"Trip complete! {total_km} km driven")
-        # Start: Audi last parked position, Trail: iPhone, End: Audi current parked
-        audi_start = cache.get("audi_start_gps")
-        start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
+
+        if not car_gps:
+            logger.warning("No end GPS from car")
+            set_trip_cache(None, user_id)
+            return {"status": "skipped", "reason": "no_end_gps", "user": user_id}
+
+        # Build GPS trail: Audi GPS at endpoints + phone GPS in between
+        phone_gps_trail = [
+            {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+            for e in gps_events if not e.get("is_skip")
+        ]
+        audi_trail = cache.get("gps_trail", [])
+        combined_trail = []
+        if audi_trail:
+            combined_trail.append(audi_trail[0])  # Audi start (parked) position
+        combined_trail.extend(phone_gps_trail)  # Phone pings during trip
+        if car_gps:
+            combined_trail.append(car_gps)  # Audi end (parked) position
+
+        # Use Audi start GPS for geocoding (parked location), fallback to first phone ping
+        start_gps = audi_trail[0] if audi_trail else (gps_events[0] if gps_events else None)
         if not start_gps:
             logger.warning("No start GPS")
             set_trip_cache(None, user_id)
             return {"status": "skipped", "reason": "no_start_gps", "user": user_id}
-
-        if not car_gps:
-            # Fallback to last iPhone GPS if car GPS unavailable
-            if gps_events:
-                car_gps = gps_events[-1]
-                logger.info(f"Using iPhone GPS as fallback for end location")
-            else:
-                logger.warning("No end GPS from car or iPhone")
-                set_trip_cache(None, user_id)
-                return {"status": "skipped", "reason": "no_end_gps", "user": user_id}
 
         trip_result = finalize_trip_from_audi(
             start_gps=start_gps,
@@ -722,7 +878,7 @@ def webhook_ping(loc: WebhookLocation, user: str | None = None, car_id: str | No
             start_odo=start_odo,
             end_odo=current_odo,
             start_time=cache.get("start_time"),
-            gps_trail=gps_events,  # iPhone trail for route visualization
+            gps_trail=combined_trail,
             user_id=user_id,
             car_id=assigned_car_id,
         )
@@ -770,10 +926,46 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
 
     start_odo = cache.get("start_odo")
     assigned_car_id = cache.get("car_id")
+    gps_only_mode = cache.get("gps_only_mode", False)
+
+    # GPS-only mode: finalize using GPS distance
+    if gps_only_mode:
+        logger.info("End event in GPS-only mode - finalizing with GPS distance")
+        phone_gps_trail = [
+            {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+            for e in gps_events if not e.get("is_skip")
+        ]
+
+        if len(phone_gps_trail) >= 2:
+            # Calculate distance from GPS trail
+            gps_distance = calculate_gps_distance(phone_gps_trail)
+            if gps_distance < 0.1:  # Less than 100m
+                logger.info(f"GPS-only mode: distance too short ({gps_distance:.2f} km) - skipping")
+                set_trip_cache(None, user_id)
+                return {"status": "skipped", "reason": "gps_distance_too_short", "user": user_id}
+
+            start_gps = phone_gps_trail[0]
+            end_gps = phone_gps_trail[-1]
+
+            trip_result = finalize_trip_from_gps(
+                start_gps=start_gps,
+                end_gps=end_gps,
+                gps_trail=phone_gps_trail,
+                gps_distance_km=gps_distance,
+                start_time=cache.get("start_time"),
+                user_id=user_id,
+                car_id=assigned_car_id,
+            )
+            set_trip_cache(None, user_id)
+            return {"status": "finalized_gps_only", "trip": trip_result, "distance_km": gps_distance, "user": user_id}
+        else:
+            logger.info("GPS-only mode: not enough GPS points - skipping")
+            set_trip_cache(None, user_id)
+            return {"status": "skipped", "reason": "not_enough_gps_points", "user": user_id}
 
     # If we never got odometer data, try one more time
     if start_odo is None:
-        driving_car = find_driving_car(user_id, assigned_car_id)
+        driving_car, reason = find_driving_car(user_id)
         if driving_car:
             cache["car_id"] = driving_car["car_id"]
             cache["car_name"] = driving_car["name"]
@@ -816,9 +1008,21 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
                         set_trip_cache(cache, user_id)
                         return {"status": "paused_at_skip", "total_km": total_km, "user": user_id}
 
-                    # Start: Audi last parked position
-                    audi_start = cache.get("audi_start_gps")
-                    start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
+                    # Build GPS trail: Audi GPS at endpoints + phone GPS in between
+                    phone_gps_trail = [
+                        {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+                        for e in gps_events if not e.get("is_skip")
+                    ]
+                    audi_trail = cache.get("gps_trail", [])
+                    combined_trail = []
+                    if audi_trail:
+                        combined_trail.append(audi_trail[0])  # Audi start (parked)
+                    combined_trail.extend(phone_gps_trail)
+                    if car_gps:
+                        combined_trail.append(car_gps)  # Audi end (parked)
+
+                    # Use Audi start GPS for geocoding, fallback to first phone ping
+                    start_gps = audi_trail[0] if audi_trail else (gps_events[0] if gps_events else None)
                     if start_gps and car_gps:
                         logger.info(f"End event: finalizing trip, {total_km} km")
                         trip_result = finalize_trip_from_audi(
@@ -827,7 +1031,7 @@ def webhook_end(loc: WebhookLocation, user: str | None = None):
                             start_odo=start_odo,
                             end_odo=current_odo,
                             start_time=cache.get("start_time"),
-                            gps_trail=gps_events,  # iPhone trail
+                            gps_trail=combined_trail,
                             user_id=user_id,
                             car_id=assigned_car_id,
                         )
@@ -1593,12 +1797,12 @@ def doc_to_trip(doc) -> Trip:
         from_lon=d.get("from_lon"),
         to_lat=d.get("to_lat"),
         to_lon=d.get("to_lon"),
-        distance_km=d.get("distance_km", 0),
-        trip_type=d.get("trip_type", "B"),
-        business_km=d.get("business_km", 0),
-        private_km=d.get("private_km", 0),
-        start_odo=d.get("start_odo", 0),
-        end_odo=d.get("end_odo", 0),
+        distance_km=d.get("distance_km") or 0,
+        trip_type=d.get("trip_type") or "B",
+        business_km=d.get("business_km") or 0,
+        private_km=d.get("private_km") or 0,
+        start_odo=d.get("start_odo") or 0,
+        end_odo=d.get("end_odo") or 0,
         notes=d.get("notes", ""),
         created_at=d.get("created_at", ""),
         car_id=d.get("car_id"),
@@ -1606,6 +1810,7 @@ def doc_to_trip(doc) -> Trip:
         google_maps_km=d.get("google_maps_km"),
         route_deviation_percent=d.get("route_deviation_percent"),
         route_flag=d.get("route_flag"),
+        distance_source=d.get("distance_source"),
     )
 
 
@@ -1726,18 +1931,20 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> di
 
 
 def get_google_maps_route_distance(from_lat: float, from_lon: float, to_lat: float, to_lon: float) -> float | None:
-    """Get the shortest driving route distance from Google Maps Directions API."""
-    api_key = CONFIG["maps_api_key"]
-    if not api_key:
+    """Get the shortest driving route distance from OSRM (Open Source Routing Machine)."""
+    if not from_lat or not from_lon or not to_lat or not to_lon:
         return None
 
     try:
-        url = f"https://maps.googleapis.com/maps/api/directions/json?origin={from_lat},{from_lon}&destination={to_lat},{to_lon}&mode=driving&key={api_key}"
-        data = requests.get(url, timeout=10).json()
-        if data["status"] == "OK" and data.get("routes"):
-            return data["routes"][0]["legs"][0]["distance"]["value"] / 1000
+        # OSRM uses lon,lat order (not lat,lon!)
+        url = f"https://router.project-osrm.org/route/v1/driving/{from_lon},{from_lat};{to_lon},{to_lat}?overview=false"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if data.get("code") == "Ok" and data.get("routes"):
+            # Distance is in meters
+            return data["routes"][0]["distance"] / 1000
     except Exception as e:
-        logger.error(f"Google Maps route distance error: {e}")
+        logger.error(f"OSRM route distance error: {e}")
 
     return None
 
@@ -1773,6 +1980,189 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dl = math.radians(lon2 - lon1)
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# === GPS Fallback Functions ===
+
+# Config for GPS-based trip detection
+GPS_STATIONARY_TIMEOUT_MINUTES = 30  # Auto-end trip after 30 min stationary
+GPS_STATIONARY_RADIUS_METERS = 50    # Consider stationary if within 50m
+
+
+def get_osrm_distance_from_trail(gps_trail: list) -> float | None:
+    """
+    Calculate driving distance from GPS trail using OSRM.
+    Returns distance in km, or None if OSRM fails.
+    """
+    if not gps_trail or len(gps_trail) < 2:
+        return None
+
+    try:
+        # Sample waypoints if too many (OSRM URL length limit)
+        waypoints = gps_trail
+        if len(gps_trail) > 25:
+            waypoints = [gps_trail[0]]
+            step = (len(gps_trail) - 2) / 22
+            for i in range(1, 23):
+                waypoints.append(gps_trail[int(i * step)])
+            waypoints.append(gps_trail[-1])
+
+        # Build OSRM coords string (lon,lat order)
+        coords = ";".join(
+            f"{p.get('lng', p.get('lon'))},{p.get('lat')}"
+            for p in waypoints
+        )
+        url = f"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false"
+
+        response = requests.get(url, timeout=10)
+        data = response.json()
+
+        if data.get("code") == "Ok" and data.get("routes"):
+            distance_km = data["routes"][0]["distance"] / 1000
+            logger.info(f"OSRM distance from trail ({len(gps_trail)} points): {distance_km:.1f} km")
+            return distance_km
+    except Exception as e:
+        logger.error(f"OSRM trail distance error: {e}")
+
+    return None
+
+
+def get_gps_distance_from_trail(gps_trail: list) -> float:
+    """
+    Calculate distance from GPS trail using haversine (fallback if OSRM fails).
+    Returns distance in km.
+    """
+    if not gps_trail or len(gps_trail) < 2:
+        return 0.0
+
+    total_meters = 0.0
+    for i in range(1, len(gps_trail)):
+        prev = gps_trail[i - 1]
+        curr = gps_trail[i]
+        prev_lat, prev_lng = prev.get("lat"), prev.get("lng", prev.get("lon"))
+        curr_lat, curr_lng = curr.get("lat"), curr.get("lng", curr.get("lon"))
+        if prev_lat and prev_lng and curr_lat and curr_lng:
+            total_meters += haversine(prev_lat, prev_lng, curr_lat, curr_lng)
+
+    # Add 15% correction factor (GPS typically underestimates road distance)
+    return (total_meters / 1000) * 1.15
+
+
+def calculate_gps_distance(gps_trail: list) -> float:
+    """Calculate distance from GPS trail. Tries OSRM first, falls back to haversine."""
+    osrm_distance = get_osrm_distance_from_trail(gps_trail)
+    if osrm_distance:
+        return osrm_distance
+    return get_gps_distance_from_trail(gps_trail)
+
+
+def finalize_trip_from_gps(start_gps: dict, end_gps: dict, gps_trail: list, gps_distance_km: float, start_time: str, user_id: str, car_id: str | None = None) -> dict:
+    """Finalize trip using GPS data only (when car API is unavailable).
+
+    This is used as a fallback when the car API fails to connect.
+    Distance is calculated from GPS trail using OSRM routing or haversine.
+    """
+    # Geocode start and end
+    start_loc = reverse_geocode(start_gps["lat"], start_gps["lng"], user_id)
+    end_loc = reverse_geocode(end_gps["lat"], end_gps["lng"], user_id)
+
+    # Get Google Maps route distance for comparison
+    google_maps_km = get_google_maps_route_distance(
+        start_gps["lat"], start_gps["lng"],
+        end_gps["lat"], end_gps["lng"]
+    )
+    route_info = calculate_route_deviation(gps_distance_km, google_maps_km)
+
+    # Parse timestamps
+    start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+    end_dt = datetime.fromisoformat(end_gps["timestamp"].replace("Z", "+00:00"))
+
+    # Classify trip
+    classification = classify_trip(start_time, start_loc, end_loc, gps_distance_km)
+
+    # Use provided car_id, fall back to default car, or "unknown"
+    effective_car_id = car_id or get_default_car_id(user_id) or "unknown"
+
+    trip_id = generate_id()
+    trip_data = {
+        "id": trip_id,
+        "user_id": user_id,
+        "date": start_dt.strftime("%d-%m-%Y"),
+        "start_time": start_dt.strftime("%H:%M"),
+        "end_time": end_dt.strftime("%H:%M"),
+        "from_address": start_loc["label"] or start_loc["address"],
+        "to_address": end_loc["label"] or end_loc["address"],
+        "from_lat": start_loc.get("lat"),
+        "from_lon": start_loc.get("lon"),
+        "to_lat": end_loc.get("lat"),
+        "to_lon": end_loc.get("lon"),
+        "distance_km": round(gps_distance_km, 1),
+        "trip_type": classification["type"],
+        "business_km": round(classification["business_km"], 1),
+        "private_km": round(classification["private_km"], 1),
+        "start_odo": None,  # No odometer in GPS-only mode
+        "end_odo": None,
+        "notes": "GPS-only mode (car API unavailable)",
+        "created_at": datetime.utcnow().isoformat(),
+        "car_id": effective_car_id,
+        "gps_trail": gps_trail,
+        "google_maps_km": route_info["google_maps_km"],
+        "route_deviation_percent": route_info["deviation_percent"],
+        "route_flag": route_info["flag"],
+        "distance_source": "gps_only",
+    }
+
+    db = get_db()
+    db.collection("trips").document(trip_id).set(trip_data)
+    logger.info(f"Trip finalized (GPS-only): {trip_id}, {gps_distance_km:.1f} km, {start_loc['label']} -> {end_loc['label']}, {len(gps_trail)} GPS points for {user_id}")
+
+    # Save end GPS as last_parked for next trip start
+    if effective_car_id and effective_car_id != "unknown":
+        save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"])
+
+    return trip_data
+
+
+def check_gps_stationary(gps_events: list, timeout_minutes: int = GPS_STATIONARY_TIMEOUT_MINUTES) -> bool:
+    """
+    Check if car is stationary based on GPS data.
+    Returns True if no significant movement for timeout_minutes.
+    """
+    if not gps_events or len(gps_events) < 2:
+        return False
+
+    now = datetime.utcnow()
+    recent_events = []
+
+    # Get events from last timeout_minutes
+    for event in reversed(gps_events):
+        try:
+            event_time = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00")).replace(tzinfo=None)
+            minutes_ago = (now - event_time).total_seconds() / 60
+            if minutes_ago <= timeout_minutes:
+                recent_events.append(event)
+            else:
+                break
+        except (KeyError, ValueError):
+            continue
+
+    if len(recent_events) < 2:
+        return False
+
+    # Check if all recent events are within stationary radius
+    first_event = recent_events[-1]  # Oldest in window
+    first_lat, first_lng = first_event.get("lat"), first_event.get("lng", first_event.get("lon"))
+
+    for event in recent_events:
+        lat, lng = event.get("lat"), event.get("lng", event.get("lon"))
+        if lat and lng and first_lat and first_lng:
+            distance = haversine(first_lat, first_lng, lat, lng)
+            if distance > GPS_STATIONARY_RADIUS_METERS:
+                return False  # Movement detected
+
+    # All events within radius = stationary
+    logger.info(f"GPS stationary detected: {len(recent_events)} events within {GPS_STATIONARY_RADIUS_METERS}m for {timeout_minutes} min")
+    return True
 
 
 def classify_trip(
@@ -2041,6 +2431,52 @@ def save_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
     return {"status": "saved"}
 
 
+@app.get("/cars/{car_id}/credentials")
+def get_car_credentials(car_id: str, x_user_email: str | None = Header(None)):
+    """Get credentials status for a specific car (not the actual password)"""
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+    car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
+    doc = car_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    creds_doc = car_ref.collection("credentials").document("api").get()
+    if not creds_doc.exists:
+        raise HTTPException(status_code=404, detail="No credentials configured")
+
+    creds = creds_doc.to_dict()
+    # Return credential info but NOT the password
+    return {
+        "brand": creds.get("brand"),
+        "username": creds.get("username"),
+        "has_password": bool(creds.get("password")),
+        "oauth_completed": creds.get("oauth_completed", False),
+        "country": creds.get("country"),
+        "updated_at": creds.get("updated_at"),
+    }
+
+
+@app.delete("/cars/{car_id}/credentials")
+def delete_car_credentials(car_id: str, x_user_email: str | None = Header(None)):
+    """Delete/logout credentials for a specific car"""
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+    car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
+    doc = car_ref.get()
+
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Delete credentials
+    car_ref.collection("credentials").document("api").delete()
+    # Also delete oauth_state if exists
+    car_ref.collection("credentials").document("oauth_state").delete()
+
+    return {"status": "deleted"}
+
+
 # ============ Tesla OAuth Endpoints ============
 
 @app.get("/cars/{car_id}/tesla/auth-url")
@@ -2141,7 +2577,7 @@ def test_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
         raise HTTPException(status_code=404, detail="Car not found")
 
     try:
-        from car_providers import VWGroupProvider, RenaultProvider, VW_GROUP_BRANDS
+        from car_providers import AudiProvider, VWGroupProvider, RenaultProvider, VW_GROUP_BRANDS
 
         # Test connection using car provider
         if creds.brand == "renault":
@@ -2149,6 +2585,12 @@ def test_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
                 username=creds.username,
                 password=creds.password,
                 locale=creds.locale or "nl_NL",
+            )
+        elif creds.brand == "audi":
+            provider = AudiProvider(
+                username=creds.username,
+                password=creds.password,
+                country=creds.country or "NL",
             )
         elif creds.brand in VW_GROUP_BRANDS:
             provider = VWGroupProvider(
@@ -2177,7 +2619,7 @@ def test_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
 @app.get("/cars/{car_id}/data")
 def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
     """Get live car data for a specific car using its credentials"""
-    from car_providers import VWGroupProvider, RenaultProvider, TeslaProvider, VW_GROUP_BRANDS
+    from car_providers import AudiProvider, VWGroupProvider, RenaultProvider, TeslaProvider, VW_GROUP_BRANDS, VehicleState
 
     user_id = get_user_from_header(x_user_email)
     db = get_db()
@@ -2197,10 +2639,22 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
     creds = creds_doc.to_dict()
     brand = creds.get("brand", car_data.get("brand", "")).lower()
 
-    # Tesla uses OAuth, others need username/password
+    # Tesla and Audi use OAuth, others need username/password
     if brand == "tesla":
         if not creds.get("oauth_completed"):
             raise HTTPException(status_code=400, detail="Tesla authorization not complete. Please authorize first.")
+    elif brand == "audi":
+        # Audi uses OAuth only
+        if not creds.get("oauth_completed"):
+            raise HTTPException(status_code=400, detail="Audi authorization not complete. Please log in with Audi ID.")
+    elif brand in ("skoda", "seat", "cupra", "volkswagen"):
+        # VW Group brands can use OAuth
+        if not creds.get("oauth_completed") and (not creds.get("username") or not creds.get("password")):
+            raise HTTPException(status_code=400, detail=f"{brand.title()} authorization not complete. Please log in.")
+    elif brand == "renault":
+        # Renault uses OAuth via Gigya
+        if not creds.get("oauth_completed") and (not creds.get("username") or not creds.get("password")):
+            raise HTTPException(status_code=400, detail="Renault authorization not complete. Please log in.")
     elif not creds.get("username") or not creds.get("password"):
         raise HTTPException(status_code=400, detail="Car has no API credentials configured")
 
@@ -2216,7 +2670,43 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
                 locale=creds.get("locale", "nl_NL"),
                 vin=creds.get("vin"),
             )
+        elif brand == "audi":
+            # Use new AudiProvider for Audi - prefer OAuth tokens if available
+            if creds.get("oauth_completed") and creds.get("access_token"):
+                # Parse expires_at if it's a string
+                expires_at = creds.get("expires_at")
+                if isinstance(expires_at, str):
+                    from datetime import datetime
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00")).timestamp()
+                    except:
+                        expires_at = None
+
+                provider = AudiProvider(
+                    username=creds.get("username"),
+                    password=creds.get("password"),
+                    country=creds.get("country", "NL"),
+                    vin=creds.get("vin"),
+                    access_token=creds["access_token"],
+                    id_token=creds.get("id_token"),
+                    token_type=creds.get("token_type", "bearer"),
+                    expires_at=expires_at,
+                    refresh_token=creds.get("refresh_token"),
+                )
+            else:
+                # OAuth required for Audi
+                raise HTTPException(status_code=400, detail="Audi authorization not complete. Please log in with Audi ID.")
+        elif brand == "skoda" and creds.get("oauth_completed"):
+            # Skoda with OAuth - use direct API
+            from car_providers.skoda import SkodaOAuthProvider
+            provider = SkodaOAuthProvider(
+                access_token=creds["access_token"],
+                id_token=creds.get("id_token"),
+            )
         elif brand in VW_GROUP_BRANDS:
+            # Use VWGroupProvider for other VW Group brands (username/password)
+            if creds.get("oauth_completed"):
+                raise HTTPException(status_code=501, detail=f"{brand.title()} OAuth data fetch not yet implemented. Use username/password instead.")
             provider = VWGroupProvider(
                 brand=brand,
                 username=creds["username"],
@@ -2228,6 +2718,23 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
             raise HTTPException(status_code=400, detail=f"Unknown brand: {brand}")
 
         data = provider.get_data()
+
+        # Save refreshed tokens back to Firestore (for Audi OAuth)
+        if brand == "audi" and hasattr(provider, 'get_tokens'):
+            new_tokens = provider.get_tokens()
+            if new_tokens and new_tokens.get("refresh_token"):
+                try:
+                    car_ref.collection("credentials").document("api").update({
+                        "access_token": new_tokens["access_token"],
+                        "id_token": new_tokens["id_token"],
+                        "expires_at": new_tokens["expires_at"],
+                        "refresh_token": new_tokens["refresh_token"],
+                        "updated_at": datetime.utcnow().isoformat(),
+                    })
+                    logger.info(f"Saved refreshed Audi tokens for car {car_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to save refreshed tokens: {e}")
+
         provider.disconnect()
 
         # Extract extra data from raw_data
@@ -2258,7 +2765,39 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
             if hvac_status:
                 climate_state = 'on' if hvac_status in ('on', 'pending', True) else 'off'
 
-        # Audi/VW-specific parsing
+        # Audi-specific parsing (new AudiProvider format)
+        elif brand == 'audi':
+            # Parse from new AudiProvider raw_data format
+            if 'measurements' in raw:
+                m = raw['measurements'].get('measurements', {})
+                temp_status = m.get('temperatureBatteryStatus', {}).get('value', {})
+                if 'temperatureHvBatteryMin_K' in temp_status:
+                    try:
+                        battery_temp_celsius = round(float(temp_status['temperatureHvBatteryMin_K']) - 273.15, 1)
+                    except (ValueError, TypeError):
+                        pass
+
+            if 'climatisation' in raw:
+                clim_data = raw['climatisation'].get('climatisation', {})
+                clim_status = clim_data.get('climatisationStatus', {}).get('value', {})
+                clim_settings = clim_data.get('climatisationSettings', {}).get('value', {})
+                if 'climatisationState' in clim_status:
+                    climate_state = 'on' if clim_status['climatisationState'] == 'on' else 'off'
+                if 'targetTemperature_C' in clim_settings:
+                    climate_target_temp = clim_settings['targetTemperature_C']
+                if 'windowHeatingEnabled' in clim_settings:
+                    window_heating = clim_settings['windowHeatingEnabled']
+
+            if 'readiness' in raw:
+                rd = raw['readiness'].get('readiness', {})
+                ready_status = rd.get('readinessStatus', {}).get('value', {})
+                conn = ready_status.get('connectionState', {})
+                if conn.get('isOnline'):
+                    connection_state = 'reachable'
+                else:
+                    connection_state = 'offline'
+
+        # VW/Skoda/Seat/Cupra-specific parsing (legacy VWGroupProvider format)
         else:
             if 'drives' in raw and 'primary' in raw['drives'] and 'battery' in raw['drives']['primary']:
                 batt = raw['drives']['primary']['battery']
@@ -2284,6 +2823,9 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
             if 'lights' in raw and 'light_state' in raw['lights'] and 'val' in raw['lights']['light_state']:
                 lights_state = raw['lights']['light_state']['val']
 
+        # Convert VehicleState enum to string
+        state_str = data.state.value if hasattr(data.state, 'value') else str(data.state)
+
         return {
             "car_id": car_id,
             "car_name": car_data.get("name", ""),
@@ -2292,7 +2834,7 @@ def get_car_data_by_id(car_id: str, x_user_email: str | None = Header(None)):
             "odometer_km": data.odometer_km,
             "latitude": data.latitude,
             "longitude": data.longitude,
-            "state": data.state,
+            "state": state_str,
             "battery_level": data.battery_level,
             "range_km": data.range_km,
             "is_charging": data.is_charging,
@@ -2465,6 +3007,720 @@ def test_car_credentials(request: CarTestRequest):
         return {"status": "error", "error": str(e)}
 
 
+# === Audi OAuth Flow ===
+
+class AudiAuthRequest(BaseModel):
+    car_id: str
+
+class AudiCallbackRequest(BaseModel):
+    car_id: str
+    redirect_url: str  # The full myaudi:///... URL with tokens
+
+
+@app.post("/audi/auth/url")
+def get_audi_auth_url(request: AudiAuthRequest, x_user_email: str | None = Header(None)):
+    """Generate Audi OAuth authorization URL for webview login"""
+    import secrets
+    import hashlib
+    import base64
+
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    # Verify car exists
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Generate PKCE values
+    code_verifier = secrets.token_urlsafe(64)[:64]
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).decode().rstrip("=")
+
+    # Generate state and nonce for security
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+
+    # Store state and code_verifier in Firestore for validation on callback
+    car_ref.collection("credentials").document("oauth_state").set({
+        "state": state,
+        "nonce": nonce,
+        "code_verifier": code_verifier,
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
+    })
+
+    # Build authorization URL with PKCE (authorization code flow)
+    client_id = "09b6cbec-cd19-4589-82fd-363dfa8c24da@apps_vw-dilab_com"
+    redirect_uri = "myaudi:///"
+
+    auth_url = (
+        f"https://identity.vwgroup.io/oidc/v1/authorize"
+        f"?client_id={client_id}"
+        f"&response_type=code"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope=openid%20profile%20mbb"
+        f"&state={state}"
+        f"&nonce={nonce}"
+        f"&code_challenge={code_challenge}"
+        f"&code_challenge_method=S256"
+    )
+
+    return {"auth_url": auth_url, "state": state}
+
+
+@app.post("/audi/auth/callback")
+def handle_audi_callback(request: AudiCallbackRequest, x_user_email: str | None = Header(None)):
+    """Handle Audi OAuth callback - exchange authorization code for tokens using PKCE"""
+    from urllib.parse import urlparse, parse_qs
+    import requests as req
+
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Parse authorization code from URL query string (PKCE flow returns code in query, not fragment)
+    redirect_url = request.redirect_url
+    parsed = urlparse(redirect_url)
+
+    # Code can be in query string (myaudi:///?code=...&state=...) or fragment for backwards compat
+    if parsed.query:
+        params = dict(p.split("=", 1) for p in parsed.query.split("&") if "=" in p)
+    elif "#" in redirect_url:
+        fragment = redirect_url.split("#")[1]
+        params = dict(p.split("=", 1) for p in fragment.split("&") if "=" in p)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid redirect URL - no code found")
+
+    # Get stored oauth_state with code_verifier
+    state_doc = car_ref.collection("credentials").document("oauth_state").get()
+    if not state_doc.exists:
+        raise HTTPException(status_code=400, detail="OAuth state not found - please start auth flow again")
+
+    oauth_state = state_doc.to_dict()
+    code_verifier = oauth_state.get("code_verifier")
+
+    # Validate state
+    if params.get("state") and oauth_state.get("state") != params["state"]:
+        logger.warning(f"State mismatch for car {request.car_id}")
+
+    # Check if we have a code (PKCE flow) or tokens (legacy hybrid flow)
+    code = params.get("code")
+
+    if code and code_verifier:
+        # PKCE flow: exchange code for tokens
+        from car_providers.audi import AudiAPI
+
+        token_response = req.post(
+            AudiAPI.TOKEN_URL,
+            data={
+                "grant_type": "authorization_code",
+                "client_id": AudiAPI.CLIENT_ID,
+                "code": code,
+                "redirect_uri": AudiAPI.REDIRECT_URI,
+                "code_verifier": code_verifier,
+            },
+            headers={
+                "User-Agent": "myAudi-Android/4.31.0 (Android 14; SDK 34)",
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+        )
+
+        if token_response.status_code != 200:
+            logger.error(f"Token exchange failed: {token_response.status_code} {token_response.text[:300]}")
+            raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_response.text[:200]}")
+
+        token_data = token_response.json()
+        expires_in = int(token_data.get("expires_in", 3600))
+
+        tokens = {
+            "brand": "audi",
+            "access_token": token_data["access_token"],
+            "id_token": token_data.get("id_token", ""),
+            "token_type": token_data.get("token_type", "bearer"),
+            "expires_in": expires_in,
+            "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
+            "refresh_token": token_data.get("refresh_token"),
+            "oauth_completed": True,
+            "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        }
+    elif params.get("access_token"):
+        # Legacy hybrid flow fallback
+        expires_in = int(params.get("expires_in", 3600))
+        tokens = {
+            "brand": "audi",
+            "access_token": params["access_token"],
+            "id_token": params.get("id_token", ""),
+            "token_type": params.get("token_type", "bearer"),
+            "expires_in": expires_in,
+            "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
+            "oauth_completed": True,
+            "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        }
+    else:
+        raise HTTPException(status_code=400, detail="No authorization code or tokens found in redirect URL")
+
+    # Store tokens
+    car_ref.collection("credentials").document("api").set(tokens, merge=True)
+
+    # Update car brand
+    car_ref.update({"brand": "audi"})
+
+    # Clean up state doc
+    car_ref.collection("credentials").document("oauth_state").delete()
+
+    logger.info(f"Audi OAuth completed for car {request.car_id}, user {user_id}")
+
+    # Test the tokens by fetching vehicle data
+    try:
+        from car_providers.audi import AudiAPI, AudiTokens
+        import time
+
+        api = AudiAPI.__new__(AudiAPI)
+        api._session = req.Session()
+        api._session.headers.update({
+            "User-Agent": "myAudi-Android/4.31.0 (Android 14; SDK 34)",
+            "Accept": "application/json",
+        })
+
+        api._tokens = AudiTokens(
+            access_token=tokens["access_token"],
+            id_token=tokens.get("id_token", ""),
+            token_type=tokens.get("token_type", "bearer"),
+            expires_in=int(tokens.get("expires_in", 3600)),
+            expires_at=time.time() + int(tokens.get("expires_in", 3600)),
+            refresh_token=tokens.get("refresh_token"),
+        )
+
+        vehicles = api.get_vehicles()
+        api.close()
+
+        if vehicles:
+            # Store VIN if not already set
+            car_ref.collection("credentials").document("api").set({"vin": vehicles[0].vin}, merge=True)
+            return {
+                "status": "success",
+                "vin": vehicles[0].vin,
+                "vehicles_found": len(vehicles),
+            }
+        else:
+            return {"status": "success", "vehicles_found": 0}
+
+    except Exception as e:
+        logger.error(f"Failed to verify Audi tokens: {e}")
+        return {"status": "success", "warning": f"Tokens stored but verification failed: {str(e)}"}
+
+
+# === VW Group OAuth Flow (Volkswagen, Skoda, SEAT, CUPRA) ===
+
+# OAuth configurations for each VW Group brand
+VW_GROUP_OAUTH_CONFIG = {
+    "volkswagen": {
+        "client_id": "a24fba63-34b3-4d43-b181-942111e6bda8@apps_vw-dilab_com",
+        "redirect_uri": "weconnect://authenticated",
+        "scope": "openid profile badge cars dealers vin",
+        "response_type": "code id_token token",
+        "name": "Volkswagen We Connect",
+    },
+    "skoda": {
+        "client_id": "7f045eee-7003-4379-9968-9355ed2adb06@apps_vw-dilab_com",
+        "redirect_uri": "myskoda://redirect/login/",
+        "scope": "openid profile address badge birthdate cars dealers driversLicense email mbb mileage nationalIdentifier phone profession vin",
+        "response_type": "code",
+        "name": "MySkoda",
+    },
+    "seat": {
+        "client_id": "3c8e98bc-3ae9-4277-a563-d5ee65ddebba@apps_vw-dilab_com",
+        "redirect_uri": "seatconnect://identity-kit/login",
+        "scope": "openid profile",
+        "response_type": "code id_token",
+        "name": "SEAT Connect",
+    },
+    "cupra": {
+        "client_id": "30e33736-c537-4c72-ab60-74a7b92cfe83@apps_vw-dilab_com",
+        "redirect_uri": "cupraconnect://identity-kit/login",
+        "scope": "openid profile address phone email birthdate nationalIdentifier cars mbb dealers badge nationality",
+        "response_type": "code id_token token",
+        "name": "CUPRA Connect",
+    },
+}
+
+
+class VWGroupAuthRequest(BaseModel):
+    car_id: str
+    brand: str  # volkswagen, skoda, seat, cupra
+
+
+class VWGroupCallbackRequest(BaseModel):
+    car_id: str
+    brand: str
+    redirect_url: str
+
+
+@app.post("/vwgroup/auth/url")
+def get_vwgroup_auth_url(request: VWGroupAuthRequest, x_user_email: str | None = Header(None)):
+    """Generate VW Group OAuth authorization URL for webview login"""
+    import secrets
+    import hashlib
+    import base64
+    from urllib.parse import quote
+
+    brand = request.brand.lower()
+    if brand not in VW_GROUP_OAUTH_CONFIG:
+        raise HTTPException(status_code=400, detail=f"Unsupported brand: {brand}")
+
+    config = VW_GROUP_OAUTH_CONFIG[brand]
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    # Verify car exists
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Generate state and nonce for security
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+
+    # Generate PKCE code verifier and challenge
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge_bytes = hashlib.sha256(code_verifier.encode()).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge_bytes).decode().rstrip("=")
+
+    # Store state in Firestore for validation on callback
+    car_ref.collection("credentials").document("oauth_state").set({
+        "state": state,
+        "nonce": nonce,
+        "brand": brand,
+        "code_verifier": code_verifier,
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
+    })
+
+    # Build authorization URL with PKCE
+    response_type = config.get("response_type", "code id_token token")
+
+    auth_url = (
+        f"https://identity.vwgroup.io/oidc/v1/authorize"
+        f"?client_id={quote(config['client_id'])}"
+        f"&response_type={quote(response_type)}"
+        f"&redirect_uri={quote(config['redirect_uri'])}"
+        f"&scope={quote(config['scope'])}"
+        f"&state={state}"
+        f"&nonce={nonce}"
+        f"&code_challenge={code_challenge}"
+        f"&code_challenge_method=S256"
+        f"&prompt=login"
+    )
+
+    logger.info(f"Generated {config['name']} OAuth URL for car {request.car_id}")
+    return {"auth_url": auth_url, "state": state, "redirect_uri": config["redirect_uri"]}
+
+
+@app.post("/vwgroup/auth/callback")
+def handle_vwgroup_callback(request: VWGroupCallbackRequest, x_user_email: str | None = Header(None)):
+    """Handle VW Group OAuth callback - extract and store tokens from redirect URL"""
+    from urllib.parse import urlparse, parse_qs, unquote
+    import requests as req
+
+    brand = request.brand.lower()
+    if brand not in VW_GROUP_OAUTH_CONFIG:
+        raise HTTPException(status_code=400, detail=f"Unsupported brand: {brand}")
+
+    config = VW_GROUP_OAUTH_CONFIG[brand]
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Parse params from URL fragment or query
+    redirect_url = request.redirect_url
+    params = {}
+
+    if "#" in redirect_url:
+        fragment = redirect_url.split("#")[1]
+        params = dict(p.split("=", 1) for p in fragment.split("&") if "=" in p)
+    elif "?" in redirect_url:
+        query = redirect_url.split("?")[1]
+        params = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
+
+    # URL decode params
+    params = {k: unquote(v) for k, v in params.items()}
+
+    # Get stored state (needed for code exchange)
+    state_doc = car_ref.collection("credentials").document("oauth_state").get()
+    code_verifier = None
+    if state_doc.exists:
+        state_data = state_doc.to_dict()
+        code_verifier = state_data.get("code_verifier")
+
+    # Check if we have tokens (hybrid flow) or just code (auth code flow)
+    if "access_token" in params and "id_token" in params:
+        # Full hybrid flow - all tokens in URL
+        access_token = params["access_token"]
+        id_token = params["id_token"]
+        expires_in = int(params.get("expires_in", 3600))
+    elif "code" in params and "id_token" in params:
+        # Partial hybrid flow (code id_token) - have id_token but need to exchange code for access_token
+        id_token = params["id_token"]
+        if not code_verifier:
+            raise HTTPException(status_code=400, detail="Missing code_verifier for token exchange")
+
+        token_url = "https://identity.vwgroup.io/oidc/v1/token"
+        token_data = {
+            "grant_type": "authorization_code",
+            "client_id": config["client_id"],
+            "code": params["code"],
+            "redirect_uri": config["redirect_uri"],
+            "code_verifier": code_verifier,
+        }
+
+        token_resp = req.post(token_url, data=token_data)
+        if token_resp.status_code != 200:
+            logger.error(f"Token exchange failed: {token_resp.text}")
+            raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_resp.text}")
+
+        token_json = token_resp.json()
+        access_token = token_json.get("access_token")
+        expires_in = token_json.get("expires_in", 3600)
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="No access_token in token response")
+    elif "code" in params:
+        # Auth code flow - exchange code for tokens
+        if not code_verifier:
+            raise HTTPException(status_code=400, detail="Missing code_verifier for token exchange")
+
+        # Skoda uses a custom token exchange endpoint
+        if brand == "skoda":
+            token_url = "https://mysmob.api.connect.skoda-auto.cz/api/v1/authentication/exchange-authorization-code"
+            token_params = {"tokenType": "CONNECT"}
+            token_data = {
+                "code": params["code"],
+                "redirectUri": config["redirect_uri"],
+                "verifier": code_verifier,
+            }
+            token_resp = req.post(token_url, params=token_params, json=token_data)
+        else:
+            # Standard OIDC token exchange
+            token_url = "https://identity.vwgroup.io/oidc/v1/token"
+            token_data = {
+                "grant_type": "authorization_code",
+                "client_id": config["client_id"],
+                "code": params["code"],
+                "redirect_uri": config["redirect_uri"],
+                "code_verifier": code_verifier,
+            }
+            token_resp = req.post(token_url, data=token_data)
+
+        if token_resp.status_code != 200:
+            logger.error(f"Token exchange failed: {token_resp.text}")
+            raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_resp.text}")
+
+        token_json = token_resp.json()
+        access_token = token_json.get("access_token") or token_json.get("accessToken")
+        id_token = token_json.get("id_token") or token_json.get("idToken")
+        expires_in = token_json.get("expires_in", 3600)
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="No access_token in token response")
+    else:
+        raise HTTPException(status_code=400, detail="No code or tokens in redirect URL")
+
+    # Store tokens
+    tokens = {
+        "brand": brand,
+        "access_token": access_token,
+        "id_token": id_token,
+        "token_type": params.get("token_type", "bearer"),
+        "expires_in": expires_in,
+        "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
+        "code": params.get("code"),
+        "state": params.get("state"),
+        "oauth_completed": True,
+        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
+    car_ref.collection("credentials").document("api").set(tokens, merge=True)
+
+    # Clean up state doc
+    car_ref.collection("credentials").document("oauth_state").delete()
+
+    logger.info(f"{config['name']} OAuth completed for car {request.car_id}, user {user_id}")
+
+    return {
+        "status": "success",
+        "brand": brand,
+        "message": f"{config['name']} connected successfully",
+    }
+
+
+# === Renault OAuth Flow (Gigya-based) ===
+
+# Renault uses Gigya for authentication via idconnect.renaultgroup.com
+# After user logs in via webview, we capture the Gigya tokens
+
+RENAULT_GIGYA_CONFIG = {
+    "api_key": "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a",
+    "gigya_url": "https://accounts.eu1.gigya.com",
+    "login_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup.html",
+    "success_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup/success.html",
+}
+
+
+class RenaultAuthRequest(BaseModel):
+    car_id: str
+    locale: str = "nl/nl"  # Format: language/country
+
+
+class RenaultCallbackRequest(BaseModel):
+    car_id: str
+    gigya_token: str  # The login_token from Gigya
+    gigya_person_id: str | None = None
+
+
+class RenaultLoginRequest(BaseModel):
+    car_id: str
+    username: str
+    password: str
+    locale: str = "nl_NL"
+
+
+@app.post("/renault/auth/login")
+def renault_direct_login(request: RenaultLoginRequest, x_user_email: str | None = Header(None)):
+    """Direct Renault login via Gigya API (username/password)"""
+    import requests as req
+
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Gigya API keys per locale
+    GIGYA_API_KEYS = {
+        "nl_NL": "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh",
+        "fr_FR": "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a",
+        "de_DE": "3_7PLksOyBRkHv126x5WhHb-5pqC1qFR8pQjxSeLB6nhAnPERTUlwnYoznHSxwX668",
+        "en_GB": "3_e8d4g4SE_Fo8ahyHwwP7ohLGZ79HKNN2T8NjQqoNnk6Epj6ilyYwKdHUyCw3wuxz",
+        "es_ES": "3_DyMiOwEaxLcPdBTu63Gv3hlhvLaLbW3ufvjHLeuU8U5bx7clnPKZwUf5u0GZAVrq",
+        "it_IT": "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq",
+        "pt_PT": "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq",
+        "be_BE": "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh",
+    }
+
+    api_key = GIGYA_API_KEYS.get(request.locale, GIGYA_API_KEYS["nl_NL"])
+    gigya_url = "https://accounts.eu1.gigya.com"
+
+    try:
+        # Step 1: Login to Gigya
+        login_resp = req.post(
+            f"{gigya_url}/accounts.login",
+            data={
+                "ApiKey": api_key,
+                "loginID": request.username,
+                "password": request.password,
+            },
+        )
+        login_data = login_resp.json()
+
+        if login_data.get("errorCode", 0) != 0:
+            error_msg = login_data.get("errorMessage", "Login failed")
+            logger.error(f"Renault Gigya login failed: {error_msg}")
+            raise HTTPException(status_code=401, detail=error_msg)
+
+        login_token = login_data.get("sessionInfo", {}).get("cookieValue")
+        if not login_token:
+            login_token = login_data.get("sessionInfo", {}).get("login_token")
+        if not login_token:
+            raise HTTPException(status_code=400, detail="No login token received from Gigya")
+
+        # Step 2: Get account info
+        account_resp = req.post(
+            f"{gigya_url}/accounts.getAccountInfo",
+            data={
+                "ApiKey": api_key,
+                "login_token": login_token,
+            },
+        )
+        account_data = account_resp.json()
+
+        if account_data.get("errorCode", 0) != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to get account info: {account_data.get('errorMessage')}")
+
+        person_id = account_data.get("data", {}).get("personId")
+
+        # Step 3: Get JWT
+        jwt_resp = req.post(
+            f"{gigya_url}/accounts.getJWT",
+            data={
+                "ApiKey": api_key,
+                "login_token": login_token,
+                "fields": "data.personId,data.gigyaDataCenter",
+                "expiration": 900,
+            },
+        )
+        jwt_data = jwt_resp.json()
+
+        if jwt_data.get("errorCode", 0) != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to get JWT: {jwt_data.get('errorMessage')}")
+
+        gigya_jwt = jwt_data.get("id_token")
+
+        # Store tokens
+        tokens = {
+            "brand": "renault",
+            "gigya_token": login_token,
+            "gigya_jwt": gigya_jwt,
+            "gigya_person_id": person_id,
+            "locale": request.locale,
+            "oauth_completed": True,
+            "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=900)).isoformat(),
+            "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        }
+
+        car_ref.collection("credentials").document("api").set(tokens, merge=True)
+
+        logger.info(f"Renault login completed for car {request.car_id}, user {user_id}")
+
+        return {
+            "status": "success",
+            "brand": "renault",
+            "message": "MY Renault connected successfully",
+            "person_id": person_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Renault login failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/renault/auth/url")
+def get_renault_auth_url(request: RenaultAuthRequest, x_user_email: str | None = Header(None)):
+    """Generate Renault ID Connect login URL for webview"""
+    import secrets
+
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    # Verify car exists
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    # Generate state for tracking
+    state = secrets.token_urlsafe(32)
+
+    # Store state in Firestore
+    car_ref.collection("credentials").document("oauth_state").set({
+        "state": state,
+        "locale": request.locale,
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
+    })
+
+    # Build the login URL
+    login_url = RENAULT_GIGYA_CONFIG["login_url"].format(locale=request.locale)
+    success_url = RENAULT_GIGYA_CONFIG["success_url"].format(locale=request.locale)
+
+    logger.info(f"Generated Renault login URL for car {request.car_id}")
+    return {
+        "auth_url": login_url,
+        "success_url": success_url,
+        "gigya_api_key": RENAULT_GIGYA_CONFIG["api_key"],
+        "state": state,
+    }
+
+
+@app.post("/renault/auth/callback")
+def handle_renault_callback(request: RenaultCallbackRequest, x_user_email: str | None = Header(None)):
+    """Handle Renault OAuth callback - store Gigya tokens and get JWT"""
+    import aiohttp
+    import asyncio
+
+    user_id = get_user_from_header(x_user_email)
+    db = get_db()
+
+    car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
+    if not car_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    try:
+        # Get JWT from Gigya using the login token
+        async def get_gigya_jwt():
+            async with aiohttp.ClientSession() as session:
+                # Get account info first to get person_id
+                account_url = f"{RENAULT_GIGYA_CONFIG['gigya_url']}/accounts.getAccountInfo"
+                account_data = {
+                    "ApiKey": RENAULT_GIGYA_CONFIG["api_key"],
+                    "login_token": request.gigya_token,
+                }
+                async with session.post(account_url, data=account_data) as resp:
+                    account_info = await resp.json()
+                    if account_info.get("errorCode", 0) != 0:
+                        raise Exception(f"Gigya account info failed: {account_info.get('errorMessage')}")
+
+                person_id = account_info.get("data", {}).get("personId")
+                if not person_id and request.gigya_person_id:
+                    person_id = request.gigya_person_id
+
+                # Get JWT token
+                jwt_url = f"{RENAULT_GIGYA_CONFIG['gigya_url']}/accounts.getJWT"
+                jwt_data = {
+                    "ApiKey": RENAULT_GIGYA_CONFIG["api_key"],
+                    "login_token": request.gigya_token,
+                    "fields": "data.personId,data.gigyaDataCenter",
+                    "expiration": 900,
+                }
+                async with session.post(jwt_url, data=jwt_data) as resp:
+                    jwt_info = await resp.json()
+                    if jwt_info.get("errorCode", 0) != 0:
+                        raise Exception(f"Gigya JWT failed: {jwt_info.get('errorMessage')}")
+
+                return {
+                    "jwt": jwt_info.get("id_token"),
+                    "person_id": person_id,
+                    "account_info": account_info,
+                }
+
+        result = asyncio.run(get_gigya_jwt())
+
+        # Store tokens
+        tokens = {
+            "brand": "renault",
+            "gigya_token": request.gigya_token,
+            "gigya_jwt": result["jwt"],
+            "gigya_person_id": result["person_id"],
+            "oauth_completed": True,
+            "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=900)).isoformat(),
+            "updated_at": datetime.now(tz=timezone.utc).isoformat(),
+        }
+
+        car_ref.collection("credentials").document("api").set(tokens, merge=True)
+
+        # Clean up state doc
+        car_ref.collection("credentials").document("oauth_state").delete()
+
+        logger.info(f"Renault OAuth completed for car {request.car_id}, user {user_id}")
+
+        return {
+            "status": "success",
+            "brand": "renault",
+            "message": "MY Renault connected successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"Renault OAuth failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # === Trip Safety Net ===
 
 STALE_TRIP_HOURS = 2  # Trips with no activity for 2+ hours are considered stale
@@ -2535,11 +3791,42 @@ def check_stale_trips():
         # Try to finalize the trip
         start_odo = cache.get("start_odo")
         assigned_car_id = cache.get("car_id")
+        gps_only_mode = cache.get("gps_only_mode", False)
         timestamp = now.isoformat() + "Z"
+
+        # Handle GPS-only mode in safety net
+        if gps_only_mode:
+            logger.info(f"Safety net: finalizing GPS-only trip for {user_id}")
+            phone_gps_trail = [
+                {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+                for e in gps_events if not e.get("is_skip")
+            ]
+
+            if len(phone_gps_trail) >= 2:
+                gps_distance = calculate_gps_distance(phone_gps_trail)
+                if gps_distance >= 0.1:  # At least 100m
+                    trip_result = finalize_trip_from_gps(
+                        start_gps=phone_gps_trail[0],
+                        end_gps=phone_gps_trail[-1],
+                        gps_trail=phone_gps_trail,
+                        gps_distance_km=gps_distance,
+                        start_time=cache.get("start_time"),
+                        user_id=user_id,
+                        car_id=assigned_car_id,
+                    )
+                    set_trip_cache(None, user_id)
+                    results.append({"user": user_id, "action": "finalized_gps_only", "km": gps_distance, "trip_id": trip_result.get("id")})
+                    continue
+                else:
+                    logger.info(f"Safety net: GPS-only trip too short ({gps_distance:.2f} km) for {user_id}")
+
+            set_trip_cache(None, user_id)
+            results.append({"user": user_id, "action": "skipped", "reason": "gps_only_insufficient_data"})
+            continue
 
         # If we never got odometer, try to get it now
         if start_odo is None or not assigned_car_id:
-            driving_car = find_driving_car(user_id, assigned_car_id)
+            driving_car, reason = find_driving_car(user_id)
             if driving_car:
                 cache["car_id"] = driving_car["car_id"]
                 cache["car_name"] = driving_car["name"]
@@ -2556,56 +3843,93 @@ def check_stale_trips():
             results.append({"user": user_id, "action": "cancelled", "reason": "no_odometer_data"})
             continue
 
-        # Get current car status for end odometer
+        # Get current car status for end odometer (if credentials configured)
         cars = get_cars_with_credentials(user_id)
         car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
 
-        if not car_info:
-            logger.info(f"Safety net: cancelling trip for {user_id} - car not found")
-            set_trip_cache(None, user_id)
-            results.append({"user": user_id, "action": "cancelled", "reason": "car_not_found"})
-            continue
+        # Try to get car status if credentials are configured
+        car_status = check_car_driving_status(car_info) if car_info else None
 
-        car_status = check_car_driving_status(car_info)
-        if not car_status:
-            logger.warning(f"Safety net: couldn't get car status for {user_id}")
-            results.append({"user": user_id, "action": "error", "reason": "car_status_unavailable"})
-            continue
+        # Prepare GPS trail
+        phone_gps_trail = [
+            {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+            for e in gps_events if not e.get("is_skip")
+        ]
+        audi_trail = cache.get("gps_trail", [])
+        combined_trail = []
+        if audi_trail:
+            combined_trail.append(audi_trail[0])  # Audi start (parked)
+        combined_trail.extend(phone_gps_trail)
 
-        current_odo = car_status["odometer"]
-        car_lat = car_status.get("lat")
-        car_lng = car_status.get("lng")
-
-        if car_lat and car_lng:
-            cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
-
-        total_km = current_odo - start_odo
+        # Use Audi start GPS for geocoding (parked location), fallback to first phone ping
+        start_gps = audi_trail[0] if audi_trail else gps_events[0]
         car_gps = cache.get("audi_gps")
-        # Start: Audi last parked position
-        audi_start = cache.get("audi_start_gps")
-        start_gps = audi_start if audi_start else (gps_events[0] if gps_events else None)
 
-        if total_km <= 0:
-            logger.info(f"Safety net: skipping trip for {user_id} - {total_km} km (zero or negative)")
-            set_trip_cache(None, user_id)
-            results.append({"user": user_id, "action": "skipped", "reason": "zero_or_negative_km"})
-            continue
+        # Determine distance and source
+        distance_source = "odometer"
+        if car_status:
+            current_odo = car_status["odometer"]
+            car_lat = car_status.get("lat")
+            car_lng = car_status.get("lng")
+
+            if car_lat and car_lng:
+                cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
+                car_gps = cache["audi_gps"]
+
+            total_km = current_odo - start_odo
+        else:
+            # Car API unavailable - check if GPS shows car is stationary before using fallback
+            is_gps_stationary = check_gps_stationary(gps_events)
+            if not is_gps_stationary and not end_triggered:
+                # Car API down but GPS shows movement - wait for car to stop
+                logger.info(f"Safety net: car API unavailable for {user_id}, but GPS shows movement - waiting")
+                results.append({"user": user_id, "action": "waiting", "reason": "car_api_down_still_moving"})
+                continue
+
+            # Car API unavailable but GPS shows stationary - use GPS fallback
+            logger.warning(f"Safety net: car API unavailable for {user_id}, using GPS fallback (stationary={is_gps_stationary})")
+
+            # Try OSRM first, then haversine
+            total_km = get_osrm_distance_from_trail(combined_trail)
+            if total_km:
+                distance_source = "osrm"
+            else:
+                total_km = get_gps_distance_from_trail(combined_trail)
+                distance_source = "gps"
+
+            # Use last GPS event as end point
+            car_gps = gps_events[-1] if gps_events else None
+            # Estimate end odometer from GPS distance
+            current_odo = start_odo + total_km if total_km else start_odo
+
+            logger.info(f"Safety net: GPS fallback distance for {user_id}: {total_km:.1f} km (source: {distance_source})")
 
         if not car_gps:
             # Use last GPS event as fallback
             car_gps = gps_events[-1]
 
+        # Add end GPS to trail
+        if car_gps and isinstance(car_gps, dict) and "lat" in car_gps:
+            combined_trail.append(car_gps)  # End point
+
+        if total_km is None or total_km <= 0:
+            logger.info(f"Safety net: skipping trip for {user_id} - {total_km} km (zero or negative)")
+            set_trip_cache(None, user_id)
+            results.append({"user": user_id, "action": "skipped", "reason": "zero_or_negative_km"})
+            continue
+
         # Finalize the trip
-        logger.info(f"Safety net: finalizing trip for {user_id}, {total_km} km")
+        logger.info(f"Safety net: finalizing trip for {user_id}, {total_km:.1f} km (source: {distance_source})")
         trip_result = finalize_trip_from_audi(
             start_gps=start_gps,
             end_gps=car_gps,
             start_odo=start_odo,
             end_odo=current_odo,
             start_time=cache.get("start_time"),
-            gps_trail=gps_events,  # iPhone trail
+            gps_trail=combined_trail,
             user_id=user_id,
             car_id=assigned_car_id,
+            distance_source=distance_source,
         )
 
         set_trip_cache(None, user_id)
@@ -2614,86 +3938,19 @@ def check_stale_trips():
     return {"status": "completed", "processed": len(results), "results": results}
 
 
-def finalize_trip_from_gps(gps_events: list, start_odo: float, end_odo: float, start_time: str) -> dict:
-    """Finalize trip using GPS events and odometer readings."""
-    # Sort GPS events by timestamp
-    gps_events = sorted(gps_events, key=lambda x: x["timestamp"])
+def finalize_trip_from_audi(start_gps: dict, end_gps: dict, start_odo: float, end_odo: float, start_time: str, user_id: str, gps_trail: list = None, car_id: str | None = None, distance_source: str = "odometer") -> dict:
+    """Finalize trip using iPhone start GPS, Audi end GPS, and odometer.
 
-    # Filter to non-skip locations for start/end determination
-    non_skip_events = [e for e in gps_events if not e.get("is_skip")]
-
-    # Use non-skip events if available, otherwise fall back to all events
-    if len(non_skip_events) >= 2:
-        start_gps = non_skip_events[0]
-        end_gps = non_skip_events[-1]
-    else:
-        # Fallback: use first and last of all events
-        start_gps = gps_events[0]
-        end_gps = gps_events[-1]
-
-    # Geocode start and end
-    start_loc = reverse_geocode(start_gps["lat"], start_gps["lng"])
-    end_loc = reverse_geocode(end_gps["lat"], end_gps["lng"])
-
-    # Distance from odometer (ground truth)
-    distance_km = end_odo - start_odo
-
-    # Get Google Maps route distance for comparison
-    google_maps_km = get_google_maps_route_distance(
-        start_gps["lat"], start_gps["lng"],
-        end_gps["lat"], end_gps["lng"]
-    )
-    route_info = calculate_route_deviation(distance_km, google_maps_km)
-
-    # Parse timestamps
-    start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
-    end_dt = datetime.fromisoformat(end_gps["timestamp"].replace("Z", "+00:00"))
-
-    # Classify trip
-    classification = classify_trip(start_time, start_loc, end_loc, distance_km)
-
-    trip_id = generate_id()
-    trip_data = {
-        "id": trip_id,
-        "date": start_dt.strftime("%d-%m-%Y"),
-        "start_time": start_dt.strftime("%H:%M"),
-        "end_time": end_dt.strftime("%H:%M"),
-        "from_address": start_loc["label"] or start_loc["address"],
-        "to_address": end_loc["label"] or end_loc["address"],
-        "from_lat": start_loc.get("lat"),
-        "from_lon": start_loc.get("lon"),
-        "to_lat": end_loc.get("lat"),
-        "to_lon": end_loc.get("lon"),
-        "distance_km": round(distance_km, 1),
-        "trip_type": classification["type"],
-        "business_km": round(classification["business_km"], 1),
-        "private_km": round(classification["private_km"], 1),
-        "start_odo": round(start_odo, 1),
-        "end_odo": round(end_odo, 1),
-        "notes": "",
-        "created_at": datetime.utcnow().isoformat(),
-        "car_id": "business_audi",  # We know it's the Audi because odometer moved
-        "google_maps_km": route_info["google_maps_km"],
-        "route_deviation_percent": route_info["deviation_percent"],
-        "route_flag": route_info["flag"],
-    }
-
-    db = get_db()
-    db.collection("trips").document(trip_id).set(trip_data)
-    logger.info(f"Trip finalized from GPS: {trip_id}, {distance_km} km (Google Maps: {google_maps_km} km)")
-
-    return trip_data
-
-
-def finalize_trip_from_audi(start_gps: dict, end_gps: dict, start_odo: float, end_odo: float, start_time: str, user_id: str, gps_trail: list = None, car_id: str | None = None) -> dict:
-    """Finalize trip using iPhone start GPS, Audi end GPS, and odometer."""
+    Args:
+        distance_source: "odometer" (from car API), "osrm" (from OSRM routing), or "gps" (haversine fallback)
+    """
     if gps_trail is None:
         gps_trail = []
     # Geocode start (from iPhone) and end (from Audi)
     start_loc = reverse_geocode(start_gps["lat"], start_gps["lng"], user_id)
     end_loc = reverse_geocode(end_gps["lat"], end_gps["lng"], user_id)
 
-    # Distance from odometer (ground truth)
+    # Distance from odometer (ground truth) or GPS fallback
     distance_km = end_odo - start_odo
 
     # Get Google Maps route distance for comparison
@@ -2739,11 +3996,16 @@ def finalize_trip_from_audi(start_gps: dict, end_gps: dict, start_odo: float, en
         "google_maps_km": route_info["google_maps_km"],
         "route_deviation_percent": route_info["deviation_percent"],
         "route_flag": route_info["flag"],
+        "distance_source": distance_source,  # Track how distance was calculated
     }
 
     db = get_db()
     db.collection("trips").document(trip_id).set(trip_data)
-    logger.info(f"Trip finalized from Audi: {trip_id}, {distance_km} km (Google Maps: {google_maps_km} km), {start_loc['label']} -> {end_loc['label']}, {len(gps_trail)} GPS points for {user_id}")
+    logger.info(f"Trip finalized from Audi: {trip_id}, {distance_km} km (source: {distance_source}, OSRM: {google_maps_km} km), {start_loc['label']} -> {end_loc['label']}, {len(gps_trail)} GPS points for {user_id}")
+
+    # Save end GPS as last_parked for next trip start
+    if effective_car_id and effective_car_id != "unknown":
+        save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"])
 
     return trip_data
 
@@ -2844,6 +4106,78 @@ async def compare_odometer(car_id: str | None = None, x_user_email: str | None =
         "comparison": comparison,
         "warnings": warnings,
     }
+
+
+# ============================================================================
+# Charging Stations (Open Charge Map API with caching)
+# ============================================================================
+
+OPENCHARGEMAP_API_KEY = os.environ.get("OPENCHARGEMAP_API_KEY", "")
+
+# Simple in-memory cache for charging stations (5 min TTL)
+_charging_cache: dict = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def _get_cache_key(lat: float, lng: float, radius: int) -> str:
+    # Round to 2 decimal places (~1km precision) for better cache hits
+    return f"{round(lat, 2)}:{round(lng, 2)}:{radius}"
+
+
+@app.get("/charging/stations")
+def get_charging_stations(
+    lat: float = Query(..., description="Latitude"),
+    lng: float = Query(..., description="Longitude"),
+    radius: int = Query(15, description="Radius in km"),
+    max_results: int = Query(200, description="Max results"),
+):
+    """Get charging stations from Open Charge Map API (cached)"""
+    import time
+
+    if not OPENCHARGEMAP_API_KEY:
+        raise HTTPException(status_code=500, detail="Open Charge Map API key not configured")
+
+    # Check cache
+    cache_key = _get_cache_key(lat, lng, radius)
+    if cache_key in _charging_cache:
+        cached_time, cached_data = _charging_cache[cache_key]
+        if time.time() - cached_time < _CACHE_TTL:
+            return cached_data
+
+    url = "https://api.openchargemap.io/v3/poi/"
+    params = {
+        "output": "json",
+        "latitude": lat,
+        "longitude": lng,
+        "distance": radius,
+        "distanceunit": "KM",
+        "maxresults": max_results,
+        "compact": "true",
+        "verbose": "false",
+    }
+    headers = {
+        "X-API-Key": OPENCHARGEMAP_API_KEY,
+        "User-Agent": "MileageTracker/1.0",
+    }
+
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+
+        # Cache the result
+        _charging_cache[cache_key] = (time.time(), data)
+
+        # Cleanup old cache entries (keep max 100)
+        if len(_charging_cache) > 100:
+            oldest_keys = sorted(_charging_cache.keys(), key=lambda k: _charging_cache[k][0])[:50]
+            for k in oldest_keys:
+                del _charging_cache[k]
+
+        return data
+    except requests.RequestException as e:
+        logger.error(f"Open Charge Map API error: {e}")
+        raise HTTPException(status_code=502, detail=f"Charging API error: {e}")
 
 
 if __name__ == "__main__":
