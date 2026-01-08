@@ -80,9 +80,10 @@ class LocationService {
     try {
       // Try to get current position with timeout
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 10),
-      );
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      ).timeout(const Duration(seconds: 10));
 
       print('Got location: ${position.latitude}, ${position.longitude}');
       return LocationResult(

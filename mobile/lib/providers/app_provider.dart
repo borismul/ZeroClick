@@ -13,6 +13,7 @@ import '../services/offline_queue.dart';
 import '../services/carplay_service.dart';
 import '../services/bluetooth_service.dart';
 import '../services/background_service.dart';
+import '../services/auth_service.dart';
 
 // Callback for unknown device - used to trigger car linking flow
 typedef UnknownDeviceCallback = void Function(String deviceName);
@@ -121,9 +122,14 @@ class AppProvider extends ChangeNotifier {
     _setupBackgroundListener();
     _checkConnectivity();
 
+    // Wait for auth to initialize before loading data
+    await AuthService().init();
+
     // Load data in background
     if (isConfigured) {
       refreshAll();
+      // Resume tracking if there was an active trip
+      _checkAndResumeTracking();
     }
   }
 
@@ -328,9 +334,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   void _listenToConnectivity() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       final wasOffline = !_isOnline;
-      _isOnline = result != ConnectivityResult.none;
+      _isOnline = results.isNotEmpty && !results.contains(ConnectivityResult.none);
 
       if (wasOffline && _isOnline) {
         // Back online - process queue
@@ -341,8 +347,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _checkConnectivity() async {
-    final ConnectivityResult result = await Connectivity().checkConnectivity();
-    _isOnline = result != ConnectivityResult.none;
+    final List<ConnectivityResult> results = await Connectivity().checkConnectivity();
+    _isOnline = results.isNotEmpty && !results.contains(ConnectivityResult.none);
     notifyListeners();
   }
 
@@ -592,6 +598,15 @@ class AppProvider extends ChangeNotifier {
     await refreshCars();
   }
 
+  Future<Map<String, dynamic>?> getCarCredentials(String carId) async {
+    return await _api.getCarCredentials(carId);
+  }
+
+  Future<void> deleteCarCredentials(String carId) async {
+    await _api.deleteCarCredentials(carId);
+    await refreshCars();
+  }
+
   Future<Map<String, dynamic>> testCarCredentials(String carId, CarCredentials creds) async {
     return await _api.testCarCredentials(carId, creds);
   }
@@ -602,10 +617,47 @@ class AppProvider extends ChangeNotifier {
 
   Future<bool> completeTeslaAuth(String carId, String callbackUrl) async {
     final success = await _api.completeTeslaAuth(carId, callbackUrl);
-    if (success) {
-      await refreshCars();
-    }
+    // Don't refresh cars here - let the screen show success state first
     return success;
+  }
+
+  // Audi OAuth
+  Future<String?> getAudiAuthUrl(String carId) async {
+    return await _api.getAudiAuthUrl(carId);
+  }
+
+  Future<Map<String, dynamic>> completeAudiAuth(String carId, String redirectUrl) async {
+    final result = await _api.completeAudiAuth(carId, redirectUrl);
+    // Don't refresh cars here - let the screen show success state first
+    // Cars will refresh when user navigates back
+    return result;
+  }
+
+  // VW Group OAuth (Volkswagen, Skoda, SEAT, CUPRA)
+  Future<Map<String, dynamic>> getVWGroupAuthUrl(String carId, String brand) async {
+    return await _api.getVWGroupAuthUrl(carId, brand);
+  }
+
+  Future<Map<String, dynamic>> completeVWGroupAuth(String carId, String brand, String redirectUrl) async {
+    final result = await _api.completeVWGroupAuth(carId, brand, redirectUrl);
+    // Don't refresh cars here - let the screen show success state first
+    return result;
+  }
+
+  // Renault OAuth (Gigya-based)
+  Future<Map<String, dynamic>> renaultDirectLogin(String carId, String username, String password, {String locale = 'nl_NL'}) async {
+    final result = await _api.renaultDirectLogin(carId, username, password, locale: locale);
+    return result;
+  }
+
+  Future<Map<String, dynamic>> getRenaultAuthUrl(String carId, {String locale = 'nl/nl'}) async {
+    return await _api.getRenaultAuthUrl(carId, locale: locale);
+  }
+
+  Future<Map<String, dynamic>> completeRenaultAuth(String carId, String gigyaToken, {String? personId}) async {
+    final result = await _api.completeRenaultAuth(carId, gigyaToken, personId: personId);
+    // Don't refresh cars here - let the screen show success state first
+    return result;
   }
 
   // ============ Webhook Actions ============
@@ -620,8 +672,7 @@ class AppProvider extends ChangeNotifier {
     }
 
     if (!_isOnline) {
-      // TODO: Store deviceId in offline queue
-      await _offlineQueue.addToQueue('start', location.lat, location.lng);
+      await _offlineQueue.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
       await refreshQueueLength();
       _startBackgroundTracking();
       return true;
@@ -631,11 +682,9 @@ class AppProvider extends ChangeNotifier {
       await _api.startTrip(location.lat, location.lng, deviceId: deviceId);
       await refreshActiveTrip();
       _startBackgroundTracking();
-      print('[Trip] Started for car: ${car.name} with device: $deviceId');
       return true;
     } catch (e) {
-      print('Error starting trip: $e');
-      await _offlineQueue.addToQueue('start', location.lat, location.lng);
+      await _offlineQueue.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
       await refreshQueueLength();
       _startBackgroundTracking();
       return true;
@@ -800,42 +849,4 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============ Car Settings ============
-
-  Future<void> saveCarSettings({
-    required String brand,
-    required String username,
-    String? password,
-    required String country,
-  }) async {
-    try {
-      await _api.saveCarSettings(
-        brand: brand,
-        username: username,
-        password: password,
-        country: country,
-      );
-      await refreshCarData();
-    } catch (e) {
-      print('Error saving car settings: $e');
-      _error = 'Kon auto instellingen niet opslaan';
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  /// Test car API credentials directly
-  Future<Map<String, dynamic>> testCarApi({
-    required String brand,
-    required String username,
-    required String password,
-    required String country,
-  }) async {
-    return await _api.testCarApi(
-      brand: brand,
-      username: username,
-      password: password,
-      country: country,
-    );
-  }
 }

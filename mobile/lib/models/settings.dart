@@ -5,21 +5,15 @@ class AppSettings {
   final String userEmail;
   final bool autoDetectCar;
   final int gpsPingIntervalSeconds;
-  // Car API settings
-  final String carBrand;
-  final String carUsername;
-  final String carPassword;
-  final String carCountry;
+  // Language setting (null = system default)
+  final String? localeCode;
 
   AppSettings({
     required this.apiUrl,
     required this.userEmail,
     required this.autoDetectCar,
     required this.gpsPingIntervalSeconds,
-    required this.carBrand,
-    required this.carUsername,
-    required this.carPassword,
-    required this.carCountry,
+    this.localeCode,
   });
 
   factory AppSettings.defaults() {
@@ -28,10 +22,7 @@ class AppSettings {
       userEmail: '',
       autoDetectCar: true,
       gpsPingIntervalSeconds: 30,
-      carBrand: 'audi',
-      carUsername: '',
-      carPassword: '',
-      carCountry: 'NL',
+      localeCode: null,
     );
   }
 
@@ -40,20 +31,15 @@ class AppSettings {
     String? userEmail,
     bool? autoDetectCar,
     int? gpsPingIntervalSeconds,
-    String? carBrand,
-    String? carUsername,
-    String? carPassword,
-    String? carCountry,
+    String? localeCode,
+    bool clearLocale = false,
   }) {
     return AppSettings(
       apiUrl: apiUrl ?? this.apiUrl,
       userEmail: userEmail ?? this.userEmail,
       autoDetectCar: autoDetectCar ?? this.autoDetectCar,
       gpsPingIntervalSeconds: gpsPingIntervalSeconds ?? this.gpsPingIntervalSeconds,
-      carBrand: carBrand ?? this.carBrand,
-      carUsername: carUsername ?? this.carUsername,
-      carPassword: carPassword ?? this.carPassword,
-      carCountry: carCountry ?? this.carCountry,
+      localeCode: clearLocale ? null : (localeCode ?? this.localeCode),
     );
   }
 
@@ -63,23 +49,17 @@ class AppSettings {
       'userEmail': userEmail,
       'autoDetectCar': autoDetectCar,
       'gpsPingIntervalSeconds': gpsPingIntervalSeconds,
-      'carBrand': carBrand,
-      'carUsername': carUsername,
-      'carPassword': carPassword,
-      'carCountry': carCountry,
+      'localeCode': localeCode,
     };
   }
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
-      apiUrl: json['apiUrl'] as String? ?? 'https://mileage.borism.nl',
+      apiUrl: json['apiUrl'] as String? ?? 'https://mileage-api-ivdikzmo7a-ez.a.run.app',
       userEmail: json['userEmail'] as String? ?? '',
       autoDetectCar: json['autoDetectCar'] as bool? ?? true,
       gpsPingIntervalSeconds: json['gpsPingIntervalSeconds'] as int? ?? 30,
-      carBrand: json['carBrand'] as String? ?? 'audi',
-      carUsername: json['carUsername'] as String? ?? '',
-      carPassword: json['carPassword'] as String? ?? '',
-      carCountry: json['carCountry'] as String? ?? 'NL',
+      localeCode: json['localeCode'] as String?,
     );
   }
 
@@ -93,6 +73,7 @@ class QueuedRequest {
   final double lat;
   final double lng;
   final DateTime timestamp;
+  final String? deviceId;
   int retryCount;
 
   QueuedRequest({
@@ -101,6 +82,7 @@ class QueuedRequest {
     required this.lat,
     required this.lng,
     required this.timestamp,
+    this.deviceId,
     this.retryCount = 0,
   });
 
@@ -111,6 +93,7 @@ class QueuedRequest {
       'lat': lat,
       'lng': lng,
       'timestamp': timestamp.toIso8601String(),
+      'deviceId': deviceId,
       'retryCount': retryCount,
     };
   }
@@ -122,6 +105,7 @@ class QueuedRequest {
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
       timestamp: DateTime.parse(json['timestamp'] as String),
+      deviceId: json['deviceId'] as String?,
       retryCount: json['retryCount'] as int? ?? 0,
     );
   }

@@ -93,29 +93,30 @@ class Car {
     );
   }
 
-  String get brandLabel {
+  /// Get localized brand label
+  String getBrandLabel(dynamic l10n) {
     switch (brand) {
       case 'audi':
-        return 'Audi';
+        return l10n.brandAudi;
       case 'vw':
       case 'volkswagen':
-        return 'Volkswagen';
+        return l10n.brandVolkswagen;
       case 'skoda':
-        return 'Skoda';
+        return l10n.brandSkoda;
       case 'seat':
-        return 'Seat';
+        return l10n.brandSeat;
       case 'cupra':
-        return 'Cupra';
+        return l10n.brandCupra;
       case 'renault':
-        return 'Renault';
+        return l10n.brandRenault;
       case 'tesla':
-        return 'Tesla';
+        return l10n.brandTesla;
       case 'bmw':
-        return 'BMW';
+        return l10n.brandBMW;
       case 'mercedes':
-        return 'Mercedes';
+        return l10n.brandMercedes;
       default:
-        return 'Overig';
+        return l10n.brandOther;
     }
   }
 }

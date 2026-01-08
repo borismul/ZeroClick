@@ -1,9 +1,11 @@
 // Dialog to link an unknown Bluetooth device to a car
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/car.dart';
 import '../providers/app_provider.dart';
-import 'package:provider/provider.dart';
+import '../utils/color_utils.dart';
 
 class DeviceLinkDialog extends StatelessWidget {
   final String deviceName;
@@ -12,30 +14,31 @@ class DeviceLinkDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
         final cars = provider.cars;
 
         return AlertDialog(
-          title: const Text('Onbekend apparaat'),
+          title: Text(l10n.unknownDevice),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Apparaat: $deviceName',
+                l10n.deviceName(deviceName),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Koppel aan auto:'),
+              Text(l10n.linkToCar),
               const SizedBox(height: 8),
               if (cars.isEmpty)
-                const Text(
-                  'Geen auto\'s gevonden. Voeg eerst een auto toe.',
-                  style: TextStyle(color: Colors.grey),
+                Text(
+                  l10n.noCarsFound,
+                  style: const TextStyle(color: Colors.grey),
                 )
               else
                 ...cars.map((car) => _CarOption(
@@ -50,7 +53,7 @@ class DeviceLinkDialog extends StatelessWidget {
                 provider.clearPendingUnknownDevice();
                 Navigator.of(context).pop();
               },
-              child: const Text('Annuleren'),
+              child: Text(l10n.cancel),
             ),
           ],
         );
@@ -63,6 +66,7 @@ class DeviceLinkDialog extends StatelessWidget {
     AppProvider provider,
     Car car,
   ) async {
+    final l10n = AppLocalizations.of(context);
     Navigator.of(context).pop();
 
     final success = await provider.linkDeviceAndStartTrip(deviceName, car);
@@ -72,8 +76,8 @@ class DeviceLinkDialog extends StatelessWidget {
         SnackBar(
           content: Text(
             success
-                ? '${car.name} gekoppeld aan $deviceName - Rit gestart!'
-                : 'Fout bij koppelen: ${provider.error}',
+                ? l10n.carLinkedSuccess(car.name, deviceName)
+                : l10n.linkError(provider.error ?? ''),
           ),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
@@ -90,29 +94,22 @@ class _CarOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListTile(
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: _parseColor(car.color),
+          color: parseHexColor(car.color),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(Icons.directions_car, color: Colors.white),
       ),
       title: Text(car.name),
-      subtitle: Text(car.brandLabel),
+      subtitle: Text(car.getBrandLabel(l10n)),
       trailing: const Icon(Icons.link),
       onTap: onTap,
     );
-  }
-
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
-    } catch (e) {
-      return Colors.blue;
-    }
   }
 }
 

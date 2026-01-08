@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../widgets/trip_controls.dart';
 import '../widgets/active_trip_banner.dart';
@@ -31,10 +32,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         if (!provider.isConfigured) {
-          return _buildSetupPrompt(context, provider);
+          return _buildSetupPrompt(context, provider, l10n);
         }
 
         // Show loading spinner on initial load
@@ -59,13 +61,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.car_rental, color: Colors.blue),
-                      SizedBox(width: 8),
+                      const Icon(Icons.car_rental, color: Colors.blue),
+                      const SizedBox(width: 8),
                       Text(
-                        'CarPlay verbonden',
-                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                        l10n.carPlayConnected,
+                        style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -84,10 +86,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       const Icon(Icons.wifi_off, color: Colors.orange),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Offline - acties worden in wachtrij geplaatst',
-                          style: TextStyle(color: Colors.orange),
+                          l10n.offlineWarning,
+                          style: const TextStyle(color: Colors.orange),
                         ),
                       ),
                       if (provider.queueLength > 0)
@@ -170,7 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 )
               else if (provider.stats != null)
-                StatsCards(stats: provider.stats!),
+                const StatsCards(),
 
               const SizedBox(height: 24),
 
@@ -183,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 )
               else
-                _buildRecentTrips(provider),
+                _buildRecentTrips(provider, l10n),
             ],
           ),
         );
@@ -191,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSetupPrompt(BuildContext context, AppProvider provider) {
+  Widget _buildSetupPrompt(BuildContext context, AppProvider provider, AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -200,15 +202,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             const Icon(Icons.account_circle, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text(
-              'Log in om te beginnen',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              l10n.loginPrompt,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Log in met je Google account en configureer de auto API',
+            Text(
+              l10n.loginSubtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -216,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 provider.navigateTo(2);
               },
               icon: const Icon(Icons.arrow_forward),
-              label: const Text('Naar instellingen'),
+              label: Text(l10n.goToSettings),
             ),
           ],
         ),
@@ -224,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRecentTrips(AppProvider provider) {
+  Widget _buildRecentTrips(AppProvider provider, AppLocalizations l10n) {
     final recentTrips = provider.trips.take(5).toList();
 
     if (recentTrips.isEmpty) {
@@ -234,9 +236,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Laatste ritten',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          l10n.recentTrips,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         ...recentTrips.map((trip) => Card(
@@ -249,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${trip.distanceKm} km',
+                      '${trip.distanceKm} ${l10n.km}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Container(
@@ -263,7 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        trip.tripTypeLabel,
+                        trip.getTripTypeLabel(l10n),
                         style: TextStyle(
                           fontSize: 12,
                           color: trip.tripType == 'B'

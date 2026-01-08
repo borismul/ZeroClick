@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/trip.dart';
 import '../providers/app_provider.dart';
 import 'trip_edit_screen.dart';
+import 'trip_map_screen.dart';
 
 class TripDetailScreen extends StatefulWidget {
   final Trip trip;
@@ -47,8 +49,18 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     }
   }
 
+  void _openMapWithPins() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TripMapScreen(trip: _trip),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final provider = Provider.of<AppProvider>(context);
     return Scaffold(
       appBar: AppBar(
@@ -70,9 +82,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Route',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    l10n.route,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -83,7 +95,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Van', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text(l10n.from, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                             Text(_trip.fromAddress, style: const TextStyle(fontSize: 16)),
                           ],
                         ),
@@ -102,7 +114,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Naar', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text(l10n.to, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                             Text(_trip.toAddress, style: const TextStyle(fontSize: 16)),
                           ],
                         ),
@@ -123,25 +135,25 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Details',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    l10n.details,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _detailRow('Datum', _trip.date),
-                  _detailRow('Tijd', '${_trip.startTime} - ${_trip.endTime}'),
-                  _detailRow('Afstand', '${_trip.distanceKm.toStringAsFixed(1)} km'),
-                  _detailRow('Type', _trip.tripTypeLabel),
+                  _detailRow(l10n.date, _trip.date),
+                  _detailRow(l10n.time, '${_trip.startTime} - ${_trip.endTime}'),
+                  _detailRow(l10n.distance, '${_trip.distanceKm.toStringAsFixed(1)} ${l10n.km}'),
+                  _detailRow(l10n.type, _trip.getTripTypeLabel(l10n)),
                   if (_trip.businessKm > 0)
-                    _detailRow('Zakelijk', '${_trip.businessKm.toStringAsFixed(1)} km'),
+                    _detailRow(l10n.business, '${_trip.businessKm.toStringAsFixed(1)} ${l10n.km}'),
                   if (_trip.privateKm > 0)
-                    _detailRow('Privé', '${_trip.privateKm.toStringAsFixed(1)} km'),
+                    _detailRow(l10n.private, '${_trip.privateKm.toStringAsFixed(1)} ${l10n.km}'),
                   if (_trip.googleMapsKm != null)
-                    _detailRow('Google Maps', '${_trip.googleMapsKm!.toStringAsFixed(1)} km'),
+                    _detailRow(l10n.googleMaps, '${_trip.googleMapsKm!.toStringAsFixed(1)} ${l10n.km}'),
                   if (_trip.routeDeviationPercent != null && _trip.routeDeviationPercent! > 0)
-                    _detailRow('Route afwijking', '${_trip.routeDeviationPercent!.toStringAsFixed(1)}%'),
+                    _detailRow(l10n.routeDeviation, '${_trip.routeDeviationPercent!.toStringAsFixed(1)}%'),
                   if (_trip.carId != null)
-                    _detailRow('Auto', _getCarName(provider)),
+                    _detailRow(l10n.car, _getCarName(provider)),
                 ],
               ),
             ),
@@ -159,7 +171,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 border: Border.all(color: _getTripTypeColor(_trip.tripType)),
               ),
               child: Text(
-                _trip.tripTypeLabel,
+                _trip.getTripTypeLabel(l10n),
                 style: TextStyle(
                   color: _getTripTypeColor(_trip.tripType),
                   fontWeight: FontWeight.bold,
@@ -168,6 +180,31 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               ),
             ),
           ),
+
+          // Distance estimated warning (car API was unavailable)
+          if (_trip.isDistanceEstimated) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.blue),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${l10n.distanceEstimated} (${_trip.getDistanceSourceLabel(l10n)})',
+                      style: const TextStyle(color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Route deviation warning
           if (_trip.routeDeviationPercent != null && _trip.routeDeviationPercent! > 5) ...[
@@ -185,11 +222,28 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Route is ${_trip.routeDeviationPercent!.toStringAsFixed(0)}% langer dan verwacht via Google Maps',
+                      l10n.routeDeviationWarning(_trip.routeDeviationPercent!.toInt()),
                       style: const TextStyle(color: Colors.orange),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+
+          // View on map button
+          if (_trip.gpsTrail != null && _trip.gpsTrail!.isNotEmpty ||
+              (_trip.fromLat != null && _trip.toLat != null)) ...[
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _openMapWithPins,
+                icon: const Icon(Icons.map),
+                label: Text(l10n.viewOnMap),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ),
           ],

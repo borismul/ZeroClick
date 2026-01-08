@@ -1,67 +1,75 @@
 // Stats cards widget
 
 import 'package:flutter/material.dart';
-import '../models/trip.dart';
+import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../providers/app_provider.dart';
 
 class StatsCards extends StatelessWidget {
-  final Stats stats;
-
-  const StatsCards({super.key, required this.stats});
+  const StatsCards({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Statistieken',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Row(
+    final l10n = AppLocalizations.of(context);
+    return Consumer<AppProvider>(
+      builder: (context, provider, child) {
+        final stats = provider.stats;
+        if (stats == null) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _StatCard(
-                label: 'Ritten',
-                value: stats.tripCount.toString(),
-                icon: Icons.directions_car,
-                color: Colors.blue,
-              ),
+            Text(
+              l10n.statistics,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                label: 'Totaal',
-                value: '${stats.totalKm.toStringAsFixed(0)} km',
-                icon: Icons.straighten,
-                color: Colors.purple,
-              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    label: l10n.trips,
+                    value: stats.tripCount.toString(),
+                    icon: Icons.directions_car,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatCard(
+                    label: l10n.total,
+                    value: '${stats.totalKm.toStringAsFixed(0)} ${l10n.km}',
+                    icon: Icons.straighten,
+                    color: Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    label: l10n.business,
+                    value: '${stats.businessKm.toStringAsFixed(0)} ${l10n.km}',
+                    icon: Icons.work,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatCard(
+                    label: l10n.private,
+                    value: '${stats.privateKm.toStringAsFixed(0)} ${l10n.km}',
+                    icon: Icons.home,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                label: 'Zakelijk',
-                value: '${stats.businessKm.toStringAsFixed(0)} km',
-                icon: Icons.work,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                label: 'Privé',
-                value: '${stats.privateKm.toStringAsFixed(0)} km',
-                icon: Icons.home,
-                color: Colors.orange,
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

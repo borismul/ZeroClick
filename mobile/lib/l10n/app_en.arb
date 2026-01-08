@@ -1,0 +1,524 @@
+{
+  "@@locale": "en",
+  "@@last_modified": "2025-01-05",
+
+  "appTitle": "Mileage Tracker",
+  "@appTitle": {"description": "App title shown in app bar"},
+
+  "tabStatus": "Status",
+  "@tabStatus": {"description": "Dashboard tab label"},
+
+  "tabTrips": "Trips",
+  "@tabTrips": {"description": "History tab label"},
+
+  "tabSettings": "Settings",
+  "@tabSettings": {"description": "Settings tab label"},
+
+  "tabCharging": "Charging",
+  "@tabCharging": {"description": "Charging stations tab label"},
+
+  "chargingStations": "charging stations",
+  "@chargingStations": {"description": "Charging stations count label"},
+
+  "logout": "Log out",
+  "@logout": {"description": "Logout menu option"},
+
+  "importantTitle": "Important",
+  "@importantTitle": {"description": "First launch dialog title"},
+
+  "backgroundWarningMessage": "This app automatically detects when you get in your car via Bluetooth.\n\nThis only works if the app is running in the background. If you close the app (swipe up), automatic detection will stop working.\n\nTip: Just leave the app open, and everything will work automatically.",
+  "@backgroundWarningMessage": {"description": "First launch warning about background mode"},
+
+  "understood": "Got it",
+  "@understood": {"description": "Acknowledge button"},
+
+  "loginPrompt": "Log in to get started",
+  "@loginPrompt": {"description": "Dashboard prompt when not configured"},
+
+  "loginSubtitle": "Log in with your Google account and configure the car API",
+  "@loginSubtitle": {"description": "Dashboard subtitle when not configured"},
+
+  "goToSettings": "Go to Settings",
+  "@goToSettings": {"description": "Button to navigate to settings"},
+
+  "carPlayConnected": "CarPlay connected",
+  "@carPlayConnected": {"description": "CarPlay connection status"},
+
+  "offlineWarning": "Offline - actions will be queued",
+  "@offlineWarning": {"description": "Offline status warning"},
+
+  "recentTrips": "Recent trips",
+  "@recentTrips": {"description": "Section title for recent trips"},
+
+  "configureFirst": "Configure the app in Settings first",
+  "@configureFirst": {"description": "Error when not configured"},
+
+  "noTripsYet": "No trips yet",
+  "@noTripsYet": {"description": "Empty state for trips list"},
+
+  "routeLongerPercent": "Route +{percent}% longer",
+  "@routeLongerPercent": {"description": "Route deviation warning", "placeholders": {"percent": {"type": "int"}}},
+
+  "route": "Route",
+  "@route": {"description": "Route section title"},
+
+  "from": "From",
+  "@from": {"description": "Origin label"},
+
+  "to": "To",
+  "@to": {"description": "Destination label"},
+
+  "details": "Details",
+  "@details": {"description": "Details section title"},
+
+  "date": "Date",
+  "@date": {"description": "Date field label"},
+
+  "time": "Time",
+  "@time": {"description": "Time field label"},
+
+  "distance": "Distance",
+  "@distance": {"description": "Distance field label"},
+
+  "type": "Type",
+  "@type": {"description": "Trip type label"},
+
+  "tripTypeBusiness": "Business",
+  "@tripTypeBusiness": {"description": "Business trip type"},
+
+  "tripTypePrivate": "Private",
+  "@tripTypePrivate": {"description": "Private trip type"},
+
+  "tripTypeMixed": "Mixed",
+  "@tripTypeMixed": {"description": "Mixed trip type"},
+
+  "googleMaps": "Google Maps",
+  "@googleMaps": {"description": "Google Maps field label"},
+
+  "routeDeviation": "Route deviation",
+  "@routeDeviation": {"description": "Route deviation field label"},
+
+  "car": "Car",
+  "@car": {"description": "Car field label"},
+
+  "routeDeviationWarning": "Route is {percent}% longer than expected via Google Maps",
+  "@routeDeviationWarning": {"description": "Route deviation warning message", "placeholders": {"percent": {"type": "int"}}},
+
+  "viewOnMap": "View on Map",
+  "@viewOnMap": {"description": "Button to view trip route on map"},
+
+  "editTrip": "Edit trip",
+  "@editTrip": {"description": "Edit trip screen title"},
+
+  "addTrip": "Add trip",
+  "@addTrip": {"description": "Add trip screen title"},
+
+  "dateAndTime": "Date & Time",
+  "@dateAndTime": {"description": "Date and time section"},
+
+  "start": "Start",
+  "@start": {"description": "Start time label"},
+
+  "end": "End",
+  "@end": {"description": "End time label"},
+
+  "fromPlaceholder": "From",
+  "@fromPlaceholder": {"description": "Origin placeholder"},
+
+  "toPlaceholder": "To",
+  "@toPlaceholder": {"description": "Destination placeholder"},
+
+  "distanceAndType": "Distance & Type",
+  "@distanceAndType": {"description": "Distance and type section"},
+
+  "distanceKm": "Distance (km)",
+  "@distanceKm": {"description": "Distance field with unit"},
+
+  "businessKm": "Business km",
+  "@businessKm": {"description": "Business kilometers for mixed trips"},
+
+  "privateKm": "Private km",
+  "@privateKm": {"description": "Private kilometers for mixed trips"},
+
+  "save": "Save",
+  "@save": {"description": "Save button"},
+
+  "add": "Add",
+  "@add": {"description": "Add button"},
+
+  "deleteTrip": "Delete trip?",
+  "@deleteTrip": {"description": "Delete confirmation title"},
+
+  "deleteTripConfirmation": "Are you sure you want to delete this trip?",
+  "@deleteTripConfirmation": {"description": "Delete confirmation message"},
+
+  "cancel": "Cancel",
+  "@cancel": {"description": "Cancel button"},
+
+  "delete": "Delete",
+  "@delete": {"description": "Delete button"},
+
+  "somethingWentWrong": "Something went wrong",
+  "@somethingWentWrong": {"description": "Generic error message"},
+
+  "couldNotDelete": "Could not delete",
+  "@couldNotDelete": {"description": "Delete error message"},
+
+  "statistics": "Statistics",
+  "@statistics": {"description": "Statistics section title"},
+
+  "trips": "Trips",
+  "@trips": {"description": "Trips stat label"},
+
+  "total": "Total",
+  "@total": {"description": "Total stat label"},
+
+  "business": "Business",
+  "@business": {"description": "Business stat label"},
+
+  "private": "Private",
+  "@private": {"description": "Private stat label"},
+
+  "account": "Account",
+  "@account": {"description": "Account section"},
+
+  "loggedIn": "Logged in",
+  "@loggedIn": {"description": "Logged in status"},
+
+  "googleAccount": "Google account",
+  "@googleAccount": {"description": "Google account subtitle"},
+
+  "loginWithGoogle": "Log in with Google",
+  "@loginWithGoogle": {"description": "Google login button"},
+
+  "myCars": "My Cars",
+  "@myCars": {"description": "Cars section title"},
+
+  "carsCount": "{count, plural, =0{0 cars} =1{1 car} other{{count} cars}}",
+  "@carsCount": {"description": "Number of cars", "placeholders": {"count": {"type": "int"}}},
+
+  "manageVehicles": "Manage your vehicles",
+  "@manageVehicles": {"description": "Cars section subtitle"},
+
+  "location": "Location",
+  "@location": {"description": "Location section"},
+
+  "requestLocationPermission": "Request Location Permission",
+  "@requestLocationPermission": {"description": "Location permission button"},
+
+  "openIOSSettings": "Open iOS Settings",
+  "@openIOSSettings": {"description": "Open settings button"},
+
+  "locationPermissionGranted": "Location permission granted!",
+  "@locationPermissionGranted": {"description": "Permission success message"},
+
+  "locationPermissionDenied": "Location permission denied - go to Settings",
+  "@locationPermissionDenied": {"description": "Permission denied message"},
+
+  "enableLocationServices": "First enable Location Services in iOS Settings",
+  "@enableLocationServices": {"description": "Location services disabled message"},
+
+  "carPlay": "CarPlay",
+  "@carPlay": {"description": "CarPlay section"},
+
+  "automaticDetection": "Automatic detection",
+  "@automaticDetection": {"description": "Auto detection toggle"},
+
+  "autoDetectionSubtitle": "Start/stop trips automatically when CarPlay connects",
+  "@autoDetectionSubtitle": {"description": "Auto detection description"},
+
+  "carPlayIsConnected": "CarPlay is connected",
+  "@carPlayIsConnected": {"description": "CarPlay connected status"},
+
+  "queue": "Queue",
+  "@queue": {"description": "Queue section"},
+
+  "queueItems": "{count} items in queue",
+  "@queueItems": {"description": "Queue item count", "placeholders": {"count": {"type": "int"}}},
+
+  "queueSubtitle": "Will be sent when online",
+  "@queueSubtitle": {"description": "Queue status subtitle"},
+
+  "sendNow": "Send now",
+  "@sendNow": {"description": "Send queue button"},
+
+  "aboutApp": "About this app",
+  "@aboutApp": {"description": "About section"},
+
+  "aboutDescription": "This app replaces the iPhone Shortcuts automation for mileage tracking. It automatically detects when you get in the car via Bluetooth/CarPlay and tracks trips.",
+  "@aboutDescription": {"description": "App description"},
+
+  "loggedInAs": "Logged in as {email}",
+  "@loggedInAs": {"description": "Logged in confirmation", "placeholders": {"email": {"type": "String"}}},
+
+  "errorSaving": "Error saving: {error}",
+  "@errorSaving": {"description": "Save error message", "placeholders": {"error": {"type": "String"}}},
+
+  "carSettingsSaved": "Car settings saved",
+  "@carSettingsSaved": {"description": "Settings saved confirmation"},
+
+  "enterUsernamePassword": "Enter username and password",
+  "@enterUsernamePassword": {"description": "Validation message"},
+
+  "cars": "Cars",
+  "@cars": {"description": "Cars screen title"},
+
+  "addCar": "Add car",
+  "@addCar": {"description": "Add car button"},
+
+  "noCarsAdded": "No cars added yet",
+  "@noCarsAdded": {"description": "Empty cars state"},
+
+  "defaultBadge": "Default",
+  "@defaultBadge": {"description": "Default car badge"},
+
+  "editCar": "Edit car",
+  "@editCar": {"description": "Edit car screen title"},
+
+  "name": "Name",
+  "@name": {"description": "Name field label"},
+
+  "nameHint": "E.g. Audi Q4 e-tron",
+  "@nameHint": {"description": "Name field hint"},
+
+  "enterName": "Enter a name",
+  "@enterName": {"description": "Name validation"},
+
+  "brand": "Brand",
+  "@brand": {"description": "Brand field label"},
+
+  "color": "Color",
+  "@color": {"description": "Color section title"},
+
+  "icon": "Icon",
+  "@icon": {"description": "Icon section title"},
+
+  "defaultCar": "Default car",
+  "@defaultCar": {"description": "Default car toggle"},
+
+  "defaultCarSubtitle": "New trips will be linked to this car",
+  "@defaultCarSubtitle": {"description": "Default car description"},
+
+  "bluetoothDevice": "Bluetooth device",
+  "@bluetoothDevice": {"description": "Bluetooth field label"},
+
+  "autoSetOnConnect": "Will be set automatically on connection",
+  "@autoSetOnConnect": {"description": "Bluetooth field hint"},
+
+  "autoSetOnConnectFull": "Will be set automatically when connecting to CarPlay/Bluetooth",
+  "@autoSetOnConnectFull": {"description": "Bluetooth info text"},
+
+  "carApiConnection": "Car API Connection",
+  "@carApiConnection": {"description": "API connection section"},
+
+  "connectWithBrand": "Connect with {brand} for odometer and battery status",
+  "@connectWithBrand": {"description": "API connection description", "placeholders": {"brand": {"type": "String"}}},
+
+  "brandAudi": "Audi",
+  "brandVolkswagen": "Volkswagen",
+  "brandSkoda": "Skoda",
+  "brandSeat": "Seat",
+  "brandCupra": "Cupra",
+  "brandRenault": "Renault",
+  "brandTesla": "Tesla",
+  "brandBMW": "BMW",
+  "brandMercedes": "Mercedes",
+  "brandOther": "Other",
+
+  "iconSedan": "Sedan",
+  "iconSUV": "SUV",
+  "iconHatchback": "Hatchback",
+  "iconSport": "Sport",
+  "iconVan": "Van",
+
+  "loginWithTesla": "Log in with Tesla",
+  "@loginWithTesla": {"description": "Tesla login button"},
+
+  "teslaLoginInfo": "You will be redirected to Tesla to log in. Then you can view your car data.",
+  "@teslaLoginInfo": {"description": "Tesla login description"},
+
+  "usernameEmail": "Username / Email",
+  "@usernameEmail": {"description": "Username field label"},
+
+  "password": "Password",
+  "@password": {"description": "Password field label"},
+
+  "country": "Country",
+  "@country": {"description": "Country field label"},
+
+  "countryHint": "NL",
+  "@countryHint": {"description": "Country field hint"},
+
+  "testApi": "Test API",
+  "@testApi": {"description": "Test API button"},
+
+  "carUpdated": "Car updated",
+  "@carUpdated": {"description": "Update success message"},
+
+  "carAdded": "Car added",
+  "@carAdded": {"description": "Add success message"},
+
+  "errorMessage": "Error: {error}",
+  "@errorMessage": {"description": "Error message with details", "placeholders": {"error": {"type": "String"}}},
+
+  "carDeleted": "Car deleted",
+  "@carDeleted": {"description": "Delete success message"},
+
+  "deleteCar": "Delete car?",
+  "@deleteCar": {"description": "Delete car confirmation title"},
+
+  "deleteCarConfirmation": "Are you sure you want to delete \"{carName}\"? All trips linked to this car will keep their data.",
+  "@deleteCarConfirmation": {"description": "Delete car confirmation message", "placeholders": {"carName": {"type": "String"}}},
+
+  "apiSettingsSaved": "API settings saved",
+  "@apiSettingsSaved": {"description": "API settings saved confirmation"},
+
+  "teslaAlreadyLinked": "Tesla is already linked!",
+  "@teslaAlreadyLinked": {"description": "Tesla already connected message"},
+
+  "teslaLinked": "Tesla linked!",
+  "@teslaLinked": {"description": "Tesla connection success"},
+
+  "teslaLinkFailed": "Tesla link failed",
+  "@teslaLinkFailed": {"description": "Tesla connection error"},
+
+  "startTrip": "Start Trip",
+  "@startTrip": {"description": "Start trip button"},
+
+  "stopTrip": "Stop Trip",
+  "@stopTrip": {"description": "Stop trip button"},
+
+  "gpsActiveTracking": "GPS active - automatic tracking",
+  "@gpsActiveTracking": {"description": "GPS tracking status"},
+
+  "activeTrip": "Active trip",
+  "@activeTrip": {"description": "Active trip banner title"},
+
+  "startedAt": "Started: {time}",
+  "@startedAt": {"description": "Trip start time", "placeholders": {"time": {"type": "String"}}},
+
+  "gpsPoints": "{count} GPS points",
+  "@gpsPoints": {"description": "GPS point count", "placeholders": {"count": {"type": "int"}}},
+
+  "km": "km",
+  "@km": {"description": "Kilometer unit"},
+
+  "updatedAt": "Updated: {time}",
+  "@updatedAt": {"description": "Last update timestamp", "placeholders": {"time": {"type": "String"}}},
+
+  "battery": "Battery",
+  "@battery": {"description": "Battery label"},
+
+  "status": "Status",
+  "@status": {"description": "Status label"},
+
+  "odometer": "Odometer",
+  "@odometer": {"description": "Odometer label"},
+
+  "stateParked": "Parked",
+  "@stateParked": {"description": "Car state: parked"},
+
+  "stateDriving": "Driving",
+  "@stateDriving": {"description": "Car state: driving"},
+
+  "stateCharging": "Charging",
+  "@stateCharging": {"description": "Car state: charging"},
+
+  "stateUnknown": "Unknown",
+  "@stateUnknown": {"description": "Car state: unknown"},
+
+  "chargingPower": "Charging: {power} kW",
+  "@chargingPower": {"description": "Charging power display", "placeholders": {"power": {"type": "double"}}},
+
+  "readyIn": "Ready in: {time}",
+  "@readyIn": {"description": "Charging time remaining", "placeholders": {"time": {"type": "String"}}},
+
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {"description": "Minutes short format", "placeholders": {"minutes": {"type": "int"}}},
+
+  "hoursMinutes": "{hours}h {minutes}m",
+  "@hoursMinutes": {"description": "Hours and minutes format", "placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+
+  "addFirstCar": "Add your first car",
+  "@addFirstCar": {"description": "Empty car selector prompt"},
+
+  "toTrackPerCar": "To track trips per car",
+  "@toTrackPerCar": {"description": "Empty car selector subtitle"},
+
+  "selectCar": "Select car",
+  "@selectCar": {"description": "Car selector placeholder"},
+
+  "manageCars": "Manage cars",
+  "@manageCars": {"description": "Manage cars tooltip"},
+
+  "unknownDevice": "Unknown device",
+  "@unknownDevice": {"description": "Unknown device dialog title"},
+
+  "deviceName": "Device: {name}",
+  "@deviceName": {"description": "Device name display", "placeholders": {"name": {"type": "String"}}},
+
+  "linkToCar": "Link to car:",
+  "@linkToCar": {"description": "Link device prompt"},
+
+  "noCarsFound": "No cars found. Add a car first.",
+  "@noCarsFound": {"description": "No cars for linking"},
+
+  "carLinkedSuccess": "{carName} linked to {deviceName} - Trip started!",
+  "@carLinkedSuccess": {"description": "Link success message", "placeholders": {"carName": {"type": "String"}, "deviceName": {"type": "String"}}},
+
+  "linkError": "Error linking: {error}",
+  "@linkError": {"description": "Link error message", "placeholders": {"error": {"type": "String"}}},
+
+  "required": "Required",
+  "@required": {"description": "Required field validation"},
+
+  "invalidDistance": "Invalid distance",
+  "@invalidDistance": {"description": "Distance validation error"},
+
+  "language": "Language",
+  "@language": {"description": "Language section title"},
+
+  "systemDefault": "System default",
+  "@systemDefault": {"description": "Use system language setting"},
+
+  "languageEnglish": "English",
+  "languageDutch": "Nederlands",
+  "languageGerman": "Deutsch",
+  "languageFrench": "Français",
+  "languageSpanish": "Español",
+  "languagePortuguese": "Português",
+  "languageItalian": "Italiano",
+  "languagePolish": "Polski",
+  "languageRussian": "Русский",
+  "languageChinese": "中文",
+  "languageJapanese": "日本語",
+  "languageKorean": "한국어",
+  "languageArabic": "العربية",
+  "languageTurkish": "Türkçe",
+  "languageHindi": "हिन्दी",
+  "languageIndonesian": "Bahasa Indonesia",
+  "languageThai": "ไทย",
+  "languageVietnamese": "Tiếng Việt",
+  "languageSwedish": "Svenska",
+  "languageNorwegian": "Norsk",
+  "languageDanish": "Dansk",
+  "languageFinnish": "Suomi",
+  "languageCzech": "Čeština",
+  "languageHungarian": "Magyar",
+  "languageUkrainian": "Українська",
+  "languageGreek": "Ελληνικά",
+  "languageRomanian": "Română",
+  "languageHebrew": "עברית",
+
+  "distanceSourceOdometer": "Via odometer",
+  "@distanceSourceOdometer": {"description": "Distance from car odometer"},
+
+  "distanceSourceOsrm": "Estimated via route",
+  "@distanceSourceOsrm": {"description": "Distance estimated via OSRM routing"},
+
+  "distanceSourceGps": "Estimated via GPS",
+  "@distanceSourceGps": {"description": "Distance estimated from GPS points"},
+
+  "distanceEstimated": "Distance estimated",
+  "@distanceEstimated": {"description": "Warning that distance is estimated"}
+}

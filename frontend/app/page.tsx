@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import dynamic from 'next/dynamic'
+
+// Dynamic import for Leaflet (SSR disabled - Leaflet needs window)
+const TripMapModal = dynamic(() => import('./TripMap'), { ssr: false })
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -137,6 +141,7 @@ export default function Dashboard() {
   const [showCarDetails, setShowCarDetails] = useState(false)
   const [showChargingDetails, setShowChargingDetails] = useState(false)
   const [showDebug, setShowDebug] = useState(false)
+  const [mapTrip, setMapTrip] = useState<Trip | null>(null)
 
   // Multi-car state
   const [cars, setCars] = useState<Car[]>([])
@@ -772,25 +777,8 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="actions">
-                      <button className="icon-btn" title="Route" onClick={() => {
-                        let url = `https://www.google.com/maps/dir/?api=1&origin=${trip.from_lat},${trip.from_lon}&destination=${trip.to_lat},${trip.to_lon}`
-                        if (trip.gps_trail && trip.gps_trail.length > 2) {
-                          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-                          const maxWaypoints = isMobile ? 3 : 9
-                          const middle = trip.gps_trail.slice(1, -1)
-                          const count = Math.min(maxWaypoints, middle.length)
-                          const waypoints = []
-                          for (let i = 0; i < count; i++) {
-                            const idx = Math.floor((i + 0.5) * middle.length / count)
-                            waypoints.push(middle[idx])
-                          }
-                          if (waypoints.length > 0) {
-                            url += `&waypoints=${waypoints.map(p => `${p.lat},${p.lng}`).join('|')}`
-                          }
-                        }
-                        window.open(url, '_blank')
-                      }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+                      <button className="icon-btn" title="Kaart" onClick={() => setMapTrip(trip)} disabled={!trip.from_lat && !trip.gps_trail?.length}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                       </button>
                       <button className="icon-btn" title="Bewerken" onClick={() => setEditingTrip(trip)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1002,6 +990,14 @@ export default function Dashboard() {
           onClose={() => setEditingCar(null)}
           onSaveCredentials={saveCarCredentials}
           onTestCredentials={testCarCredentials}
+        />
+      )}
+
+      {/* Trip Map Modal */}
+      {mapTrip && (
+        <TripMapModal
+          trip={mapTrip}
+          onClose={() => setMapTrip(null)}
         />
       )}
     </div>

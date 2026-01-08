@@ -56,6 +56,12 @@ import CoreMotion
                         self?.userEmail = email
                         UserDefaults.standard.set(baseUrl, forKey: "api_base_url")
                         UserDefaults.standard.set(email, forKey: "user_email")
+                        // Sync to App Group for Watch app
+                        if let sharedDefaults = UserDefaults(suiteName: "group.nl.borism.mileageTracker") {
+                            sharedDefaults.set(email, forKey: "userEmail")
+                            sharedDefaults.set(baseUrl, forKey: "apiUrl")
+                            sharedDefaults.synchronize()
+                        }
                         print("[Config] API: \(baseUrl), User: \(email)")
                         result(true)
                     } else {

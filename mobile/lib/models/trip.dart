@@ -20,6 +20,7 @@ class Trip {
   final double? googleMapsKm;
   final double? routeDeviationPercent;
   final String? routeFlag;
+  final String? distanceSource; // "odometer", "osrm", or "gps"
 
   Trip({
     required this.id,
@@ -41,6 +42,7 @@ class Trip {
     this.googleMapsKm,
     this.routeDeviationPercent,
     this.routeFlag,
+    this.distanceSource,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
@@ -66,6 +68,7 @@ class Trip {
       googleMapsKm: (json['google_maps_km'] as num?)?.toDouble(),
       routeDeviationPercent: (json['route_deviation_percent'] as num?)?.toDouble(),
       routeFlag: json['route_flag'] as String?,
+      distanceSource: json['distance_source'] as String?,
     );
   }
 
@@ -90,17 +93,36 @@ class Trip {
       'google_maps_km': googleMapsKm,
       'route_deviation_percent': routeDeviationPercent,
       'route_flag': routeFlag,
+      'distance_source': distanceSource,
     };
   }
 
-  String get tripTypeLabel {
+  /// Check if distance was estimated (not from odometer)
+  bool get isDistanceEstimated => distanceSource != null && distanceSource != 'odometer';
+
+  /// Get localized distance source label
+  String getDistanceSourceLabel(dynamic l10n) {
+    switch (distanceSource) {
+      case 'odometer':
+        return l10n.distanceSourceOdometer;
+      case 'osrm':
+        return l10n.distanceSourceOsrm;
+      case 'gps':
+        return l10n.distanceSourceGps;
+      default:
+        return '';
+    }
+  }
+
+  /// Get localized trip type label
+  String getTripTypeLabel(dynamic l10n) {
     switch (tripType) {
       case 'B':
-        return 'Zakelijk';
+        return l10n.tripTypeBusiness;
       case 'P':
-        return 'Privé';
+        return l10n.tripTypePrivate;
       case 'M':
-        return 'Gemengd';
+        return l10n.tripTypeMixed;
       default:
         return tripType;
     }
@@ -274,16 +296,17 @@ class CarData {
     );
   }
 
-  String get stateLabel {
+  /// Get localized state label
+  String getStateLabel(dynamic l10n) {
     switch (state) {
       case 'parked':
-        return 'Geparkeerd';
+        return l10n.stateParked;
       case 'driving':
-        return 'Rijdend';
+        return l10n.stateDriving;
       case 'charging':
-        return 'Laden';
+        return l10n.stateCharging;
       default:
-        return state ?? 'Onbekend';
+        return l10n.stateUnknown;
     }
   }
 }

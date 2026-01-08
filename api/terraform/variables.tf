@@ -75,3 +75,10 @@ variable "apple_client_secret" {
   sensitive   = true
   default     = ""
 }
+
+variable "openchargemap_api_key" {
+  description = "Open Charge Map API key for charging station data"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -14,7 +14,7 @@ class OfflineQueue {
 
   OfflineQueue(this._api);
 
-  Future<void> addToQueue(String endpoint, double lat, double lng) async {
+  Future<void> addToQueue(String endpoint, double lat, double lng, {String? deviceId}) async {
     final queue = await getQueue();
     final request = QueuedRequest(
       id: '${DateTime.now().millisecondsSinceEpoch}-${_generateId()}',
@@ -22,10 +22,10 @@ class OfflineQueue {
       lat: lat,
       lng: lng,
       timestamp: DateTime.now(),
+      deviceId: deviceId,
     );
     queue.add(request);
     await _saveQueue(queue);
-    print('[OfflineQueue] Added $endpoint to queue, total: ${queue.length}');
   }
 
   Future<List<QueuedRequest>> getQueue() async {
@@ -38,7 +38,6 @@ class OfflineQueue {
           .map((e) => QueuedRequest.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print('[OfflineQueue] Error reading queue: $e');
       return [];
     }
   }
@@ -58,7 +57,6 @@ class OfflineQueue {
 
   Future<({int success, int failed})> processQueue() async {
     if (_isProcessing) {
-      print('[OfflineQueue] Already processing');
       return (success: 0, failed: 0);
     }
 
@@ -69,32 +67,26 @@ class OfflineQueue {
     try {
       final queue = await getQueue();
       if (queue.isEmpty) {
-        print('[OfflineQueue] Queue is empty');
         return (success: 0, failed: 0);
       }
 
-      print('[OfflineQueue] Processing ${queue.length} items');
       final remaining = <QueuedRequest>[];
 
       for (final request in queue) {
         try {
           await _processRequest(request);
           success++;
-          print('[OfflineQueue] Processed ${request.endpoint} successfully');
         } catch (e) {
           request.retryCount++;
           if (request.retryCount < _maxRetries) {
             remaining.add(request);
-            print('[OfflineQueue] Failed ${request.endpoint}, retry ${request.retryCount}/$_maxRetries');
           } else {
             failed++;
-            print('[OfflineQueue] Dropped ${request.endpoint} after $_maxRetries retries');
           }
         }
       }
 
       await _saveQueue(remaining);
-      print('[OfflineQueue] Done. Success: $success, Failed: $failed, Remaining: ${remaining.length}');
     } finally {
       _isProcessing = false;
     }
@@ -105,7 +97,7 @@ class OfflineQueue {
   Future<void> _processRequest(QueuedRequest request) async {
     switch (request.endpoint) {
       case 'start':
-        await _api.startTrip(request.lat, request.lng);
+        await _api.startTrip(request.lat, request.lng, deviceId: request.deviceId);
         break;
       case 'end':
         await _api.endTrip(request.lat, request.lng);
@@ -121,7 +113,6 @@ class OfflineQueue {
   Future<void> clearQueue() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_queueKey);
-    print('[OfflineQueue] Queue cleared');
   }
 
   String _generateId() {

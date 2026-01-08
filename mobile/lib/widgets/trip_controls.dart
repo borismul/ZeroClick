@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 
 class TripControls extends StatefulWidget {
@@ -29,6 +30,7 @@ class _TripControlsState extends State<TripControls> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         final isActive = provider.activeTrip?.active == true;
@@ -50,7 +52,7 @@ class _TripControlsState extends State<TripControls> {
                 child: _ActionButton(
                   onPressed: () => _handleAction(provider.startTrip),
                   icon: Icons.play_arrow,
-                  label: 'Start Rit',
+                  label: l10n.startTrip,
                   color: Colors.green,
                 ),
               )
@@ -66,14 +68,14 @@ class _TripControlsState extends State<TripControls> {
                         color: Colors.green.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.gps_fixed, color: Colors.green, size: 16),
-                          SizedBox(width: 8),
+                          const Icon(Icons.gps_fixed, color: Colors.green, size: 16),
+                          const SizedBox(width: 8),
                           Text(
-                            'GPS actief - automatische tracking',
-                            style: TextStyle(color: Colors.green, fontSize: 13),
+                            l10n.gpsActiveTracking,
+                            style: const TextStyle(color: Colors.green, fontSize: 13),
                           ),
                         ],
                       ),
@@ -87,7 +89,7 @@ class _TripControlsState extends State<TripControls> {
                         child: _ActionButton(
                           onPressed: () => _handleAction(provider.endTrip),
                           icon: Icons.stop,
-                          label: 'Stop Rit',
+                          label: l10n.stopTrip,
                           color: Colors.red,
                         ),
                       ),
@@ -96,7 +98,7 @@ class _TripControlsState extends State<TripControls> {
                         child: _ActionButton(
                           onPressed: () => _handleAction(provider.cancelTrip),
                           icon: Icons.close,
-                          label: 'Annuleer',
+                          label: l10n.cancel,
                           color: Colors.grey,
                           small: true,
                         ),

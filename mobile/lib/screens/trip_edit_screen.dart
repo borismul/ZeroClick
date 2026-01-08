@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/trip.dart';
 import '../providers/app_provider.dart';
 
@@ -96,6 +97,7 @@ class _TripEditScreenState extends State<TripEditScreen> {
   }
 
   Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -131,28 +133,29 @@ class _TripEditScreenState extends State<TripEditScreen> {
       Navigator.pop(context, true);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error ?? 'Er ging iets mis')),
+        SnackBar(content: Text(provider.error ?? l10n.somethingWentWrong)),
       );
     }
   }
 
   Future<void> _delete() async {
+    final l10n = AppLocalizations.of(context);
     if (!isEditing) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rit verwijderen?'),
-        content: const Text('Weet je zeker dat je deze rit wilt verwijderen?'),
+        title: Text(l10n.deleteTrip),
+        content: Text(l10n.deleteTripConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuleren'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Verwijderen'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -172,18 +175,19 @@ class _TripEditScreenState extends State<TripEditScreen> {
       Navigator.pop(context); // Also pop the detail screen
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.error ?? 'Kon niet verwijderen')),
+        SnackBar(content: Text(provider.error ?? l10n.couldNotDelete)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final provider = Provider.of<AppProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Rit bewerken' : 'Rit toevoegen'),
+        title: Text(isEditing ? l10n.editTrip : l10n.addTrip),
         actions: [
           if (isEditing)
             IconButton(
@@ -206,14 +210,14 @@ class _TripEditScreenState extends State<TripEditScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Datum & Tijd', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(l10n.dateAndTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
                                 child: ListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('Datum'),
+                                  title: Text(l10n.date),
                                   subtitle: Text(_formatDate(_date)),
                                   trailing: const Icon(Icons.calendar_today),
                                   onTap: () async {
@@ -234,7 +238,7 @@ class _TripEditScreenState extends State<TripEditScreen> {
                               Expanded(
                                 child: ListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('Start'),
+                                  title: Text(l10n.start),
                                   subtitle: Text(_formatTime(_startTime)),
                                   trailing: const Icon(Icons.access_time),
                                   onTap: () async {
@@ -249,7 +253,7 @@ class _TripEditScreenState extends State<TripEditScreen> {
                               Expanded(
                                 child: ListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('Eind'),
+                                  title: Text(l10n.end),
                                   subtitle: Text(_formatTime(_endTime)),
                                   trailing: const Icon(Icons.access_time),
                                   onTap: () async {
@@ -277,26 +281,28 @@ class _TripEditScreenState extends State<TripEditScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Route', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(l10n.route, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _fromAddressController,
-                            decoration: const InputDecoration(
-                              labelText: 'Van',
-                              prefixIcon: Icon(Icons.trip_origin, color: Colors.green),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.from,
+                              hintText: l10n.fromPlaceholder,
+                              prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
+                              border: const OutlineInputBorder(),
                             ),
-                            validator: (v) => v?.isEmpty == true ? 'Verplicht' : null,
+                            validator: (v) => v?.isEmpty == true ? l10n.required : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _toAddressController,
-                            decoration: const InputDecoration(
-                              labelText: 'Naar',
-                              prefixIcon: Icon(Icons.location_on, color: Colors.red),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.to,
+                              hintText: l10n.toPlaceholder,
+                              prefixIcon: const Icon(Icons.location_on, color: Colors.red),
+                              border: const OutlineInputBorder(),
                             ),
-                            validator: (v) => v?.isEmpty == true ? 'Verplicht' : null,
+                            validator: (v) => v?.isEmpty == true ? l10n.required : null,
                           ),
                         ],
                       ),
@@ -312,31 +318,31 @@ class _TripEditScreenState extends State<TripEditScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Afstand & Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(l10n.distanceAndType, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _distanceController,
-                            decoration: const InputDecoration(
-                              labelText: 'Afstand (km)',
-                              prefixIcon: Icon(Icons.straighten),
-                              border: OutlineInputBorder(),
+                            decoration: InputDecoration(
+                              labelText: l10n.distanceKm,
+                              prefixIcon: const Icon(Icons.straighten),
+                              border: const OutlineInputBorder(),
                             ),
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             onChanged: (_) => _updateKmSplit(),
                             validator: (v) {
                               final val = double.tryParse(v ?? '');
-                              if (val == null || val < 0) return 'Ongeldige afstand';
+                              if (val == null || val < 0) return l10n.invalidDistance;
                               return null;
                             },
                           ),
                           const SizedBox(height: 16),
-                          const Text('Type', style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(l10n.type, style: const TextStyle(fontWeight: FontWeight.w500)),
                           const SizedBox(height: 8),
                           SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(value: 'B', label: Text('Zakelijk')),
-                              ButtonSegment(value: 'P', label: Text('Privé')),
-                              ButtonSegment(value: 'M', label: Text('Gemengd')),
+                            segments: [
+                              ButtonSegment(value: 'B', label: Text(l10n.tripTypeBusiness)),
+                              ButtonSegment(value: 'P', label: Text(l10n.tripTypePrivate)),
+                              ButtonSegment(value: 'M', label: Text(l10n.tripTypeMixed)),
                             ],
                             selected: {_tripType},
                             onSelectionChanged: (selection) {
@@ -353,9 +359,9 @@ class _TripEditScreenState extends State<TripEditScreen> {
                                 Expanded(
                                   child: TextFormField(
                                     controller: _businessKmController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Zakelijk km',
-                                      border: OutlineInputBorder(),
+                                    decoration: InputDecoration(
+                                      labelText: l10n.businessKm,
+                                      border: const OutlineInputBorder(),
                                     ),
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                   ),
@@ -364,9 +370,9 @@ class _TripEditScreenState extends State<TripEditScreen> {
                                 Expanded(
                                   child: TextFormField(
                                     controller: _privateKmController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Privé km',
-                                      border: OutlineInputBorder(),
+                                    decoration: InputDecoration(
+                                      labelText: l10n.privateKm,
+                                      border: const OutlineInputBorder(),
                                     ),
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                   ),
@@ -389,10 +395,10 @@ class _TripEditScreenState extends State<TripEditScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Auto', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(l10n.car, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: _carId,
+                              initialValue: _carId,
                               decoration: const InputDecoration(
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.directions_car),
@@ -416,7 +422,7 @@ class _TripEditScreenState extends State<TripEditScreen> {
                   FilledButton.icon(
                     onPressed: _isLoading ? null : _save,
                     icon: const Icon(Icons.save),
-                    label: Text(isEditing ? 'Opslaan' : 'Toevoegen'),
+                    label: Text(isEditing ? l10n.save : l10n.add),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/app_provider.dart';
@@ -6,14 +8,24 @@ import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/trip_edit_screen.dart';
+import 'screens/charging_map_screen.dart';
 import 'widgets/device_link_dialog.dart';
 import 'services/auth_service.dart';
+import 'models/settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Don't block app startup - init auth in background
-  AuthService().init();
   runApp(const MileageTrackerApp());
+}
+
+/// Convert locale code to Locale object
+Locale? parseLocale(String? code) {
+  if (code == null || code.isEmpty) return null;
+  final parts = code.split('_');
+  if (parts.length == 1) {
+    return Locale(parts[0]);
+  }
+  return Locale(parts[0], parts[1]);
 }
 
 class MileageTrackerApp extends StatelessWidget {
@@ -23,10 +35,21 @@ class MileageTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AppProvider(),
-      child: MaterialApp(
-        title: 'Kilometerregistratie',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
+      child: Consumer<AppProvider>(
+        builder: (context, provider, child) {
+          final locale = parseLocale(provider.settings.localeCode);
+          return MaterialApp(
+            title: 'Mileage Tracker',
+            debugShowCheckedModeBanner: false,
+            locale: locale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData(
           brightness: Brightness.dark,
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: const Color(0xFF0A0A0A),
@@ -71,7 +94,9 @@ class MileageTrackerApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const MainScreen(),
+            home: const MainScreen(),
+          );
+        },
       ),
     );
   }
@@ -88,6 +113,7 @@ class _MainScreenState extends State<MainScreen> {
   final _screens = const [
     DashboardScreen(),
     HistoryScreen(),
+    ChargingMapScreen(),
     SettingsScreen(),
   ];
 
@@ -112,24 +138,20 @@ class _MainScreenState extends State<MainScreen> {
     final hasSeenWarning = prefs.getBool('has_seen_background_warning') ?? false;
 
     if (!hasSeenWarning && mounted) {
+      final l10n = AppLocalizations.of(context);
       await showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('Belangrijk'),
-          content: const Text(
-            'Deze app detecteert automatisch wanneer je in de auto stapt via Bluetooth.\n\n'
-            'Dit werkt alleen als de app op de achtergrond draait. '
-            'Als je de app afsluit (omhoog swipen), werkt de automatische detectie niet meer.\n\n'
-            'Tip: Laat de app gewoon open staan, dan werkt alles automatisch.',
-          ),
+          title: Text(l10n.importantTitle),
+          content: Text(l10n.backgroundWarningMessage),
           actions: [
             TextButton(
               onPressed: () {
                 prefs.setBool('has_seen_background_warning', true);
                 Navigator.of(context).pop();
               },
-              child: const Text('Begrepen'),
+              child: Text(l10n.understood),
             ),
           ],
         ),
@@ -139,11 +161,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Kilometerregistratie'),
+            title: Text(l10n.appTitle),
             actions: [
               if (provider.queueLength > 0)
                 Padding(
@@ -159,6 +182,28 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                 ),
+              // Always show logout option
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  if (value == 'logout') {
+                    await AuthService().signOut();
+                    await provider.saveSettings(AppSettings.defaults());
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.logout, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(l10n.logout),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           body: IndexedStack(
@@ -181,18 +226,23 @@ class _MainScreenState extends State<MainScreen> {
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: provider.navigationIndex,
             onTap: provider.navigateTo,
-            items: const [
+            type: BottomNavigationBarType.fixed,
+            items: [
               BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard),
-                label: 'Status',
+                icon: const Icon(Icons.dashboard),
+                label: l10n.tabStatus,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.list),
-                label: 'Ritten',
+                icon: const Icon(Icons.list),
+                label: l10n.tabTrips,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.settings),
-                label: 'Instellingen',
+                icon: const Icon(Icons.ev_station),
+                label: l10n.tabCharging,
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.settings),
+                label: l10n.tabSettings,
               ),
             ],
           ),

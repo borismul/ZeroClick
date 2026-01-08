@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/trip.dart';
 
 class ActiveTripBanner extends StatelessWidget {
@@ -11,6 +12,7 @@ class ActiveTripBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     String startTimeStr = '-';
     if (activeTrip.startTime != null) {
       try {
@@ -56,9 +58,9 @@ class ActiveTripBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Actieve rit',
-                  style: TextStyle(
+                Text(
+                  l10n.activeTrip,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Colors.green,
@@ -66,7 +68,7 @@ class ActiveTripBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Gestart: $startTimeStr',
+                  l10n.startedAt(startTimeStr),
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 13,
@@ -74,7 +76,7 @@ class ActiveTripBanner extends StatelessWidget {
                 ),
                 if (activeTrip.gpsCount != null && activeTrip.gpsCount! > 0)
                   Text(
-                    '${activeTrip.gpsCount} GPS punten',
+                    l10n.gpsPoints(activeTrip.gpsCount!),
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 13,
@@ -102,9 +104,9 @@ class ActiveTripBanner extends StatelessWidget {
                       fontSize: 18,
                     ),
                   ),
-                  const Text(
-                    'km',
-                    style: TextStyle(
+                  Text(
+                    l10n.km,
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
                     ),

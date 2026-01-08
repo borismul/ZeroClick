@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../models/trip.dart';
 import 'trip_detail_screen.dart';
@@ -27,11 +28,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         if (!provider.isConfigured) {
-          return const Center(
-            child: Text('Configureer eerst de app in Instellingen'),
+          return Center(
+            child: Text(l10n.configureFirst),
           );
         }
 
@@ -43,16 +45,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return RefreshIndicator(
             onRefresh: provider.refreshTrips,
             child: ListView(
-              children: const [
-                SizedBox(height: 100),
+              children: [
+                const SizedBox(height: 100),
                 Center(
                   child: Column(
                     children: [
-                      Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
+                      const Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
                       Text(
-                        'Nog geen ritten',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                        l10n.noTripsYet,
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -85,6 +87,7 @@ class _TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -120,7 +123,7 @@ class _TripCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    trip.tripTypeLabel,
+                    trip.getTripTypeLabel(l10n),
                     style: TextStyle(
                       color: _getTripTypeColor(trip.tripType),
                       fontWeight: FontWeight.bold,
@@ -181,7 +184,7 @@ class _TripCard extends StatelessWidget {
                     const Icon(Icons.straighten, size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${trip.distanceKm.toStringAsFixed(1)} km',
+                      '${trip.distanceKm.toStringAsFixed(1)} ${l10n.km}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -201,7 +204,7 @@ class _TripCard extends StatelessWidget {
                     const Icon(Icons.warning_amber, size: 16, color: Colors.orange),
                     const SizedBox(width: 4),
                     Text(
-                      'Route +${trip.routeDeviationPercent!.toStringAsFixed(0)}% langer',
+                      l10n.routeLongerPercent(trip.routeDeviationPercent!.toInt()),
                       style: const TextStyle(color: Colors.orange, fontSize: 12),
                     ),
                   ],

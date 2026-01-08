@@ -100,6 +100,11 @@ resource "google_cloud_run_v2_service" "api" {
         value = "269285054406-ft7anq4an8h6d4rh8mmnjca8c67uda96.apps.googleusercontent.com"
       }
 
+      env {
+        name  = "OPENCHARGEMAP_API_KEY"
+        value = var.openchargemap_api_key
+      }
+
       resources {
         limits = {
           cpu    = "1"

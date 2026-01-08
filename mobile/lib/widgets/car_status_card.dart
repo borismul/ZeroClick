@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/trip.dart';
 
 class CarStatusCard extends StatelessWidget {
@@ -11,6 +12,7 @@ class CarStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     String fetchedAtStr = '';
     try {
       final dt = DateTime.parse(carData.fetchedAt);
@@ -30,7 +32,7 @@ class CarStatusCard extends StatelessWidget {
                 Text(
                   carData.brand.isNotEmpty
                       ? carData.brand[0].toUpperCase() + carData.brand.substring(1)
-                      : 'Auto',
+                      : l10n.car,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -38,7 +40,7 @@ class CarStatusCard extends StatelessWidget {
                 ),
                 if (fetchedAtStr.isNotEmpty)
                   Text(
-                    'Bijgewerkt: $fetchedAtStr',
+                    l10n.updatedAt(fetchedAtStr),
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 12,
@@ -59,12 +61,12 @@ class CarStatusCard extends StatelessWidget {
                         ? Icons.bolt
                         : Icons.battery_full,
                     iconColor: carData.isCharging ? Colors.yellow : Colors.green,
-                    label: 'Batterij',
+                    label: l10n.battery,
                     value: carData.batteryLevel != null
                         ? '${carData.batteryLevel}%'
                         : '-',
                     subtitle: carData.rangeKm != null
-                        ? '${carData.rangeKm} km'
+                        ? '${carData.rangeKm} ${l10n.km}'
                         : null,
                   ),
                 ),
@@ -74,8 +76,8 @@ class CarStatusCard extends StatelessWidget {
                   child: _StatusItem(
                     icon: _getStateIcon(carData.state),
                     iconColor: _getStateColor(carData.state),
-                    label: 'Status',
-                    value: carData.stateLabel,
+                    label: l10n.status,
+                    value: carData.getStateLabel(l10n),
                   ),
                 ),
 
@@ -85,7 +87,7 @@ class CarStatusCard extends StatelessWidget {
                     child: _StatusItem(
                       icon: Icons.speed,
                       iconColor: Colors.blue,
-                      label: 'Km-stand',
+                      label: l10n.odometer,
                       value: NumberFormat('#,###').format(carData.odometerKm!.toInt()),
                     ),
                   ),
@@ -111,12 +113,12 @@ class CarStatusCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Laden: ${carData.chargingPowerKw ?? 0} kW',
+                            l10n.chargingPower(carData.chargingPowerKw ?? 0),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           if (carData.chargingRemainingMinutes != null)
                             Text(
-                              'Klaar over: ${_formatMinutes(carData.chargingRemainingMinutes!)}',
+                              l10n.readyIn(_formatMinutes(carData.chargingRemainingMinutes!, l10n)),
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 13,
@@ -161,13 +163,13 @@ class CarStatusCard extends StatelessWidget {
     }
   }
 
-  String _formatMinutes(int minutes) {
+  String _formatMinutes(int minutes, AppLocalizations l10n) {
     if (minutes < 60) {
-      return '$minutes min';
+      return l10n.minutesShort(minutes);
     }
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
-    return '${hours}u ${mins}m';
+    return l10n.hoursMinutes(hours, mins);
   }
 }
 
