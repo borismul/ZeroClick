@@ -34,6 +34,7 @@ COPY --from=builder /app/routes ./routes
 COPY --from=builder /app/utils ./utils
 
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
 EXPOSE 8080
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
