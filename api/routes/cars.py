@@ -2,26 +2,24 @@
 Car management routes.
 """
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 
 from models.car import Car, CarCreate, CarUpdate, CarCredentials
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from services.car_service import car_service
 
 router = APIRouter(prefix="/cars", tags=["cars"])
 
 
 @router.get("")
-def list_cars(x_user_email: str | None = Header(None)) -> list[Car]:
+def list_cars(user_id: str = Depends(get_current_user)) -> list[Car]:
     """List all cars for the user."""
-    user_id = get_user_from_header(x_user_email)
     return car_service.get_cars(user_id)
 
 
 @router.post("")
-def create_car(car: CarCreate, x_user_email: str | None = Header(None)):
+def create_car(car: CarCreate, user_id: str = Depends(get_current_user)):
     """Create a new car."""
-    user_id = get_user_from_header(x_user_email)
     return car_service.create_car(
         user_id=user_id,
         name=car.name,
@@ -33,9 +31,8 @@ def create_car(car: CarCreate, x_user_email: str | None = Header(None)):
 
 
 @router.get("/{car_id}")
-def get_car(car_id: str, x_user_email: str | None = Header(None)):
+def get_car(car_id: str, user_id: str = Depends(get_current_user)):
     """Get a single car."""
-    user_id = get_user_from_header(x_user_email)
     car = car_service.get_car(user_id, car_id)
     if not car:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -43,9 +40,8 @@ def get_car(car_id: str, x_user_email: str | None = Header(None)):
 
 
 @router.patch("/{car_id}")
-def update_car(car_id: str, update: CarUpdate, x_user_email: str | None = Header(None)):
+def update_car(car_id: str, update: CarUpdate, user_id: str = Depends(get_current_user)):
     """Update a car."""
-    user_id = get_user_from_header(x_user_email)
     result = car_service.update_car(user_id, car_id, update.model_dump(exclude_unset=True))
     if not result:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -53,9 +49,8 @@ def update_car(car_id: str, update: CarUpdate, x_user_email: str | None = Header
 
 
 @router.delete("/{car_id}")
-def delete_car(car_id: str, x_user_email: str | None = Header(None)):
+def delete_car(car_id: str, user_id: str = Depends(get_current_user)):
     """Delete a car (trips remain but car_id becomes null)."""
-    user_id = get_user_from_header(x_user_email)
     result = car_service.delete_car(user_id, car_id)
     if not result:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -65,9 +60,8 @@ def delete_car(car_id: str, x_user_email: str | None = Header(None)):
 
 
 @router.put("/{car_id}/credentials")
-def save_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str | None = Header(None)):
+def save_car_credentials(car_id: str, creds: CarCredentials, user_id: str = Depends(get_current_user)):
     """Save API credentials for a specific car."""
-    user_id = get_user_from_header(x_user_email)
     result = car_service.save_car_credentials(user_id, car_id, creds.model_dump())
     if not result:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -75,9 +69,8 @@ def save_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
 
 
 @router.get("/{car_id}/credentials")
-def get_car_credentials(car_id: str, x_user_email: str | None = Header(None)):
+def get_car_credentials(car_id: str, user_id: str = Depends(get_current_user)):
     """Get credentials status for a specific car (not the actual password)."""
-    user_id = get_user_from_header(x_user_email)
     result = car_service.get_car_credentials_status(user_id, car_id)
     if not result:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -87,9 +80,8 @@ def get_car_credentials(car_id: str, x_user_email: str | None = Header(None)):
 
 
 @router.delete("/{car_id}/credentials")
-def delete_car_credentials(car_id: str, x_user_email: str | None = Header(None)):
+def delete_car_credentials(car_id: str, user_id: str = Depends(get_current_user)):
     """Delete/logout credentials for a specific car."""
-    user_id = get_user_from_header(x_user_email)
     result = car_service.delete_car_credentials(user_id, car_id)
     if not result:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -97,11 +89,10 @@ def delete_car_credentials(car_id: str, x_user_email: str | None = Header(None))
 
 
 @router.post("/{car_id}/credentials/test")
-def test_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str | None = Header(None)):
+def test_car_credentials(car_id: str, creds: CarCredentials, user_id: str = Depends(get_current_user)):
     """Test car API credentials before saving."""
     from car_providers import AudiProvider, VWGroupProvider, RenaultProvider, VW_GROUP_BRANDS
 
-    user_id = get_user_from_header(x_user_email)
     car = car_service.get_car(user_id, car_id)
     if not car:
         raise HTTPException(status_code=404, detail="Car not found")
@@ -144,12 +135,11 @@ def test_car_credentials(car_id: str, creds: CarCredentials, x_user_email: str |
 
 
 @router.get("/{car_id}/stats")
-def get_car_statistics(car_id: str, x_user_email: str | None = Header(None)):
+def get_car_statistics(car_id: str, user_id: str = Depends(get_current_user)):
     """Get detailed statistics for a car."""
     from google.cloud import firestore
     from database import get_db
 
-    user_id = get_user_from_header(x_user_email)
     car = car_service.get_car(user_id, car_id)
     if not car:
         raise HTTPException(status_code=404, detail="Car not found")

@@ -4,10 +4,10 @@ Trip routes.
 
 from collections.abc import Sequence
 
-from fastapi import APIRouter, HTTPException, Query, Header
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 from models.trip import Trip, TripUpdate, ManualTrip, FullTrip
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from services.trip_service import trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -20,17 +20,15 @@ def get_trips(
     car_id: str | None = None,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=50, le=100),
-    x_user_email: str | None = Header(None),
+    user_id: str = Depends(get_current_user),
 ):
     """Get trips with optional filtering, sorted by date/time descending."""
-    user_id = get_user_from_header(x_user_email)
     return trip_service.get_trips(user_id, year, month, car_id, page, limit)
 
 
 @router.post("", response_model=Trip)
-def create_trip(trip: ManualTrip, x_user_email: str | None = Header(None)):
+def create_trip(trip: ManualTrip, user_id: str = Depends(get_current_user)):
     """Create a manual trip."""
-    user_id = get_user_from_header(x_user_email)
     return trip_service.create_manual_trip(
         user_id=user_id,
         date=trip.date,

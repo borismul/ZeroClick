@@ -2,34 +2,36 @@
 
 import 'package:flutter/services.dart';
 
-typedef CarPlayCallback = void Function(bool connected);
+import '../core/logging/app_logger.dart';
+
+typedef CarPlayCallback = void Function({required bool connected});
 
 class CarPlayService {
+  CarPlayService() {
+    _setupMethodCallHandler();
+  }
+
   static const _channel = MethodChannel('nl.borism.mileage/carplay');
+  static const _log = AppLogger('CarPlayService');
 
   CarPlayCallback? _onConnectionChanged;
   bool _isConnected = false;
 
   bool get isConnected => _isConnected;
 
-  CarPlayService() {
-    _setupMethodCallHandler();
-  }
-
   void _setupMethodCallHandler() {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onCarPlayConnected':
           _isConnected = true;
-          print('[CarPlay] Connected!');
-          _onConnectionChanged?.call(true);
-          break;
+          _log.info('Connected!');
+          _onConnectionChanged?.call(connected: true);
         case 'onCarPlayDisconnected':
           _isConnected = false;
-          print('[CarPlay] Disconnected!');
-          _onConnectionChanged?.call(false);
-          break;
+          _log.info('Disconnected!');
+          _onConnectionChanged?.call(connected: false);
       }
+      return null;
     });
   }
 
@@ -44,8 +46,8 @@ class CarPlayService {
       final result = await _channel.invokeMethod<bool>('isCarPlayConnected');
       _isConnected = result ?? false;
       return _isConnected;
-    } catch (e) {
-      print('[CarPlay] Error checking connection: $e');
+    } on PlatformException catch (e) {
+      _log.error('Error checking connection', e);
       return false;
     }
   }

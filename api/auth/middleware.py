@@ -1,5 +1,9 @@
 """
 Authentication middleware for FastAPI.
+
+Supports two token types:
+1. API JWT tokens (issued by /auth/token endpoint) - preferred
+2. Google ID tokens (legacy, for backward compatibility)
 """
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -13,12 +17,18 @@ from .google import verify_google_token
 class AuthMiddleware(BaseHTTPMiddleware):
     """
     Middleware that validates Bearer tokens and injects user email into request state.
+
+    Token validation order:
+    1. Try API JWT (fast, local validation)
+    2. Fall back to Google ID token (network call to Google)
     """
 
     # Paths that don't require auth
     PUBLIC_PATHS = {
         "/",
         "/auth/status",
+        "/auth/token",  # Token exchange endpoint
+        "/auth/refresh",  # Token refresh endpoint
         "/docs",
         "/openapi.json",
         "/redoc",
@@ -52,9 +62,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header[7:]
+
+            # Try API JWT first (fast, local validation)
+            user_email = self._verify_api_token(token)
+            if user_email:
+                request.state.user_email = user_email
+                return await call_next(request)
+
+            # Fall back to Google ID token (legacy support)
             try:
                 user_info = verify_google_token(token)
-                # Inject user email into request state
                 request.state.user_email = user_info["email"]
                 return await call_next(request)
             except ValueError as e:
@@ -68,3 +85,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
             status_code=401,
             content={"detail": "Authentication required. Provide Bearer token."}
         )
+
+    def _verify_api_token(self, token: str) -> str | None:
+        """
+        Verify an API JWT token.
+
+        Args:
+            token: The JWT token string
+
+        Returns:
+            User email if valid, None otherwise
+        """
+        try:
+            from services.token_service import token_service
+            payload = token_service.verify_access_token(token)
+            if payload:
+                return payload.get("email")
+        except Exception:
+            pass
+        return None

@@ -54,3 +54,30 @@ class RenaultLoginRequest(BaseModel):
     username: str
     password: str
     locale: str = "nl_NL"
+
+
+# === API Token Management ===
+
+class TokenRequest(BaseModel):
+    """Request to exchange Google ID token for API tokens."""
+    google_token: str
+
+
+class TokenResponse(BaseModel):
+    """Response containing API access and refresh tokens."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int  # Seconds until access_token expires
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request to refresh an expired access token."""
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response containing new access token."""
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int

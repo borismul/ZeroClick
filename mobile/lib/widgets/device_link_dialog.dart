@@ -20,20 +20,29 @@ class DeviceLinkDialog extends StatelessWidget {
         final cars = provider.cars;
 
         return AlertDialog(
-          title: Text(l10n.unknownDevice),
+          title: const Text('Bluetooth koppelen'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                l10n.deviceName(deviceName),
+                '"$deviceName"',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
+              const SizedBox(height: 12),
+              const Text(
+                'Koppel je auto aan Bluetooth voor de beste betrouwbaarheid. '
+                'Zo werkt ritdetectie altijd, ook als de auto-API tijdelijk niet beschikbaar is.',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 13,
+                ),
+              ),
               const SizedBox(height: 16),
-              Text(l10n.linkToCar),
+              const Text('Aan welke auto wil je koppelen?'),
               const SizedBox(height: 8),
               if (cars.isEmpty)
                 Text(
@@ -115,7 +124,7 @@ class _CarOption extends StatelessWidget {
 
 /// Show the device link dialog
 void showDeviceLinkDialog(BuildContext context, String deviceName) {
-  showDialog(
+  showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (context) => DeviceLinkDialog(deviceName: deviceName),

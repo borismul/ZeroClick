@@ -133,8 +133,8 @@ class _ChargingMapScreenState extends State<ChargingMapScreen> {
       throw Exception('API error: ${response.statusCode}');
     }
 
-    final List<dynamic> data = json.decode(response.body);
-    return data.map((json) => ChargingStation.fromJson(json)).toList();
+    final data = json.decode(response.body) as List<dynamic>;
+    return data.map((item) => ChargingStation.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   void _onMapMove(MapCamera camera, bool hasGesture) {
@@ -496,11 +496,13 @@ class ChargingStation {
     String? address;
     if (addressInfo != null) {
       final parts = <String>[];
-      if (addressInfo['AddressLine1'] != null) {
-        parts.add(addressInfo['AddressLine1']);
+      final addressLine1 = addressInfo['AddressLine1'] as String?;
+      final town = addressInfo['Town'] as String?;
+      if (addressLine1 != null) {
+        parts.add(addressLine1);
       }
-      if (addressInfo['Town'] != null) {
-        parts.add(addressInfo['Town']);
+      if (town != null) {
+        parts.add(town);
       }
       if (parts.isNotEmpty) {
         address = parts.join(', ');

@@ -1,24 +1,26 @@
 // Trip map screen with GPS pins (free OpenStreetMap)
 
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+
 import '../models/trip.dart';
 
 class TripMapScreen extends StatefulWidget {
-  final Trip trip;
+  const TripMapScreen({required this.trip, super.key});
 
-  const TripMapScreen({super.key, required this.trip});
+  final Trip trip;
 
   @override
   State<TripMapScreen> createState() => _TripMapScreenState();
 }
 
 class _TripMapScreenState extends State<TripMapScreen> {
-  List<LatLng>? _actualRoute;    // Actual driven route (snapped to roads)
-  List<LatLng>? _expectedRoute;  // Expected shortest route (start to end only)
+  List<LatLng>? _actualRoute; // Actual driven route (snapped to roads)
+  List<LatLng>? _expectedRoute; // Expected shortest route (start to end only)
   bool _loading = true;
 
   @override
@@ -50,17 +52,19 @@ class _TripMapScreenState extends State<TripMapScreen> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['code'] == 'Ok' && data['routes'] != null && data['routes'].isNotEmpty) {
-          final geometry = data['routes'][0]['geometry'];
-          final coordinates = geometry['coordinates'] as List;
-          _expectedRoute = coordinates
-              .map((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
-              .toList();
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (data['code'] == 'Ok' && routes != null && routes.isNotEmpty) {
+          final geometry = (routes[0] as Map<String, dynamic>)['geometry'] as Map<String, dynamic>;
+          final coordinates = geometry['coordinates'] as List<dynamic>;
+          _expectedRoute = coordinates.map((c) {
+            final coord = c as List<dynamic>;
+            return LatLng((coord[1] as num).toDouble(), (coord[0] as num).toDouble());
+          }).toList();
           debugPrint('Expected route: ${_expectedRoute!.length} points');
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('Expected route error: $e');
     }
   }
@@ -71,11 +75,11 @@ class _TripMapScreenState extends State<TripMapScreen> {
 
     try {
       // Sample waypoints (OSRM has URL length limits)
-      List<GpsPoint> waypoints = gpsTrail;
+      var waypoints = gpsTrail;
       if (gpsTrail.length > 25) {
         waypoints = [gpsTrail.first];
         final step = (gpsTrail.length - 2) / 22;
-        for (int i = 1; i < 23; i++) {
+        for (var i = 1; i < 23; i++) {
           waypoints.add(gpsTrail[(i * step).floor()]);
         }
         waypoints.add(gpsTrail.last);
@@ -89,13 +93,15 @@ class _TripMapScreenState extends State<TripMapScreen> {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['code'] == 'Ok' && data['routes'] != null && data['routes'].isNotEmpty) {
-          final geometry = data['routes'][0]['geometry'];
-          final coordinates = geometry['coordinates'] as List;
-          final routePoints = coordinates
-              .map((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
-              .toList();
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (data['code'] == 'Ok' && routes != null && routes.isNotEmpty) {
+          final geometry = (routes[0] as Map<String, dynamic>)['geometry'] as Map<String, dynamic>;
+          final coordinates = geometry['coordinates'] as List<dynamic>;
+          final routePoints = coordinates.map((c) {
+            final coord = c as List<dynamic>;
+            return LatLng((coord[1] as num).toDouble(), (coord[0] as num).toDouble());
+          }).toList();
 
           final firstGps = LatLng(gpsTrail.first.lat, gpsTrail.first.lng);
           final lastGps = LatLng(gpsTrail.last.lat, gpsTrail.last.lng);
@@ -103,7 +109,7 @@ class _TripMapScreenState extends State<TripMapScreen> {
           debugPrint('Actual route: ${_actualRoute!.length} points');
         }
       }
-    } catch (e) {
+    } on Exception catch (e) {
       debugPrint('Actual route error: $e');
     }
   }
@@ -115,7 +121,7 @@ class _TripMapScreenState extends State<TripMapScreen> {
     final gpsTrail = trip.gpsTrail;
 
     if (gpsTrail != null && gpsTrail.isNotEmpty) {
-      for (int i = 0; i < gpsTrail.length; i++) {
+      for (var i = 0; i < gpsTrail.length; i++) {
         final point = gpsTrail[i];
         final isFirst = i == 0;
         final isLast = i == gpsTrail.length - 1;
@@ -171,7 +177,8 @@ class _TripMapScreenState extends State<TripMapScreen> {
   LatLng _getCenter() {
     final gpsTrail = trip.gpsTrail;
     if (gpsTrail != null && gpsTrail.isNotEmpty) {
-      double sumLat = 0, sumLng = 0;
+      var sumLat = 0.0;
+      var sumLng = 0.0;
       for (final point in gpsTrail) {
         sumLat += point.lat;
         sumLng += point.lng;
@@ -189,7 +196,10 @@ class _TripMapScreenState extends State<TripMapScreen> {
 
   LatLngBounds _getBounds() {
     final gpsTrail = trip.gpsTrail;
-    double minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    var minLat = 90.0;
+    var maxLat = -90.0;
+    var minLng = 180.0;
+    var maxLng = -180.0;
 
     if (gpsTrail != null && gpsTrail.isNotEmpty) {
       for (final point in gpsTrail) {
@@ -214,7 +224,7 @@ class _TripMapScreenState extends State<TripMapScreen> {
     }
 
     // Fallback if no GPS data at all
-    if (minLat == 90 || maxLat == -90) {
+    if (minLat == 90.0 || maxLat == -90.0) {
       return LatLngBounds(
         const LatLng(51.9, 4.3),
         const LatLng(52.1, 4.5),
@@ -298,7 +308,7 @@ class _TripMapScreenState extends State<TripMapScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,8 +319,10 @@ class _TripMapScreenState extends State<TripMapScreen> {
                     children: [
                       Container(width: 20, height: 4, color: Colors.orange),
                       const SizedBox(width: 8),
-                      Text('Verwacht (${trip.googleMapsKm?.toStringAsFixed(1) ?? "?"} km)',
-                          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)),
+                      Text(
+                        'Verwacht (${trip.googleMapsKm?.toStringAsFixed(1) ?? "?"} km)',
+                        style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -319,8 +331,10 @@ class _TripMapScreenState extends State<TripMapScreen> {
                     children: [
                       Container(width: 20, height: 4, color: Colors.blue),
                       const SizedBox(width: 8),
-                      Text('Gereden (${trip.distanceKm.toStringAsFixed(1)} km)',
-                          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)),
+                      Text(
+                        'Gereden (${trip.distanceKm.toStringAsFixed(1)} km)',
+                        style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                      ),
                     ],
                   ),
                 ],

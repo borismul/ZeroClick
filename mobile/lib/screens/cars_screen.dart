@@ -70,7 +70,7 @@ class CarsScreen extends StatelessWidget {
 
   void _showAddCarDialog(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => const AddEditCarScreen(),
       ),
     );
@@ -172,7 +172,7 @@ class _CarCard extends StatelessWidget {
 
   void _editCar(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => AddEditCarScreen(car: car),
       ),
     );
@@ -448,9 +448,10 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
             Wrap(
               spacing: 12,
               children: icons.map((item) {
-                final isSelected = _icon == item['value'];
+                final iconValue = item['value'] as String;
+                final isSelected = _icon == iconValue;
                 return GestureDetector(
-                  onTap: () => setState(() => _icon = item['value']),
+                  onTap: () => setState(() => _icon = iconValue),
                   child: Column(
                     children: [
                       Container(
@@ -1008,7 +1009,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       if (mounted) {
         final callbackUrl = await Navigator.push<String>(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<String>(
             builder: (context) => TeslaLoginScreen(authUrl: authUrl),
           ),
         );
@@ -1077,7 +1078,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       if (mounted) {
         final redirectUrl = await Navigator.push<String>(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<String>(
             builder: (context) => AudiLoginScreen(authUrl: authUrl),
           ),
         );
@@ -1165,7 +1166,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       if (mounted) {
         final redirectUrl = await Navigator.push<String>(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<String>(
             builder: (context) => VWGroupLoginScreen(
               authUrl: authUrl,
               redirectUri: redirectUri ?? '',

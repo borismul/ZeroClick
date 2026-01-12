@@ -5,9 +5,9 @@ Tesla OAuth routes.
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from database import get_db
 
 router = APIRouter(tags=["oauth", "tesla"])
@@ -15,11 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/cars/{car_id}/tesla/auth-url")
-def get_tesla_auth_url(car_id: str, callback_url: str, x_user_email: str | None = Header(None)):
+def get_tesla_auth_url(car_id: str, callback_url: str, user_id: str = Depends(get_current_user)):
     """Get Tesla OAuth authorization URL for user to login."""
     from car_providers import TeslaProvider
 
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
     car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
     doc = car_ref.get()
@@ -27,9 +26,7 @@ def get_tesla_auth_url(car_id: str, callback_url: str, x_user_email: str | None 
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Car not found")
 
-    email = x_user_email or user_id
-
-    provider = TeslaProvider(email=email)
+    provider = TeslaProvider(email=user_id)
     auth_url = provider.get_authorization_url(callback_url)
 
     if not auth_url:
@@ -39,7 +36,7 @@ def get_tesla_auth_url(car_id: str, callback_url: str, x_user_email: str | None 
     creds_ref = car_ref.collection("credentials").document("api")
     creds_ref.set({
         "brand": "tesla",
-        "username": email,
+        "username": user_id,
         "password": "",
         "oauth_pending": True,
         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -49,11 +46,10 @@ def get_tesla_auth_url(car_id: str, callback_url: str, x_user_email: str | None 
 
 
 @router.post("/cars/{car_id}/tesla/callback")
-def complete_tesla_auth(car_id: str, callback_url: str, x_user_email: str | None = Header(None)):
+def complete_tesla_auth(car_id: str, callback_url: str, user_id: str = Depends(get_current_user)):
     """Complete Tesla OAuth flow with the callback URL containing the auth code."""
     from car_providers import TeslaProvider
 
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
     car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
     doc = car_ref.get()
@@ -67,7 +63,7 @@ def complete_tesla_auth(car_id: str, callback_url: str, x_user_email: str | None
         raise HTTPException(status_code=400, detail="No pending Tesla authorization")
 
     creds = creds_doc.to_dict()
-    email = creds.get("username", x_user_email or user_id)
+    email = creds.get("username", user_id)
 
     provider = TeslaProvider(email=email)
     success = provider.complete_authorization(callback_url)

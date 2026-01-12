@@ -8,6 +8,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import 'cars_screen.dart';
+import 'debug_log_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,7 +44,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final success = await _authService.signIn();
     if (success && mounted) {
       final email = _authService.userEmail;
+      final token = _authService.idToken;
       final provider = context.read<AppProvider>();
+
+      // CRITICAL: Set auth token on API service BEFORE making requests
+      if (token != null) {
+        provider.setAuthToken(token);
+      }
+
       await provider.saveSettings(provider.settings.copyWith(
         userEmail: email ?? '',
       ));
@@ -164,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const CarsScreen()),
+                    MaterialPageRoute<void>(builder: (context) => const CarsScreen()),
                   );
                 },
               ),
@@ -212,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // CarPlay Configuration
+            // Auto Detection Configuration
             Text(
               l10n.carPlay,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -228,6 +236,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   autoDetectCar: value,
                 ));
               },
+            ),
+
+            // Setup tip
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Stel je auto in voor de beste ervaring:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    '🔗 Auto-API koppelen',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Ga naar Auto\'s → kies je auto → koppel je account. Hiermee krijg je toegang tot kilometerstand en meer.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '📱 Bluetooth koppelen',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Verbind je telefoon via Bluetooth met je auto, open deze app en koppel in de melding. Dit zorgt voor betrouwbare ritdetectie.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tip: Stel beide in voor de beste betrouwbaarheid!',
+                    style: TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
 
             // CarPlay status
@@ -275,10 +329,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 16),
 
-            // Info section
+            // Developer section
             const Divider(),
             const SizedBox(height: 16),
 
+            Text(
+              'Developer',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.bug_report, color: Colors.orange),
+                title: const Text('Debug Logs'),
+                subtitle: const Text('View native iOS logs'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (context) => const DebugLogScreen()),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Info section
             Card(
               color: Colors.blue.withValues(alpha: 0.1),
               child: Padding(
@@ -383,7 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MapEntry('he', l10n.languageHebrew),
     ];
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(

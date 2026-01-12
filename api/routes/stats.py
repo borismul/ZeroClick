@@ -2,10 +2,10 @@
 Stats and export routes.
 """
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 
 from models.export import ExportRequest
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from services.export_service import export_service
 from services.webhook_service import webhook_service
 
@@ -17,17 +17,15 @@ def get_stats(
     year: int | None = None,
     month: int | None = None,
     car_id: str | None = None,
-    x_user_email: str | None = Header(None),
+    user_id: str = Depends(get_current_user),
 ):
     """Get statistics, optionally filtered by car."""
-    user_id = get_user_from_header(x_user_email)
     return export_service.get_stats(user_id, year, month, car_id)
 
 
 @router.post("/export")
-def export_to_sheet(req: ExportRequest, x_user_email: str | None = Header(None)):
+def export_to_sheet(req: ExportRequest, user_id: str = Depends(get_current_user)):
     """Export trips to Google Sheet."""
-    user_id = get_user_from_header(x_user_email)
     return export_service.export_to_sheets(
         user_id=user_id,
         spreadsheet_id=req.spreadsheet_id,
@@ -39,9 +37,8 @@ def export_to_sheet(req: ExportRequest, x_user_email: str | None = Header(None))
 
 
 @router.get("/audi/compare")
-async def compare_odometer(car_id: str | None = None, x_user_email: str | None = Header(None)):
+async def compare_odometer(car_id: str | None = None, user_id: str = Depends(get_current_user)):
     """Compare car odometer with calculated trips - returns data for visualization."""
-    user_id = get_user_from_header(x_user_email)
     return export_service.compare_odometer(user_id, car_id)
 
 

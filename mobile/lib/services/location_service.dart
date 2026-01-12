@@ -1,33 +1,41 @@
 // Location service - GPS tracking with background support
 
 import 'dart:async';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../core/logging/app_logger.dart';
+
 class LocationResult {
+  LocationResult({
+    required this.lat,
+    required this.lng,
+    required this.timestamp,
+    this.accuracy,
+  });
+
   final double lat;
   final double lng;
   final double? accuracy;
   final DateTime timestamp;
-
-  LocationResult({
-    required this.lat,
-    required this.lng,
-    this.accuracy,
-    required this.timestamp,
-  });
 }
 
 class LocationService {
+  static const _log = AppLogger('LocationService');
+
   bool _hasPermission = false;
   StreamSubscription<Position>? _positionStream;
   Timer? _pingTimer;
-  Function(LocationResult)? _onLocationUpdate;
+  void Function(LocationResult)? _onLocationUpdate;
   bool _isTracking = false;
+
+  String? lastError;
+  bool get isTracking => _isTracking;
 
   Future<bool> requestPermissions() async {
     // Check if location services are enabled
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       return false;
     }
@@ -50,21 +58,19 @@ class LocationService {
   Future<bool> get hasPermission async {
     if (_hasPermission) return true;
 
-    var status = await Permission.location.status;
+    final status = await Permission.location.status;
     _hasPermission = status.isGranted;
     return _hasPermission;
   }
-
-  String? lastError;
 
   Future<LocationResult?> getCurrentLocation() async {
     lastError = null;
 
     // Check if location services are enabled
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       lastError = 'Locatieservices uitgeschakeld';
-      print('Location services disabled');
+      _log.warning('Location services disabled');
       return null;
     }
 
@@ -72,7 +78,7 @@ class LocationService {
       final granted = await requestPermissions();
       if (!granted) {
         lastError = 'Geen locatiepermissie';
-        print('Location permission not granted');
+        _log.warning('Location permission not granted');
         return null;
       }
     }
@@ -81,11 +87,19 @@ class LocationService {
       // Try to get current position with timeout
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
+          accuracy: LocationAccuracy.high,
         ),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
 
-      print('Got location: ${position.latitude}, ${position.longitude}');
+      // Check if position is fresh (within last 2 minutes)
+      final positionAge = DateTime.now().difference(position.timestamp);
+      if (positionAge.inMinutes > 2) {
+        _log.warning('GPS position too old: ${positionAge.inSeconds}s ago, rejecting');
+        lastError = 'GPS positie te oud (${positionAge.inSeconds}s)';
+        return null;
+      }
+
+      _log.debug('Got location: ${position.latitude}, ${position.longitude} (age: ${positionAge.inSeconds}s)');
       return LocationResult(
         lat: position.latitude,
         lng: position.longitude,
@@ -94,15 +108,15 @@ class LocationService {
           position.timestamp.millisecondsSinceEpoch,
         ),
       );
-    } catch (e) {
-      print('Error getting current location: $e');
+    } on Exception catch (e) {
+      _log.error('Error getting current location', e);
       lastError = 'GPS timeout: $e';
 
       // Try last known location as fallback
       try {
         final lastPosition = await Geolocator.getLastKnownPosition();
         if (lastPosition != null) {
-          print('Using last known location as fallback');
+          _log.debug('Using last known location as fallback');
           lastError = null;
           return LocationResult(
             lat: lastPosition.latitude,
@@ -115,8 +129,8 @@ class LocationService {
         } else {
           lastError = 'Geen GPS en geen laatst bekende locatie';
         }
-      } catch (e2) {
-        print('Error getting last known location: $e2');
+      } on Exception catch (e2) {
+        _log.error('Error getting last known location', e2);
         lastError = 'GPS fout: $e, fallback fout: $e2';
       }
       return null;
@@ -136,25 +150,21 @@ class LocationService {
           position.timestamp.millisecondsSinceEpoch,
         ),
       );
-    } catch (e) {
-      print('Error getting last known location: $e');
+    } on Exception catch (e) {
+      _log.error('Error getting last known location', e);
       return null;
     }
   }
 
-  Future<bool> isLocationEnabled() async {
-    return await Geolocator.isLocationServiceEnabled();
-  }
-
-  bool get isTracking => _isTracking;
+  Future<bool> isLocationEnabled() => Geolocator.isLocationServiceEnabled();
 
   /// Start background location tracking with periodic pings
   Future<bool> startBackgroundTracking({
-    required Function(LocationResult) onLocationUpdate,
+    required void Function(LocationResult) onLocationUpdate,
     Duration pingInterval = const Duration(minutes: 1),
   }) async {
     if (_isTracking) {
-      print('Already tracking');
+      _log.debug('Already tracking');
       return true;
     }
 
@@ -164,7 +174,7 @@ class LocationService {
       // Fall back to when in use
       status = await Permission.locationWhenInUse.request();
       if (!status.isGranted) {
-        print('Location permission not granted for background tracking');
+        _log.warning('Location permission not granted for background tracking');
         return false;
       }
     }
@@ -180,16 +190,16 @@ class LocationService {
 
     _positionStream = Geolocator.getPositionStream(
       locationSettings: locationSettings,
-    ).listen((Position position) {
-      print('Background location update: ${position.latitude}, ${position.longitude}');
+    ).listen((position) {
+      _log.debug('Background location update: ${position.latitude}, ${position.longitude}');
     });
 
     // Set up periodic ping timer
     _pingTimer = Timer.periodic(pingInterval, (timer) async {
-      print('Ping timer fired');
+      _log.debug('Ping timer fired');
       final location = await getCurrentLocation();
       if (location != null && _onLocationUpdate != null) {
-        print('Sending ping: ${location.lat}, ${location.lng}');
+        _log.debug('Sending ping: ${location.lat}, ${location.lng}');
         _onLocationUpdate!(location);
       }
     });
@@ -197,17 +207,17 @@ class LocationService {
     // Send initial ping immediately
     final location = await getCurrentLocation();
     if (location != null && _onLocationUpdate != null) {
-      print('Sending initial ping: ${location.lat}, ${location.lng}');
+      _log.debug('Sending initial ping: ${location.lat}, ${location.lng}');
       _onLocationUpdate!(location);
     }
 
-    print('Background tracking started');
+    _log.info('Background tracking started');
     return true;
   }
 
   /// Stop background location tracking
   void stopBackgroundTracking() {
-    print('Stopping background tracking');
+    _log.info('Stopping background tracking');
     _pingTimer?.cancel();
     _pingTimer = null;
     _positionStream?.cancel();

@@ -1,209 +1,195 @@
-// API service - matching web frontend patterns
-
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../models/trip.dart';
+import '../core/api/api_client.dart';
+import '../core/api/api_exception.dart';
+import '../core/logging/app_logger.dart';
 import '../models/car.dart';
 import '../models/location.dart';
-import 'auth_service.dart';
+import '../models/trip.dart';
 
+/// API service for all backend communication
 class ApiService {
-  String _baseUrl;
-  String _userEmail;
-  final AuthService _auth = AuthService();
-
   ApiService({
     required String baseUrl,
     required String userEmail,
-  })  : _baseUrl = baseUrl,
-        _userEmail = userEmail;
+  })  : _client = ApiClient(baseUrl: baseUrl),
+        _userEmail = userEmail {
+    _client.setUserEmail(userEmail);
+  }
 
+  final ApiClient _client;
+  final _log = const AppLogger('ApiService');
+  String _userEmail;
+
+  /// Update configuration
   void updateConfig(String baseUrl, String userEmail) {
-    _baseUrl = baseUrl;
+    _client.updateConfig(baseUrl: baseUrl, userEmail: userEmail);
     _userEmail = userEmail;
   }
 
-  Future<Map<String, String>> _getHeaders() async {
-    final authHeaders = await _auth.getAuthHeadersAsync();
-    if (!authHeaders.containsKey('X-User-Email') && _userEmail.isNotEmpty) {
-      authHeaders['X-User-Email'] = _userEmail;
-    }
-    return authHeaders;
+  /// Set auth token
+  void setAuthToken(String? token) {
+    _client.setAuthToken(token);
+  }
+
+  /// Set token refresh callback (called on 401 to get a fresh token)
+  void setTokenRefreshCallback(TokenRefreshCallback? callback) {
+    _client.setTokenRefreshCallback(callback);
   }
 
   // ============ Webhook Endpoints ============
 
   Future<Map<String, dynamic>> startTrip(double lat, double lng, {String? deviceId}) async {
-    var url = '$_baseUrl/webhook/start?user=${Uri.encodeComponent(_userEmail)}';
+    final queryParams = <String, String>{
+      'user': _userEmail,
+    };
     if (deviceId != null) {
-      url += '&device_id=${Uri.encodeComponent(deviceId)}';
+      queryParams['device_id'] = deviceId;
     }
-    final response = await http.post(
-      Uri.parse(url),
-      headers: await _getHeaders(),
-      body: jsonEncode({'lat': lat, 'lng': lng}),
+
+    _log.info('Starting trip at $lat, $lng');
+    return _client.post<Map<String, dynamic>>(
+      '/webhook/start',
+      queryParams: queryParams,
+      body: {'lat': lat, 'lng': lng},
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> endTrip(double lat, double lng) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/webhook/end?user=${Uri.encodeComponent(_userEmail)}'),
-      headers: await _getHeaders(),
-      body: jsonEncode({'lat': lat, 'lng': lng}),
+    _log.info('Ending trip at $lat, $lng');
+    return _client.post<Map<String, dynamic>>(
+      '/webhook/end',
+      queryParams: {'user': _userEmail},
+      body: {'lat': lat, 'lng': lng},
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> sendPing(double lat, double lng, {String? deviceId}) async {
-    var url = '$_baseUrl/webhook/ping?user=${Uri.encodeComponent(_userEmail)}';
+    final queryParams = <String, String>{
+      'user': _userEmail,
+    };
     if (deviceId != null) {
-      url += '&device_id=${Uri.encodeComponent(deviceId)}';
+      queryParams['device_id'] = deviceId;
     }
-    final response = await http.post(
-      Uri.parse(url),
-      headers: await _getHeaders(),
-      body: jsonEncode({'lat': lat, 'lng': lng}),
+
+    return _client.post<Map<String, dynamic>>(
+      '/webhook/ping',
+      queryParams: queryParams,
+      body: {'lat': lat, 'lng': lng},
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<ActiveTrip> getStatus() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/webhook/status'),
-      headers: await _getHeaders(),
-    );
-    return ActiveTrip.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  Future<ActiveTrip> getStatus() async => _client.get<ActiveTrip>(
+        '/webhook/status',
+        fromJson: (json) => ActiveTrip.fromJson(json as Map<String, dynamic>),
+      );
 
   Future<Map<String, dynamic>> finalize() async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/webhook/finalize?user=${Uri.encodeComponent(_userEmail)}'),
-      headers: await _getHeaders(),
+    _log.info('Finalizing trip');
+    return _client.post<Map<String, dynamic>>(
+      '/webhook/finalize',
+      queryParams: {'user': _userEmail},
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> cancel() async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/webhook/cancel?user=${Uri.encodeComponent(_userEmail)}'),
-      headers: await _getHeaders(),
+    _log.info('Canceling trip');
+    return _client.post<Map<String, dynamic>>(
+      '/webhook/cancel',
+      queryParams: {'user': _userEmail},
     );
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   // ============ Trip Endpoints ============
 
   Future<List<Trip>> getTripsForCar(String? carId, {int page = 1, int limit = 50}) async {
-    final url = carId != null
-        ? '$_baseUrl/trips?page=$page&limit=$limit&car_id=$carId'
-        : '$_baseUrl/trips?page=$page&limit=$limit';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: await _getHeaders(),
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (carId != null) {
+      queryParams['car_id'] = carId;
+    }
+
+    return _client.get<List<Trip>>(
+      '/trips',
+      queryParams: queryParams,
+      fromJson: (json) => (json as List<dynamic>)
+          .map((e) => Trip.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
-    final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-    return data.map((e) => Trip.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<Stats> getStatsForCar(String? carId) async {
-    final url = carId != null
-        ? '$_baseUrl/stats?car_id=$carId'
-        : '$_baseUrl/stats';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: await _getHeaders(),
+    final queryParams = <String, String>{};
+    if (carId != null) {
+      queryParams['car_id'] = carId;
+    }
+
+    return _client.get<Stats>(
+      '/stats',
+      queryParams: queryParams,
+      fromJson: (json) => Stats.fromJson(json as Map<String, dynamic>),
     );
-    return Stats.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<Trip> updateTrip(String tripId, Map<String, dynamic> updates) async {
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/trips/$tripId'),
-      headers: await _getHeaders(),
-      body: jsonEncode(updates),
-    );
-    return Trip.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  Future<Trip> updateTrip(String tripId, Map<String, dynamic> updates) async =>
+      _client.patch<Trip>(
+        '/trips/$tripId',
+        body: updates,
+        fromJson: (json) => Trip.fromJson(json as Map<String, dynamic>),
+      );
 
   Future<void> deleteTrip(String tripId) async {
-    await http.delete(
-      Uri.parse('$_baseUrl/trips/$tripId'),
-      headers: await _getHeaders(),
-    );
+    await _client.delete<Map<String, dynamic>>('/trips/$tripId');
   }
 
-  Future<Trip> createTrip(Map<String, dynamic> tripData) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/trips'),
-      headers: await _getHeaders(),
-      body: jsonEncode(tripData),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to create trip');
-    }
-    return Trip.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  Future<Trip> createTrip(Map<String, dynamic> tripData) async => _client.post<Trip>(
+        '/trips',
+        body: tripData,
+        fromJson: (json) => Trip.fromJson(json as Map<String, dynamic>),
+      );
 
   // ============ Location Endpoints ============
 
-  Future<List<UserLocation>> getLocations() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/locations'),
-      headers: await _getHeaders(),
-    );
-    final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-    return data.map((e) => UserLocation.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<UserLocation>> getLocations() async => _client.get<List<UserLocation>>(
+        '/locations',
+        fromJson: (json) => (json as List<dynamic>)
+            .map((e) => UserLocation.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 
   // ============ Car Management Endpoints ============
 
-  Future<List<Car>> getCars() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to fetch cars');
-    }
-    final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
-    return data.map((e) => Car.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  Future<List<Car>> getCars() async => _client.get<List<Car>>(
+        '/cars',
+        fromJson: (json) => (json as List<dynamic>)
+            .map((e) => Car.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 
   Future<Car> createCar({
     required String name,
     String brand = 'other',
     String color = '#3B82F6',
     String icon = 'car',
-  }) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/cars'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'name': name,
-        'brand': brand,
-        'color': color,
-        'icon': icon,
-      }),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to create car');
-    }
-    return Car.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  }) async =>
+      _client.post<Car>(
+        '/cars',
+        body: {
+          'name': name,
+          'brand': brand,
+          'color': color,
+          'icon': icon,
+        },
+        fromJson: (json) => Car.fromJson(json as Map<String, dynamic>),
+      );
 
-  Future<Car> getCar(String carId) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars/$carId'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Car not found');
-    }
-    return Car.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  Future<Car> getCar(String carId) async => _client.get<Car>(
+        '/cars/$carId',
+        fromJson: (json) => Car.fromJson(json as Map<String, dynamic>),
+      );
 
-  Future<void> updateCar(String carId, {
+  Future<void> updateCar(
+    String carId, {
     String? name,
     String? brand,
     String? color,
@@ -219,268 +205,153 @@ class ApiService {
     if (isDefault != null) body['is_default'] = isDefault;
     if (carplayDeviceId != null) body['carplay_device_id'] = carplayDeviceId;
 
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/cars/$carId'),
-      headers: await _getHeaders(),
-      body: jsonEncode(body),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to update car');
-    }
+    await _client.patch<Map<String, dynamic>>('/cars/$carId', body: body);
   }
 
   Future<void> deleteCar(String carId) async {
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/cars/$carId'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode >= 400) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(data['detail'] ?? 'Failed to delete car');
+    try {
+      await _client.delete<Map<String, dynamic>>('/cars/$carId');
+    } on ValidationException catch (e) {
+      throw Exception(e.details?['detail'] ?? 'Kan auto niet verwijderen');
     }
   }
 
   Future<CarData?> getCarDataById(String carId) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars/$carId/data'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode == 400) {
+    try {
+      return await _client.get<CarData>(
+        '/cars/$carId/data',
+        fromJson: (json) => CarData.fromJson(json as Map<String, dynamic>),
+      );
+    } on ValidationException {
+      return null;
+    } on NotFoundException {
       return null;
     }
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to fetch car data');
-    }
-    return CarData.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
   Future<void> saveCarCredentials(String carId, CarCredentials creds) async {
-    final response = await http.put(
-      Uri.parse('$_baseUrl/cars/$carId/credentials'),
-      headers: await _getHeaders(),
-      body: jsonEncode(creds.toJson()),
+    await _client.put<Map<String, dynamic>>(
+      '/cars/$carId/credentials',
+      body: creds.toJson(),
     );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to save credentials');
-    }
   }
 
   Future<Map<String, dynamic>?> getCarCredentials(String carId) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars/$carId/credentials'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode == 404) {
-      return null; // No credentials
-    }
-    if (response.statusCode >= 400) {
+    try {
+      return await _client.get<Map<String, dynamic>>('/cars/$carId/credentials');
+    } on NotFoundException {
       return null;
     }
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> deleteCarCredentials(String carId) async {
-    final response = await http.delete(
-      Uri.parse('$_baseUrl/cars/$carId/credentials'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to delete credentials');
-    }
+    await _client.delete<Map<String, dynamic>>('/cars/$carId/credentials');
   }
 
-  Future<Map<String, dynamic>> testCarCredentials(String carId, CarCredentials creds) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/cars/$carId/credentials/test'),
-      headers: await _getHeaders(),
-      body: jsonEncode(creds.toJson()),
-    );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Connection failed');
-    }
-    return data;
-  }
+  Future<Map<String, dynamic>> testCarCredentials(String carId, CarCredentials creds) async =>
+      _client.post<Map<String, dynamic>>(
+        '/cars/$carId/credentials/test',
+        body: creds.toJson(),
+      );
 
   Future<String?> getTeslaAuthUrl(String carId) async {
     const callbackUrl = 'https://auth.tesla.com/void/callback';
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars/$carId/tesla/auth-url?callback_url=$callbackUrl'),
-      headers: await _getHeaders(),
+    final result = await _client.get<Map<String, dynamic>>(
+      '/cars/$carId/tesla/auth-url',
+      queryParams: {'callback_url': callbackUrl},
     );
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Failed to get Tesla auth URL');
-    }
-
-    if (data['status'] == 'already_authorized') {
+    if (result['status'] == 'already_authorized') {
       return null;
     }
 
-    return data['auth_url'] as String?;
+    return result['auth_url'] as String?;
   }
 
   Future<bool> completeTeslaAuth(String carId, String callbackUrl) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/cars/$carId/tesla/callback?callback_url=${Uri.encodeComponent(callbackUrl)}'),
-      headers: await _getHeaders(),
+    await _client.post<Map<String, dynamic>>(
+      '/cars/$carId/tesla/callback',
+      queryParams: {'callback_url': callbackUrl},
     );
-
-    if (response.statusCode >= 400) {
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      throw Exception(data['detail'] ?? 'Tesla authorization failed');
-    }
-
     return true;
   }
 
   // Audi OAuth methods
   Future<String?> getAudiAuthUrl(String carId) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/audi/auth/url'),
-      headers: await _getHeaders(),
-      body: jsonEncode({'car_id': carId}),
+    final result = await _client.post<Map<String, dynamic>>(
+      '/audi/auth/url',
+      body: {'car_id': carId},
     );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Failed to get Audi auth URL');
-    }
-
-    return data['auth_url'] as String?;
+    return result['auth_url'] as String?;
   }
 
-  Future<Map<String, dynamic>> completeAudiAuth(String carId, String redirectUrl) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/audi/auth/callback'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'redirect_url': redirectUrl,
-      }),
-    );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Audi authorization failed');
-    }
-
-    return data;
-  }
+  Future<Map<String, dynamic>> completeAudiAuth(String carId, String redirectUrl) async =>
+      _client.post<Map<String, dynamic>>(
+        '/audi/auth/callback',
+        body: {
+          'car_id': carId,
+          'redirect_url': redirectUrl,
+        },
+      );
 
   // VW Group OAuth methods (Volkswagen, Skoda, SEAT, CUPRA)
-  Future<Map<String, dynamic>> getVWGroupAuthUrl(String carId, String brand) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/vwgroup/auth/url'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'brand': brand,
-      }),
-    );
+  Future<Map<String, dynamic>> getVWGroupAuthUrl(String carId, String brand) async =>
+      _client.post<Map<String, dynamic>>(
+        '/vwgroup/auth/url',
+        body: {
+          'car_id': carId,
+          'brand': brand,
+        },
+      );
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Failed to get $brand auth URL');
-    }
-
-    return data;
-  }
-
-  Future<Map<String, dynamic>> completeVWGroupAuth(String carId, String brand, String redirectUrl) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/vwgroup/auth/callback'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'brand': brand,
-        'redirect_url': redirectUrl,
-      }),
-    );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? '$brand authorization failed');
-    }
-
-    return data;
-  }
+  Future<Map<String, dynamic>> completeVWGroupAuth(String carId, String brand, String redirectUrl) async =>
+      _client.post<Map<String, dynamic>>(
+        '/vwgroup/auth/callback',
+        body: {
+          'car_id': carId,
+          'brand': brand,
+          'redirect_url': redirectUrl,
+        },
+      );
 
   // Renault OAuth methods (Gigya-based)
-  Future<Map<String, dynamic>> renaultDirectLogin(String carId, String username, String password, {String locale = 'nl_NL'}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/renault/auth/login'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'username': username,
-        'password': password,
-        'locale': locale,
-      }),
-    );
+  Future<Map<String, dynamic>> renaultDirectLogin(
+    String carId,
+    String username,
+    String password, {
+    String locale = 'nl_NL',
+  }) async =>
+      _client.post<Map<String, dynamic>>(
+        '/renault/auth/login',
+        body: {
+          'car_id': carId,
+          'username': username,
+          'password': password,
+          'locale': locale,
+        },
+      );
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+  Future<Map<String, dynamic>> getRenaultAuthUrl(String carId, {String locale = 'nl/nl'}) async =>
+      _client.post<Map<String, dynamic>>(
+        '/renault/auth/url',
+        body: {
+          'car_id': carId,
+          'locale': locale,
+        },
+      );
 
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Renault login failed');
-    }
+  Future<Map<String, dynamic>> completeRenaultAuth(String carId, String gigyaToken, {String? personId}) async =>
+      _client.post<Map<String, dynamic>>(
+        '/renault/auth/callback',
+        body: {
+          'car_id': carId,
+          'gigya_token': gigyaToken,
+          if (personId != null) 'gigya_person_id': personId,
+        },
+      );
 
-    return data;
-  }
-
-  Future<Map<String, dynamic>> getRenaultAuthUrl(String carId, {String locale = 'nl/nl'}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/renault/auth/url'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'locale': locale,
-      }),
-    );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Failed to get Renault auth URL');
-    }
-
-    return data;
-  }
-
-  Future<Map<String, dynamic>> completeRenaultAuth(String carId, String gigyaToken, {String? personId}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/renault/auth/callback'),
-      headers: await _getHeaders(),
-      body: jsonEncode({
-        'car_id': carId,
-        'gigya_token': gigyaToken,
-        if (personId != null) 'gigya_person_id': personId,
-      }),
-    );
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode >= 400) {
-      throw Exception(data['detail'] ?? 'Renault authorization failed');
-    }
-
-    return data;
-  }
-
-  Future<CarStats> getCarStats(String carId) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/cars/$carId/stats'),
-      headers: await _getHeaders(),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception('Failed to fetch car stats');
-    }
-    return CarStats.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
+  Future<CarStats> getCarStats(String carId) async => _client.get<CarStats>(
+        '/cars/$carId/stats',
+        fromJson: (json) => CarStats.fromJson(json as Map<String, dynamic>),
+      );
 }

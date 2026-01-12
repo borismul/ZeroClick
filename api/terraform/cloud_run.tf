@@ -101,6 +101,11 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       env {
+        name  = "GOOGLE_WEB_CLIENT_ID"
+        value = "269285054406-mehvd44e88dfk6tbl69rou5g920r3lq1.apps.googleusercontent.com"
+      }
+
+      env {
         name  = "OPENCHARGEMAP_API_KEY"
         value = var.openchargemap_api_key
       }

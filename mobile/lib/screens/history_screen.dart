@@ -94,7 +94,7 @@ class _TripCard extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
+            MaterialPageRoute<void>(
               builder: (context) => TripDetailScreen(trip: trip),
             ),
           );

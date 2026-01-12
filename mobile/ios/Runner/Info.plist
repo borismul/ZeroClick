@@ -62,8 +62,12 @@
 		<string>bluetooth-central</string>
 		<string>processing</string>
 	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>GIDClientID</key>
 	<string>269285054406-ft7anq4an8h6d4rh8mmnjca8c67uda96.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>269285054406-mehvd44e88dfk6tbl69rou5g920r3lq1.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

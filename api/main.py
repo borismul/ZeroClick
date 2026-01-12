@@ -14,10 +14,11 @@ All business logic has been refactored into:
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth.middleware import AuthMiddleware
+from auth.dependencies import get_current_user
 from routes import (
     auth_router,
     trips_router,
@@ -132,15 +133,12 @@ def test_car_credentials_legacy(request: CarTestRequest):
 
 
 @app.get("/cars/{car_id}/data")
-def get_car_data_by_id_legacy(car_id: str, x_user_email: str | None = None):
+def get_car_data_by_id_legacy(car_id: str, user_id: str = Depends(get_current_user)):
     """Get live car data for a specific car using its credentials (legacy endpoint)."""
-    from fastapi import HTTPException, Header
+    from fastapi import HTTPException
     from datetime import datetime, timezone
     from car_providers import AudiProvider, VWGroupProvider, RenaultProvider, TeslaProvider, VW_GROUP_BRANDS, VehicleState
-    from auth.dependencies import get_user_from_header
     from database import get_db
-
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
     car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
     doc = car_ref.get()

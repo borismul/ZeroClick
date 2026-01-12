@@ -2,11 +2,14 @@
 FastAPI dependencies for authentication.
 """
 
+import logging
 from fastapi import HTTPException, Header, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from config import AUTH_ENABLED
 from .google import verify_google_token
+
+log = logging.getLogger(__name__)
 
 # Security scheme for Swagger UI
 security = HTTPBearer(auto_error=False)
@@ -33,6 +36,8 @@ def get_current_user(
     Raises:
         HTTPException 401: If authentication fails
     """
+    log.info(f"Auth check: AUTH_ENABLED={AUTH_ENABLED}, has_creds={credentials is not None}, email={x_user_email}")
+
     # If auth is disabled, require email header
     if not AUTH_ENABLED:
         if not x_user_email:
@@ -41,13 +46,17 @@ def get_current_user(
 
     # Require Bearer token when auth is enabled
     if not credentials:
+        log.warning("No Bearer token provided")
         raise HTTPException(status_code=401, detail="Authentication required")
 
     # Verify the token
     try:
+        log.info(f"Verifying token: {credentials.credentials[:50]}...")
         user_info = verify_google_token(credentials.credentials)
+        log.info(f"Token verified for user: {user_info['email']}")
         return user_info["email"]
     except ValueError as e:
+        log.error(f"Token verification failed: {e}")
         raise HTTPException(status_code=401, detail=str(e))
 
 

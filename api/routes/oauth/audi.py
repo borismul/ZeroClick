@@ -10,10 +10,10 @@ from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
 
 import requests as req
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 
 from models.auth import AudiAuthRequest, AudiCallbackRequest
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from database import get_db
 
 router = APIRouter(prefix="/audi/auth", tags=["oauth", "audi"])
@@ -21,9 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/url")
-def get_audi_auth_url(request: AudiAuthRequest, x_user_email: str | None = Header(None)):
+def get_audi_auth_url(request: AudiAuthRequest, user_id: str = Depends(get_current_user)):
     """Generate Audi OAuth authorization URL for webview login."""
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     # Verify car exists
@@ -69,11 +68,9 @@ def get_audi_auth_url(request: AudiAuthRequest, x_user_email: str | None = Heade
 
 
 @router.post("/callback")
-def handle_audi_callback(request: AudiCallbackRequest, x_user_email: str | None = Header(None)):
+def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(get_current_user)):
     """Handle Audi OAuth callback - exchange authorization code for tokens using PKCE."""
     from car_providers.audi import AudiAPI
-
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)

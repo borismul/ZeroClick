@@ -35,7 +35,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   Future<void> _openEditScreen() async {
     final result = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<bool>(
         builder: (context) => TripEditScreen(trip: _trip),
       ),
     );
@@ -52,7 +52,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   void _openMapWithPins() {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => TripMapScreen(trip: _trip),
       ),
     );

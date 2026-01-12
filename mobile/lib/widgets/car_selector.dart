@@ -28,7 +28,7 @@ class CarSelector extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const CarsScreen()),
+                  MaterialPageRoute<void>(builder: (context) => const CarsScreen()),
                 );
               },
             ),
@@ -126,7 +126,7 @@ class CarSelector extends StatelessWidget {
                 tooltip: l10n.manageCars,
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const CarsScreen()),
+                    MaterialPageRoute<void>(builder: (context) => const CarsScreen()),
                   );
                 },
               ),

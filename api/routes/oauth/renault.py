@@ -9,11 +9,11 @@ from datetime import datetime, timezone, timedelta
 
 import aiohttp
 import requests as req
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 
 from models.auth import RenaultAuthRequest, RenaultCallbackRequest, RenaultLoginRequest
 from config import RENAULT_GIGYA_CONFIG, RENAULT_GIGYA_API_KEYS
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from database import get_db
 
 router = APIRouter(prefix="/renault/auth", tags=["oauth", "renault"])
@@ -21,9 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/login")
-def renault_direct_login(request: RenaultLoginRequest, x_user_email: str | None = Header(None)):
+def renault_direct_login(request: RenaultLoginRequest, user_id: str = Depends(get_current_user)):
     """Direct Renault login via Gigya API (username/password)."""
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
@@ -119,9 +118,8 @@ def renault_direct_login(request: RenaultLoginRequest, x_user_email: str | None 
 
 
 @router.post("/url")
-def get_renault_auth_url(request: RenaultAuthRequest, x_user_email: str | None = Header(None)):
+def get_renault_auth_url(request: RenaultAuthRequest, user_id: str = Depends(get_current_user)):
     """Generate Renault ID Connect login URL for webview."""
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     # Verify car exists
@@ -153,9 +151,8 @@ def get_renault_auth_url(request: RenaultAuthRequest, x_user_email: str | None =
 
 
 @router.post("/callback")
-def handle_renault_callback(request: RenaultCallbackRequest, x_user_email: str | None = Header(None)):
+def handle_renault_callback(request: RenaultCallbackRequest, user_id: str = Depends(get_current_user)):
     """Handle Renault OAuth callback - store Gigya tokens and get JWT."""
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 class MileageViewModel: ObservableObject {
@@ -15,10 +16,22 @@ class MileageViewModel: ObservableObject {
     @AppStorage("userEmail") var userEmail: String = ""
 
     private var refreshTimer: Timer?
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         // Auto-refresh every 30 seconds when there's an active trip
         startAutoRefresh()
+
+        // Listen for trip started notification from WatchConnectivity
+        NotificationCenter.default.publisher(for: .tripStarted)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("[ViewModel] Received tripStarted notification - refreshing")
+                Task { @MainActor in
+                    await self?.refreshAll()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func startAutoRefresh() {
@@ -39,14 +52,16 @@ class MileageViewModel: ObservableObject {
         isLoading = true
         error = nil
 
+        // Fetch status first - this is public and critical for LiveTripView
         do {
-            // Fetch all data in parallel
-            async let statusTask = APIClient.shared.getStatus()
-            async let carsTask = APIClient.shared.getCars()
+            self.activeTrip = try await APIClient.shared.getStatus()
+        } catch {
+            print("[ViewModel] Status fetch failed: \(error)")
+        }
 
-            let (status, fetchedCars) = try await (statusTask, carsTask)
-
-            self.activeTrip = status
+        do {
+            // Fetch cars (requires auth)
+            let fetchedCars = try await APIClient.shared.getCars()
             self.cars = fetchedCars
 
             // Select default car if none selected

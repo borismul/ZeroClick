@@ -10,11 +10,11 @@ from datetime import datetime, timezone, timedelta
 from urllib.parse import quote, unquote
 
 import requests as req
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 
 from models.auth import VWGroupAuthRequest, VWGroupCallbackRequest
 from config import VW_GROUP_OAUTH_CONFIG
-from auth.dependencies import get_user_from_header
+from auth.dependencies import get_current_user
 from database import get_db
 
 router = APIRouter(prefix="/vwgroup/auth", tags=["oauth", "vwgroup"])
@@ -22,14 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/url")
-def get_vwgroup_auth_url(request: VWGroupAuthRequest, x_user_email: str | None = Header(None)):
+def get_vwgroup_auth_url(request: VWGroupAuthRequest, user_id: str = Depends(get_current_user)):
     """Generate VW Group OAuth authorization URL for webview login."""
     brand = request.brand.lower()
     if brand not in VW_GROUP_OAUTH_CONFIG:
         raise HTTPException(status_code=400, detail=f"Unsupported brand: {brand}")
 
     config = VW_GROUP_OAUTH_CONFIG[brand]
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     # Verify car exists
@@ -76,14 +75,13 @@ def get_vwgroup_auth_url(request: VWGroupAuthRequest, x_user_email: str | None =
 
 
 @router.post("/callback")
-def handle_vwgroup_callback(request: VWGroupCallbackRequest, x_user_email: str | None = Header(None)):
+def handle_vwgroup_callback(request: VWGroupCallbackRequest, user_id: str = Depends(get_current_user)):
     """Handle VW Group OAuth callback - extract and store tokens from redirect URL."""
     brand = request.brand.lower()
     if brand not in VW_GROUP_OAUTH_CONFIG:
         raise HTTPException(status_code=400, detail=f"Unsupported brand: {brand}")
 
     config = VW_GROUP_OAUTH_CONFIG[brand]
-    user_id = get_user_from_header(x_user_email)
     db = get_db()
 
     car_ref = db.collection("users").document(user_id).collection("cars").document(request.car_id)
