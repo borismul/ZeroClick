@@ -1,4 +1,4 @@
-// App state provider
+// App orchestration provider - coordinates other providers
 
 import 'dart:async';
 
@@ -11,21 +11,29 @@ import '../models/settings.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import '../services/background_service.dart';
-import '../services/location_service.dart';
-import '../services/notification_service.dart';
 import 'car_provider.dart';
 import 'connectivity_provider.dart';
 import 'settings_provider.dart';
+import 'trip_provider.dart';
 
 // Callback for unknown device - used to trigger car linking flow
 typedef UnknownDeviceCallback = void Function(String deviceName);
 
+/// Thin orchestrator that coordinates specialized providers.
+///
+/// After extraction of SettingsProvider, CarProvider, ConnectivityProvider, and TripProvider,
+/// AppProvider handles:
+/// - Navigation state
+/// - Cross-provider coordination (auto-start trips, device linking)
+/// - Auth setup and token refresh callbacks
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._settingsProvider, this._carProvider, this._connectivityProvider, this._api) {
-    _location = LocationService();
-    _background = BackgroundService();
-    _notifications = NotificationService();
+  AppProvider(
+    this._settingsProvider,
+    this._carProvider,
+    this._connectivityProvider,
+    this._tripProvider,
+    this._api,
+  ) {
     // Fire and forget - don't block constructor
     Future.microtask(_init);
   }
@@ -36,24 +44,10 @@ class AppProvider extends ChangeNotifier {
   final SettingsProvider _settingsProvider;
   final CarProvider _carProvider;
   final ConnectivityProvider _connectivityProvider;
+  final TripProvider _tripProvider;
 
   // Services (shared ApiService from provider tree)
   final ApiService _api;
-  late LocationService _location;
-  late BackgroundService _background;
-  late NotificationService _notifications;
-
-  // State
-  ActiveTrip? _activeTrip;
-  List<Trip> _trips = [];
-  Stats? _stats;
-  List<UserLocation> _locations = [];
-  bool _isLoading = false;
-  String? _error;
-
-  // Loading states for each section (start true so spinners show on boot)
-  bool _isLoadingStats = true;
-  bool _isLoadingTrips = true;
 
   // Navigation state
   int _navigationIndex = 0;
@@ -61,20 +55,13 @@ class AppProvider extends ChangeNotifier {
   // Callback for unknown device - set this to receive device link requests
   UnknownDeviceCallback? onUnknownDevice;
 
-  // Getters - delegate to SettingsProvider
+  // ============ Delegating Getters - Settings ============
+
   AppSettings get settings => _settingsProvider.settings;
   bool get isConfigured => _settingsProvider.isConfigured;
-  ActiveTrip? get activeTrip => _activeTrip;
-  List<Trip> get trips => _trips;
-  Stats? get stats => _stats;
-  List<UserLocation> get locations => _locations;
-  bool get isLoading => _isLoading;
-  bool get isLoadingStats => _isLoadingStats;
-  bool get isLoadingTrips => _isLoadingTrips;
-  String? get error => _error;
-  bool get isTrackingLocation => _location.isTracking;
 
-  // Delegate connectivity getters to ConnectivityProvider
+  // ============ Delegating Getters - Connectivity ============
+
   int get queueLength => _connectivityProvider.queueLength;
   bool get isOnline => _connectivityProvider.isOnline;
   bool get isCarPlayConnected => _connectivityProvider.isCarPlayConnected;
@@ -82,7 +69,8 @@ class AppProvider extends ChangeNotifier {
   String? get connectedBluetoothDevice => _connectivityProvider.connectedBluetoothDevice;
   String? get pendingUnknownDevice => _connectivityProvider.pendingUnknownDevice;
 
-  // Delegate car getters to CarProvider
+  // ============ Delegating Getters - Car ============
+
   List<Car> get cars => _carProvider.cars;
   Car? get selectedCar => _carProvider.selectedCar;
   String? get selectedCarId => _carProvider.selectedCarId;
@@ -91,27 +79,80 @@ class AppProvider extends ChangeNotifier {
   bool get isLoadingCars => _carProvider.isLoadingCars;
   bool get isLoadingCarData => _carProvider.isLoadingCarData;
 
-  // Delegate car methods for backward compatibility
+  // ============ Delegating Getters - Trip ============
+
+  ActiveTrip? get activeTrip => _tripProvider.activeTrip;
+  List<Trip> get trips => _tripProvider.trips;
+  Stats? get stats => _tripProvider.stats;
+  List<UserLocation> get locations => _tripProvider.locations;
+  bool get isLoading => _tripProvider.isLoading;
+  bool get isLoadingStats => _tripProvider.isLoadingStats;
+  bool get isLoadingTrips => _tripProvider.isLoadingTrips;
+  String? get error => _tripProvider.error;
+  bool get isTrackingLocation => _tripProvider.isTrackingLocation;
+
+  // ============ Delegating Methods - Car ============
+
   void selectCar(Car car) => _carProvider.selectCar(car);
   Future<void> refreshCars() => _carProvider.refreshCars();
   Future<void> refreshCarData() => _carProvider.refreshCarData();
 
-  // Navigation getter
+  // ============ Delegating Methods - Trip ============
+
+  Future<void> refreshActiveTrip() => _tripProvider.refreshActiveTrip();
+  Future<void> refreshTrips() => _tripProvider.refreshTrips();
+  Future<void> refreshStats() => _tripProvider.refreshStats();
+  Future<void> refreshLocations() => _tripProvider.refreshLocations();
+  Future<bool> createTrip(Map<String, dynamic> tripData) => _tripProvider.createTrip(tripData);
+  Future<bool> updateTrip(String tripId, Map<String, dynamic> updates) =>
+      _tripProvider.updateTrip(tripId, updates);
+  Future<bool> deleteTrip(String tripId) => _tripProvider.deleteTrip(tripId);
+  bool isKnownLocation(String? address) => _tripProvider.isKnownLocation(address);
+  Future<bool> addLocation({
+    required String name,
+    required double lat,
+    required double lng,
+  }) =>
+      _tripProvider.addLocation(name: name, lat: lat, lng: lng);
+  Future<bool> startTrip() => _tripProvider.startTrip();
+  Future<bool> startTripForCar(Car car, String deviceId) => _tripProvider.startTripForCar(car, deviceId);
+  Future<bool> endTrip() => _tripProvider.endTrip();
+  Future<bool> sendPing() => _tripProvider.sendPing();
+  Future<bool> finalizeTrip() => _tripProvider.finalizeTrip();
+  Future<bool> cancelTrip() => _tripProvider.cancelTrip();
+  void clearError() => _tripProvider.clearError();
+  Future<void> deleteAccount() => _tripProvider.deleteAccount();
+
+  // ============ Delegating Methods - Connectivity ============
+
+  Future<void> refreshQueueLength() => _connectivityProvider.refreshQueueLength();
+  Future<void> processQueue() async {
+    final result = await _connectivityProvider.processQueue();
+    if (result.success > 0) {
+      await _tripProvider.refreshActiveTrip();
+    }
+  }
+
+  void clearPendingUnknownDevice() => _connectivityProvider.clearPendingUnknownDevice();
+
+  // ============ Navigation ============
+
   int get navigationIndex => _navigationIndex;
 
-  // Navigate to a specific tab
   void navigateTo(int index) {
     _navigationIndex = index;
     notifyListeners();
   }
+
+  // ============ Initialization ============
 
   Future<void> _init() async {
     // Settings already loaded by SettingsProvider
     // Update API config in case settings loaded after constructor
     _api.updateConfig(_settingsProvider.apiUrl, _settingsProvider.userEmail);
 
-    // Initialize notifications (permissions handled by onboarding)
-    await _notifications.init();
+    // Initialize TripProvider (notifications, etc.)
+    await _tripProvider.init();
 
     // Set up cross-provider callbacks for connectivity events
     _connectivityProvider.onCarPlayConnected = _tryAutoStartTrip;
@@ -160,19 +201,7 @@ class AppProvider extends ChangeNotifier {
     if (isConfigured) {
       unawaited(refreshAll());
       // Resume tracking if there was an active trip
-      unawaited(_checkAndResumeTracking());
-    }
-  }
-
-  Future<void> _checkAndResumeTracking() async {
-    try {
-      await refreshActiveTrip();
-      if (_activeTrip?.active ?? false) {
-        _log.info('Active trip detected on startup, resuming tracking');
-        await _background.startTrip();
-      }
-    } on Exception catch (e) {
-      _log.error('Error checking active trip', e);
+      unawaited(_tripProvider.checkAndResumeTracking());
     }
   }
 
@@ -181,10 +210,10 @@ class AppProvider extends ChangeNotifier {
     final car = _carProvider.findCarByDeviceId(deviceName);
     if (car != null) {
       _log.info('Found car ${car.name} (${car.id}) - syncing to native');
-      _background.setActiveCarId(car.id);
+      _tripProvider.backgroundService.setActiveCarId(car.id);
     } else {
       _log.info('Unknown device $deviceName - no car_id to sync');
-      _background.clearActiveCarId();
+      _tripProvider.backgroundService.clearActiveCarId();
     }
   }
 
@@ -195,25 +224,25 @@ class AppProvider extends ChangeNotifier {
 
     // Listen for car detection events from background (motion detection)
     // Note: Native iOS already calls the API directly, this is just for UI updates
-    _background.setCarDetectedCallback((deviceName, lat, lng) async {
-        _log.info('Car detected callback: $deviceName at $lat, $lng');
+    _tripProvider.backgroundService.setCarDetectedCallback((deviceName, lat, lng) async {
+      _log.info('Car detected callback: $deviceName at $lat, $lng');
 
-        // "Motion" means motion detection triggered - native iOS already started the trip
-        // Just refresh the active trip state
-        if (deviceName == 'Motion') {
-          _log.info('Motion detection - refreshing trip state');
-          await refreshActiveTrip();
-          notifyListeners();
-          return;
-        }
+      // "Motion" means motion detection triggered - native iOS already started the trip
+      // Just refresh the active trip state
+      if (deviceName == 'Motion') {
+        _log.info('Motion detection - refreshing trip state');
+        await _tripProvider.refreshActiveTrip();
+        notifyListeners();
+        return;
+      }
 
-        // For actual Bluetooth device names, check if linked to a car
-        final car = _carProvider.findCarByDeviceId(deviceName);
-        if (car == null) {
-          _log.info('Unknown Bluetooth device: $deviceName');
-          _connectivityProvider.setPendingUnknownDevice(deviceName);
-        }
-      });
+      // For actual Bluetooth device names, check if linked to a car
+      final car = _carProvider.findCarByDeviceId(deviceName);
+      if (car == null) {
+        _log.info('Unknown Bluetooth device: $deviceName');
+        _connectivityProvider.setPendingUnknownDevice(deviceName);
+      }
+    });
   }
 
   /// Try to auto-start trip when CarPlay or Bluetooth connects
@@ -225,13 +254,14 @@ class AppProvider extends ChangeNotifier {
     }
 
     // Already have an active trip? Don't start another
-    if (_activeTrip?.active ?? false) {
+    if (_tripProvider.activeTrip?.active ?? false) {
       _log.info('Trip already active');
       return;
     }
 
     // PRIORITY 1: Check Bluetooth FIRST - this identifies the specific car
-    final deviceName = _connectivityProvider.connectedBluetoothDevice ?? await _connectivityProvider.getConnectedDevice();
+    final deviceName =
+        _connectivityProvider.connectedBluetoothDevice ?? await _connectivityProvider.getConnectedDevice();
 
     if (deviceName != null) {
       // Find car matching this Bluetooth device
@@ -240,14 +270,14 @@ class AppProvider extends ChangeNotifier {
       if (matchedCar != null) {
         // Bluetooth identifies the car - start trip for this specific car
         _log.info('Bluetooth identified car: ${matchedCar.name} for device: $deviceName');
-        await startTripForCar(matchedCar, deviceName);
+        await _tripProvider.startTripForCar(matchedCar, deviceName);
         return;
       } else {
         // Unknown Bluetooth device - ask user to link it
         _log.info('Unknown Bluetooth device: $deviceName - prompting user to link');
         _connectivityProvider.setPendingUnknownDevice(deviceName);
         // Show push notification for background awareness
-        unawaited(_notifications.showUnknownDeviceNotification(deviceName));
+        unawaited(_tripProvider.notificationService.showUnknownDeviceNotification(deviceName));
         return;
       }
     }
@@ -263,9 +293,6 @@ class AppProvider extends ChangeNotifier {
     _log.info('No Bluetooth device connected and no API support - cannot identify car');
   }
 
-  /// Clear pending unknown device (after user links it or dismisses)
-  void clearPendingUnknownDevice() => _connectivityProvider.clearPendingUnknownDevice();
-
   /// Link a device to a car and start trip
   Future<bool> linkDeviceAndStartTrip(String deviceName, Car car) async {
     // Update car with device ID via CarProvider
@@ -274,14 +301,13 @@ class AppProvider extends ChangeNotifier {
       // Clear pending
       _connectivityProvider.clearPendingUnknownDevice();
       // Show notification that car is linked
-      unawaited(_notifications.showCarLinkedNotification(car.name, deviceName));
+      unawaited(_tripProvider.notificationService.showCarLinkedNotification(car.name, deviceName));
       // Sync car_id to native for future trips
-      unawaited(_background.setActiveCarId(car.id));
+      unawaited(_tripProvider.backgroundService.setActiveCarId(car.id));
       // Start trip for this car
-      return startTripForCar(car, deviceName);
+      return _tripProvider.startTripForCar(car, deviceName);
     } on Exception catch (e) {
       _log.error('LinkDevice error', e);
-      _error = 'Kon apparaat niet koppelen: $e';
       notifyListeners();
       return false;
     }
@@ -299,354 +325,13 @@ class AppProvider extends ChangeNotifier {
     _api.setAuthToken(token);
   }
 
-  // Delegate connectivity methods to ConnectivityProvider for backward compatibility
-  Future<void> refreshQueueLength() => _connectivityProvider.refreshQueueLength();
-  Future<void> processQueue() async {
-    final result = await _connectivityProvider.processQueue();
-    if (result.success > 0) {
-      await refreshActiveTrip();
-    }
-  }
-
-  // ============ Data Refresh ============
-
-  Future<void> refreshActiveTrip() async {
-    if (!isConfigured) return;
-
-    try {
-      _activeTrip = await _api.getStatus();
-      _error = null;
-    } on Exception catch (e) {
-      _log.error('Error refreshing active trip', e);
-      _error = 'Kon actieve rit niet laden';
-    }
-    notifyListeners();
-  }
-
-  Future<void> refreshTrips() async {
-    if (!isConfigured) return;
-
-    _isLoadingTrips = true;
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final carId = selectedCarId ?? defaultCar?.id;
-      _trips = await _api.getTripsForCar(carId);
-      _error = null;
-    } on Exception catch (e) {
-      _log.error('Error refreshing trips', e);
-      _error = 'Kon ritten niet laden';
-    }
-
-    _isLoadingTrips = false;
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> refreshStats() async {
-    if (!isConfigured) return;
-
-    _isLoadingStats = true;
-    notifyListeners();
-
-    try {
-      final carId = selectedCarId ?? defaultCar?.id;
-      _stats = await _api.getStatsForCar(carId);
-      _error = null;
-    } on Exception catch (e) {
-      _log.error('Error refreshing stats', e);
-    }
-
-    _isLoadingStats = false;
-    notifyListeners();
-  }
-
-  // ============ Trip CRUD Operations ============
-
-  Future<bool> createTrip(Map<String, dynamic> tripData) async {
-    if (!isConfigured) return false;
-
-    try {
-      await _api.createTrip(tripData);
-      await refreshTrips();
-      await refreshStats();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error creating trip', e);
-      _error = 'Kon rit niet aanmaken';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> updateTrip(String tripId, Map<String, dynamic> updates) async {
-    if (!isConfigured) return false;
-
-    try {
-      await _api.updateTrip(tripId, updates);
-      await refreshTrips();
-      await refreshStats();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error updating trip', e);
-      _error = 'Kon rit niet bijwerken';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> deleteTrip(String tripId) async {
-    if (!isConfigured) return false;
-
-    try {
-      await _api.deleteTrip(tripId);
-      await refreshTrips();
-      await refreshStats();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error deleting trip', e);
-      _error = 'Kon rit niet verwijderen';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // ============ Location Management ============
-
-  Future<void> refreshLocations() async {
-    if (!isConfigured) return;
-
-    try {
-      _locations = await _api.getLocations();
-      _error = null;
-    } on Exception catch (e) {
-      _log.error('Error refreshing locations', e);
-    }
-    notifyListeners();
-  }
-
-  /// Check if an address is a known location
-  bool isKnownLocation(String? address) {
-    if (address == null || address.isEmpty) return false;
-    final lower = address.toLowerCase();
-    // Built-in locations
-    if (lower == 'thuis' || lower == 'home' || lower == 'kantoor' || lower == 'office') {
-      return true;
-    }
-    // User-defined locations
-    return _locations.any((loc) => loc.name.toLowerCase() == lower);
-  }
-
-  /// Add a new named location
-  Future<bool> addLocation({
-    required String name,
-    required double lat,
-    required double lng,
-  }) async {
-    if (!isConfigured) return false;
-
-    try {
-      await _api.addLocation(name: name, lat: lat, lng: lng);
-      await refreshLocations();
-      await refreshTrips(); // Trips get updated with new location name
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error adding location', e);
-      _error = 'Kon locatie niet opslaan';
-      notifyListeners();
-      return false;
-    }
-  }
-
+  /// Refresh all data from all providers
   Future<void> refreshAll() async {
     // First load cars to set selectedCarId
     await _carProvider.refreshCars();
     // Then load trips, stats, and locations in parallel
-    await Future.wait([
-      refreshActiveTrip(),
-      refreshTrips(),
-      refreshStats(),
-      refreshLocations(),
-    ]);
+    await _tripProvider.refreshAll();
     // Car data last - needs cars loaded and is slow (Audi API)
     await _carProvider.refreshCarData();
-  }
-
-  // ============ Webhook Actions ============
-
-  /// Start trip for a specific car with device ID
-  Future<bool> startTripForCar(Car car, String deviceId) async {
-    final location = await _location.getCurrentLocation();
-    if (location == null) {
-      _error = _location.lastError ?? 'Kon locatie niet bepalen';
-      notifyListeners();
-      return false;
-    }
-
-    if (!isOnline) {
-      await _connectivityProvider.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
-      await _background.startTrip();
-      return true;
-    }
-
-    try {
-      await _api.startTrip(location.lat, location.lng, deviceId: deviceId);
-      await refreshActiveTrip();
-      await _background.startTrip();
-      await _background.notifyWatchTripStarted();
-      // Show trip started notification
-      unawaited(_notifications.showTripStartedNotification(car.name));
-      return true;
-    } on Exception {
-      await _connectivityProvider.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
-      await _background.startTrip();
-      // Show trip started notification even in offline mode
-      unawaited(_notifications.showTripStartedNotification(car.name));
-      return true;
-    }
-  }
-
-  /// Manual start trip
-  /// - For cars with API (audi, vw, tesla, etc.): uses motion detection, no Bluetooth needed
-  /// - For cars without API: requires Bluetooth to identify which car
-  Future<bool> startTrip() async {
-    // Check if we have a selected car
-    final car = selectedCar ?? defaultCar;
-
-    if (car == null) {
-      _error = 'Geen auto geselecteerd. Voeg eerst een auto toe.';
-      notifyListeners();
-      return false;
-    }
-
-    // Check if car has API support (known brand with potential API)
-    final hasApiSupport = car.brand != 'other';
-
-    // Try Bluetooth first (works for all cars)
-    final deviceName = connectedBluetoothDevice ?? await _connectivityProvider.getConnectedDevice();
-
-    if (deviceName != null) {
-      // Bluetooth connected - find matching car or use current
-      final matchedCar = _carProvider.findCarByDeviceId(deviceName);
-
-      if (matchedCar != null) {
-        return startTripForCar(matchedCar, deviceName);
-      } else {
-        // Unknown device - trigger linking flow
-        _connectivityProvider.setPendingUnknownDevice(deviceName);
-        return false;
-      }
-    }
-
-    // No Bluetooth - check if car has API support
-    if (hasApiSupport) {
-      // Car with API support - motion detection handles identification
-      return startTripForCar(car, 'Motion');
-    }
-
-    // No Bluetooth AND no API support - show helpful error with steps
-    _error = 'We kunnen niet detecteren welke auto je bestuurt.\n\n'
-        'Stel je auto in:\n\n'
-        'Auto-API koppelen\n'
-        'Ga naar Autos -> ${car.name} -> koppel je account voor kilometerstand en meer.\n\n'
-        'Bluetooth koppelen\n'
-        'Verbind je telefoon via Bluetooth met je auto, open deze app en koppel in de melding.\n\n'
-        'Tip: Stel beide in voor de beste betrouwbaarheid!';
-    notifyListeners();
-    return false;
-  }
-
-  Future<bool> endTrip() async {
-    // Stop native tracking + Live Activity
-    await _background.endTrip();
-
-    final location = await _location.getCurrentLocation();
-    if (location == null) {
-      _error = _location.lastError ?? 'Kon locatie niet bepalen';
-      notifyListeners();
-      return false;
-    }
-
-    if (!isOnline) {
-      await _connectivityProvider.addToQueue('end', location.lat, location.lng);
-      return true;
-    }
-
-    try {
-      await _api.endTrip(location.lat, location.lng);
-      await refreshActiveTrip();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error ending trip', e);
-      await _connectivityProvider.addToQueue('end', location.lat, location.lng);
-      return true;
-    }
-  }
-
-  Future<bool> sendPing() async {
-    final location = await _location.getCurrentLocation();
-    if (location == null) {
-      _error = _location.lastError ?? 'Kon locatie niet bepalen';
-      notifyListeners();
-      return false;
-    }
-
-    if (!isOnline) {
-      await _connectivityProvider.addToQueue('ping', location.lat, location.lng);
-      return true;
-    }
-
-    try {
-      await _api.sendPing(location.lat, location.lng);
-      await refreshActiveTrip();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error sending ping', e);
-      await _connectivityProvider.addToQueue('ping', location.lat, location.lng);
-      return true;
-    }
-  }
-
-  Future<bool> finalizeTrip() async {
-    _location.stopBackgroundTracking();
-    try {
-      await _api.finalize();
-      await refreshActiveTrip();
-      await refreshTrips();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error finalizing trip', e);
-      _error = 'Kon rit niet afronden';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> cancelTrip() async {
-    _location.stopBackgroundTracking();
-    try {
-      await _api.cancel();
-      await refreshActiveTrip();
-      return true;
-    } on Exception catch (e) {
-      _log.error('Error canceling trip', e);
-      _error = 'Kon rit niet annuleren';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  // ============ Account Management ============
-
-  /// Delete the current user's account and all associated data.
-  /// This is permanent and cannot be undone.
-  Future<void> deleteAccount() async {
-    await _api.deleteAccount();
   }
 }
