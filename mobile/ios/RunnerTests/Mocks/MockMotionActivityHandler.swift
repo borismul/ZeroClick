@@ -52,24 +52,38 @@ class MockMotionActivityHandler: MotionActivityHandlerProtocol {
 
     // MARK: - Test Injection Methods
 
-    /// Simulate starting to drive (automotive motion detected)
+    /// Simulate starting to drive (automotive motion detected and confirmed)
+    /// This simulates the full debounce cycle for trip lifecycle tests
     func simulateStartDriving() {
         simulateWithConfidence(.automotive, confidence: .high)
+        // Also fire confirmation (simulates debounce timer completing)
+        simulateConfirmAutomotive(true)
     }
 
-    /// Simulate stopping (stationary)
+    /// Simulate stopping (stationary detected and confirmed)
+    /// This simulates the full debounce cycle for trip lifecycle tests
     func simulateStopDriving() {
         simulateWithConfidence(.stationary, confidence: .high)
+        // Also fire confirmation (simulates debounce timer completing)
+        simulateConfirmAutomotive(false)
     }
 
-    /// Simulate walking
+    /// Simulate walking (detected and confirmed)
     func simulateWalking() {
         simulateWithConfidence(.walking, confidence: .high)
+        // Also fire confirmation (simulates debounce timer completing)
+        simulateConfirmAutomotive(false)
     }
 
-    /// Inject any motion state
+    /// Inject any motion state (immediate detection only, no confirmation)
     func injectState(_ state: MotionState) {
         simulateWithConfidence(state, confidence: .high)
+    }
+
+    /// Inject motion state with confirmation (full debounce cycle)
+    func injectStateWithConfirmation(_ state: MotionState) {
+        simulateWithConfidence(state, confidence: .high)
+        simulateConfirmAutomotive(state == .automotive)
     }
 
     /// Simulate state change with specific confidence level

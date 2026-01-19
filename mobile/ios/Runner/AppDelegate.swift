@@ -499,24 +499,24 @@ extension AppDelegate: LocationTrackingServiceDelegate {
 
 extension AppDelegate: MotionActivityHandlerDelegate {
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didDetectAutomotive isAutomotive: Bool) {
-        if isAutomotive && !isDriving {
-            isDriving = true
-            let appState = UIApplication.shared.applicationState.rawValue
-            debugLog("Motion", "Started DRIVING - triggering startDriveTracking()")
-            debugLog("Motion", "App state: \(appState) (0=active, 1=inactive, 2=background)")
-            startDriveTracking()
-        } else if !isAutomotive && isDriving {
-            debugLog("Motion", "Stopped driving")
-            isDriving = false
-            stopDriveTracking()
-        }
+        // Immediate detection - logging only, no trip state changes
+        // Trip control moved to didConfirmAutomotive for debouncing
+        debugLog("Motion", "Detected \(isAutomotive ? "automotive" : "non-automotive") (awaiting confirmation)")
     }
 
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool) {
-        // Debounced confirmation of automotive state
-        // Currently the immediate detection handles trip start/stop
-        // Future: could migrate trip logic here for more robust debouncing
-        debugLog("Motion", "Confirmed automotive: \(isAutomotive) (after debounce)")
+        // Debounced confirmation of automotive state - control trip start/stop here
+        if isAutomotive && !isDriving {
+            isDriving = true
+            let appState = UIApplication.shared.applicationState.rawValue
+            debugLog("Motion", "CONFIRMED driving - triggering startDriveTracking()")
+            debugLog("Motion", "App state: \(appState) (0=active, 1=inactive, 2=background)")
+            startDriveTracking()
+        } else if !isAutomotive && isDriving {
+            debugLog("Motion", "CONFIRMED stopped driving")
+            isDriving = false
+            stopDriveTracking()
+        }
     }
 
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didChangeState state: MotionState) {

@@ -155,6 +155,12 @@ extension TestableAppDelegate: LocationTrackingServiceDelegate {
 
 extension TestableAppDelegate: MotionActivityHandlerDelegate {
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didDetectAutomotive isAutomotive: Bool) {
+        // Immediate detection - logging only, no trip state changes
+        // Trip control moved to didConfirmAutomotive for debouncing
+    }
+
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool) {
+        // Debounced confirmation of automotive state - control trip start/stop here
         if isAutomotive && !isDriving {
             isDriving = true
             startDriveTracking()
@@ -162,11 +168,6 @@ extension TestableAppDelegate: MotionActivityHandlerDelegate {
             isDriving = false
             stopDriveTracking()
         }
-    }
-
-    func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool) {
-        // Debounced confirmation of automotive state
-        // Tests can override behavior if needed
     }
 
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didChangeState state: MotionState) {
