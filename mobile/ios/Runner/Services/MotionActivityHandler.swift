@@ -82,7 +82,9 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
 
     // MARK: - Activity Processing
 
-    private func processActivity(_ activity: CMMotionActivity) {
+    /// Processes a motion activity and updates state accordingly.
+    /// Made internal (not private) to allow testing without CMMotionActivityManager.
+    func processActivity(_ activity: CMMotionActivity) {
         // Check confidence threshold - ignore activities below minimum confidence
         guard activity.confidence.rawValue >= minimumConfidence.rawValue else {
             print("[MotionHandler] Ignoring activity with confidence \(activity.confidence.rawValue) < \(minimumConfidence.rawValue)")

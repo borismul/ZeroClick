@@ -16,6 +16,8 @@
 		TEST001009ED2DC5600515834 /* DriveSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100AED2DC5600515834 /* DriveSimulator.swift */; };
 		TEST00100BED2DC5600515835 /* TestableAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */; };
 		TEST00100DED2DC5600515836 /* TripLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */; };
+		TEST00100FED2DC5600515837 /* DistanceCalculationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */; };
+		TEST00101GED2DC5600515838 /* MotionDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */; };
 		3713AAE495A5215351C4D944 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2517A0D1A0011B4414A0C8F1 /* Pods_RunnerTests.framework */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -94,6 +96,8 @@
 		TEST00100AED2DC5600515834 /* DriveSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSimulator.swift; sourceTree = "<group>"; };
 		TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestableAppDelegate.swift; sourceTree = "<group>"; };
 		TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLifecycleTests.swift; sourceTree = "<group>"; };
+		TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DistanceCalculationTests.swift; sourceTree = "<group>"; };
+		TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionDetectionTests.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -187,6 +191,8 @@
 				TEST00100AED2DC5600515834 /* DriveSimulator.swift */,
 				TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */,
 				TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */,
+				TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */,
+				TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -557,6 +563,8 @@
 				TEST001009ED2DC5600515834 /* DriveSimulator.swift in Sources */,
 				TEST00100BED2DC5600515835 /* TestableAppDelegate.swift in Sources */,
 				TEST00100DED2DC5600515836 /* TripLifecycleTests.swift in Sources */,
+				TEST00100FED2DC5600515837 /* DistanceCalculationTests.swift in Sources */,
+				TEST00101GED2DC5600515838 /* MotionDetectionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
