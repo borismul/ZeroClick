@@ -245,14 +245,14 @@ class DistanceCalculationTests: XCTestCase {
         simulator.motionHandler.simulateStartDriving()
 
         // Simulate highway route with points <1km apart (to avoid GPS jump filter)
-        // Generate 60 points for a ~60km trip
+        // Generate 120 points for a ~60km trip (each step ~500m to stay under 1000m filter)
         let startLat = 51.9270
         let startLng = 4.3620
         let endLat = 52.3700
         let endLng = 4.8900
 
-        // 60 points means each step is ~1km
-        let steps = 60
+        // 120 points means each step is ~500m (well under 1000m filter)
+        let steps = 120
         for i in 0..<steps {
             let progress = Double(i) / Double(steps - 1)
             let lat = startLat + (endLat - startLat) * progress
@@ -459,22 +459,22 @@ class DistanceCalculationTests: XCTestCase {
         // Given: Trip crossing equator (tests negative/positive lat handling)
         simulator.motionHandler.simulateStartDriving()
 
-        let points: [(Double, Double)] = [
-            (0.5, 36.8),    // North of equator (Kenya)
-            (0.3, 36.8),
-            (0.1, 36.8),
-            (-0.1, 36.8),   // South of equator
-            (-0.3, 36.8),
-        ]
+        // Generate points from 0.5 to -0.3 latitude (~88km) with steps <1km
+        // 0.8 degrees latitude = ~88km, so need ~100 points for ~880m steps
+        let startLat = 0.5
+        let endLat = -0.3
+        let lng = 36.8  // Kenya
+        let steps = 100
 
-        // When: Cross equator
-        for (lat, lng) in points {
+        for i in 0..<steps {
+            let progress = Double(i) / Double(steps - 1)
+            let lat = startLat + (endLat - startLat) * progress
             simulator.locationService.injectLocation(lat: lat, lng: lng, accuracy: 10)
         }
 
-        // Then: Distance should be calculated correctly across equator
-        XCTAssertGreaterThan(appDelegate.totalDistanceMeters, 50000,
-                             "Should measure ~80km across equator")
+        // Then: Distance should be calculated correctly across equator (~88km)
+        XCTAssertGreaterThan(appDelegate.totalDistanceMeters, 70000,
+                             "Should measure ~88km across equator")
     }
 
     func testNegativeCoordinates() {
@@ -549,14 +549,16 @@ class DistanceCalculationTests: XCTestCase {
         // Given: Very long trip (1000km+)
         simulator.motionHandler.simulateStartDriving()
 
-        // 1000 points, each ~1km apart = ~1000km trip
-        for i in 0..<1000 {
-            let lat = 40.0 + (Double(i) * 0.009)  // Move north
-            let lng = -3.0 + (Double(i) * 0.001)  // Move east
+        // 2000 points, each ~500m apart = ~1000km trip (stay under 1000m GPS jump filter)
+        // At latitude 40, 0.0045 degrees lat = ~500m, 0.0006 degrees lng = ~50m
+        // Combined step = ~505m (well under 1000m filter)
+        for i in 0..<2000 {
+            let lat = 40.0 + (Double(i) * 0.0045)  // Move north ~500m per step
+            let lng = -3.0 + (Double(i) * 0.0006)  // Move east ~50m per step
             simulator.locationService.injectLocation(lat: lat, lng: lng, accuracy: 10)
         }
 
-        // Then: Should handle long trips
+        // Then: Should handle long trips (~1000km)
         let distanceKm = appDelegate.totalDistanceMeters / 1000.0
         XCTAssertGreaterThan(distanceKm, 800, "Should handle 1000km+ trips")
     }
