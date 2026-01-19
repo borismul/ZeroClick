@@ -2,7 +2,6 @@
 
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/logging/app_logger.dart';
@@ -13,23 +12,18 @@ import '../models/trip.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/background_service.dart';
-import '../services/bluetooth_service.dart';
-import '../services/carplay_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
-import '../services/offline_queue.dart';
 import 'car_provider.dart';
+import 'connectivity_provider.dart';
 import 'settings_provider.dart';
 
 // Callback for unknown device - used to trigger car linking flow
 typedef UnknownDeviceCallback = void Function(String deviceName);
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._settingsProvider, this._carProvider, this._api) {
+  AppProvider(this._settingsProvider, this._carProvider, this._connectivityProvider, this._api) {
     _location = LocationService();
-    _offlineQueue = OfflineQueue(_api);
-    _carPlay = CarPlayService();
-    _bluetooth = BluetoothService();
     _background = BackgroundService();
     _notifications = NotificationService();
     // Fire and forget - don't block constructor
@@ -41,13 +35,11 @@ class AppProvider extends ChangeNotifier {
   // Provider dependencies
   final SettingsProvider _settingsProvider;
   final CarProvider _carProvider;
+  final ConnectivityProvider _connectivityProvider;
 
   // Services (shared ApiService from provider tree)
   final ApiService _api;
   late LocationService _location;
-  late OfflineQueue _offlineQueue;
-  late CarPlayService _carPlay;
-  late BluetoothService _bluetooth;
   late BackgroundService _background;
   late NotificationService _notifications;
 
@@ -58,12 +50,6 @@ class AppProvider extends ChangeNotifier {
   List<UserLocation> _locations = [];
   bool _isLoading = false;
   String? _error;
-  int _queueLength = 0;
-  bool _isOnline = true;
-  bool _isCarPlayConnected = false;
-  bool _isBluetoothConnected = false;
-  String? _connectedBluetoothDevice;
-  String? _pendingUnknownDevice; // Device waiting to be linked to a car
 
   // Loading states for each section (start true so spinners show on boot)
   bool _isLoadingStats = true;
@@ -72,7 +58,7 @@ class AppProvider extends ChangeNotifier {
   // Navigation state
   int _navigationIndex = 0;
 
-  // Callback for unknown device
+  // Callback for unknown device - set this to receive device link requests
   UnknownDeviceCallback? onUnknownDevice;
 
   // Getters - delegate to SettingsProvider
@@ -86,13 +72,15 @@ class AppProvider extends ChangeNotifier {
   bool get isLoadingStats => _isLoadingStats;
   bool get isLoadingTrips => _isLoadingTrips;
   String? get error => _error;
-  int get queueLength => _queueLength;
-  bool get isOnline => _isOnline;
-  bool get isCarPlayConnected => _isCarPlayConnected;
-  bool get isBluetoothConnected => _isBluetoothConnected;
-  String? get connectedBluetoothDevice => _connectedBluetoothDevice;
-  String? get pendingUnknownDevice => _pendingUnknownDevice;
   bool get isTrackingLocation => _location.isTracking;
+
+  // Delegate connectivity getters to ConnectivityProvider
+  int get queueLength => _connectivityProvider.queueLength;
+  bool get isOnline => _connectivityProvider.isOnline;
+  bool get isCarPlayConnected => _connectivityProvider.isCarPlayConnected;
+  bool get isBluetoothConnected => _connectivityProvider.isBluetoothConnected;
+  String? get connectedBluetoothDevice => _connectivityProvider.connectedBluetoothDevice;
+  String? get pendingUnknownDevice => _connectivityProvider.pendingUnknownDevice;
 
   // Delegate car getters to CarProvider
   List<Car> get cars => _carProvider.cars;
@@ -125,12 +113,18 @@ class AppProvider extends ChangeNotifier {
     // Initialize notifications (permissions handled by onboarding)
     await _notifications.init();
 
-    // Setup listeners
-    _listenToConnectivity();
-    _setupCarPlayListener();
-    _setupBluetoothListener();
+    // Set up cross-provider callbacks for connectivity events
+    _connectivityProvider.onCarPlayConnected = _tryAutoStartTrip;
+    _connectivityProvider.onBluetoothDeviceConnected = (deviceName) {
+      _syncCarIdToNative(deviceName);
+      _tryAutoStartTrip();
+    };
+    _connectivityProvider.onUnknownDevice = (deviceName) {
+      onUnknownDevice?.call(deviceName);
+    };
+
+    // Setup background listener (trip-related)
     _setupBackgroundListener();
-    unawaited(_checkConnectivity());
 
     // Wait for auth to initialize before loading data
     final auth = AuthService();
@@ -182,56 +176,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  void _setupCarPlayListener() {
-    // Check initial CarPlay status
-    _carPlay.checkConnection().then((connected) {
-      _isCarPlayConnected = connected;
-      notifyListeners();
-    });
-
-    // Listen for CarPlay connection changes
-    _carPlay.setConnectionCallback(({required bool connected}) {
-      _isCarPlayConnected = connected;
-      notifyListeners();
-
-      if (connected) {
-        _log.info('CarPlay connected - checking for auto-start...');
-        _tryAutoStartTrip();
-      } else {
-        // When CarPlay disconnects, keep tracking - backend will end trip
-        _log.info('CarPlay disconnected - keeping trip active, backend will end when parked');
-      }
-    });
-  }
-
-  void _setupBluetoothListener() {
-    // Check initial Bluetooth status
-    _bluetooth.getConnectedDevice().then((deviceName) {
-      _connectedBluetoothDevice = deviceName;
-      _isBluetoothConnected = deviceName != null;
-      if (deviceName != null) {
-        _syncCarIdToNative(deviceName);
-      }
-      notifyListeners();
-    });
-
-    // Listen for Bluetooth connection changes
-    _bluetooth.setConnectionCallback((deviceName) {
-      _connectedBluetoothDevice = deviceName;
-      _isBluetoothConnected = deviceName != null;
-      notifyListeners();
-
-      if (deviceName != null) {
-        _log.info('Bluetooth connected: $deviceName - syncing car_id to native...');
-        _syncCarIdToNative(deviceName);
-        _tryAutoStartTrip();
-      } else {
-        _log.info('Bluetooth disconnected - clearing car_id from native');
-        _background.clearActiveCarId();
-      }
-    });
-  }
-
   /// Sync car_id to native iOS based on Bluetooth device
   void _syncCarIdToNative(String deviceName) {
     final car = _carProvider.findCarByDeviceId(deviceName);
@@ -263,18 +207,11 @@ class AppProvider extends ChangeNotifier {
           return;
         }
 
-        // For actual Bluetooth device names, update state
-        _connectedBluetoothDevice = deviceName;
-        _isBluetoothConnected = true;
-        notifyListeners();
-
-        // Check if this device is linked to a car
+        // For actual Bluetooth device names, check if linked to a car
         final car = _carProvider.findCarByDeviceId(deviceName);
         if (car == null) {
           _log.info('Unknown Bluetooth device: $deviceName');
-          _pendingUnknownDevice = deviceName;
-          notifyListeners();
-          onUnknownDevice?.call(deviceName);
+          _connectivityProvider.setPendingUnknownDevice(deviceName);
         }
       });
   }
@@ -294,7 +231,7 @@ class AppProvider extends ChangeNotifier {
     }
 
     // PRIORITY 1: Check Bluetooth FIRST - this identifies the specific car
-    final deviceName = _connectedBluetoothDevice ?? await _bluetooth.getConnectedDevice();
+    final deviceName = _connectivityProvider.connectedBluetoothDevice ?? await _connectivityProvider.getConnectedDevice();
 
     if (deviceName != null) {
       // Find car matching this Bluetooth device
@@ -308,12 +245,9 @@ class AppProvider extends ChangeNotifier {
       } else {
         // Unknown Bluetooth device - ask user to link it
         _log.info('Unknown Bluetooth device: $deviceName - prompting user to link');
-        _pendingUnknownDevice = deviceName;
-        notifyListeners();
+        _connectivityProvider.setPendingUnknownDevice(deviceName);
         // Show push notification for background awareness
         unawaited(_notifications.showUnknownDeviceNotification(deviceName));
-        // Trigger UI callback for foreground dialog
-        onUnknownDevice?.call(deviceName);
         return;
       }
     }
@@ -330,10 +264,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   /// Clear pending unknown device (after user links it or dismisses)
-  void clearPendingUnknownDevice() {
-    _pendingUnknownDevice = null;
-    notifyListeners();
-  }
+  void clearPendingUnknownDevice() => _connectivityProvider.clearPendingUnknownDevice();
 
   /// Link a device to a car and start trip
   Future<bool> linkDeviceAndStartTrip(String deviceName, Car car) async {
@@ -341,7 +272,7 @@ class AppProvider extends ChangeNotifier {
     try {
       await _carProvider.updateCar(car.id, carplayDeviceId: deviceName);
       // Clear pending
-      _pendingUnknownDevice = null;
+      _connectivityProvider.clearPendingUnknownDevice();
       // Show notification that car is linked
       unawaited(_notifications.showCarLinkedNotification(car.name, deviceName));
       // Sync car_id to native for future trips
@@ -368,33 +299,10 @@ class AppProvider extends ChangeNotifier {
     _api.setAuthToken(token);
   }
 
-  void _listenToConnectivity() {
-    Connectivity().onConnectivityChanged.listen((results) {
-      final wasOffline = !_isOnline;
-      _isOnline = results.isNotEmpty && !results.contains(ConnectivityResult.none);
-
-      if (wasOffline && _isOnline) {
-        // Back online - process queue
-        processQueue();
-      }
-      notifyListeners();
-    });
-  }
-
-  Future<void> _checkConnectivity() async {
-    final results = await Connectivity().checkConnectivity();
-    _isOnline = results.isNotEmpty && !results.contains(ConnectivityResult.none);
-    notifyListeners();
-  }
-
-  Future<void> refreshQueueLength() async {
-    _queueLength = await _offlineQueue.getQueueLength();
-    notifyListeners();
-  }
-
+  // Delegate connectivity methods to ConnectivityProvider for backward compatibility
+  Future<void> refreshQueueLength() => _connectivityProvider.refreshQueueLength();
   Future<void> processQueue() async {
-    final result = await _offlineQueue.processQueue();
-    await refreshQueueLength();
+    final result = await _connectivityProvider.processQueue();
     if (result.success > 0) {
       await refreshActiveTrip();
     }
@@ -576,9 +484,8 @@ class AppProvider extends ChangeNotifier {
       return false;
     }
 
-    if (!_isOnline) {
-      await _offlineQueue.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
-      await refreshQueueLength();
+    if (!isOnline) {
+      await _connectivityProvider.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
       await _background.startTrip();
       return true;
     }
@@ -592,8 +499,7 @@ class AppProvider extends ChangeNotifier {
       unawaited(_notifications.showTripStartedNotification(car.name));
       return true;
     } on Exception {
-      await _offlineQueue.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
-      await refreshQueueLength();
+      await _connectivityProvider.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
       await _background.startTrip();
       // Show trip started notification even in offline mode
       unawaited(_notifications.showTripStartedNotification(car.name));
@@ -618,7 +524,7 @@ class AppProvider extends ChangeNotifier {
     final hasApiSupport = car.brand != 'other';
 
     // Try Bluetooth first (works for all cars)
-    final deviceName = _connectedBluetoothDevice ?? await _bluetooth.getConnectedDevice();
+    final deviceName = connectedBluetoothDevice ?? await _connectivityProvider.getConnectedDevice();
 
     if (deviceName != null) {
       // Bluetooth connected - find matching car or use current
@@ -628,9 +534,7 @@ class AppProvider extends ChangeNotifier {
         return startTripForCar(matchedCar, deviceName);
       } else {
         // Unknown device - trigger linking flow
-        _pendingUnknownDevice = deviceName;
-        notifyListeners();
-        onUnknownDevice?.call(deviceName);
+        _connectivityProvider.setPendingUnknownDevice(deviceName);
         return false;
       }
     }
@@ -664,9 +568,8 @@ class AppProvider extends ChangeNotifier {
       return false;
     }
 
-    if (!_isOnline) {
-      await _offlineQueue.addToQueue('end', location.lat, location.lng);
-      await refreshQueueLength();
+    if (!isOnline) {
+      await _connectivityProvider.addToQueue('end', location.lat, location.lng);
       return true;
     }
 
@@ -676,8 +579,7 @@ class AppProvider extends ChangeNotifier {
       return true;
     } on Exception catch (e) {
       _log.error('Error ending trip', e);
-      await _offlineQueue.addToQueue('end', location.lat, location.lng);
-      await refreshQueueLength();
+      await _connectivityProvider.addToQueue('end', location.lat, location.lng);
       return true;
     }
   }
@@ -690,9 +592,8 @@ class AppProvider extends ChangeNotifier {
       return false;
     }
 
-    if (!_isOnline) {
-      await _offlineQueue.addToQueue('ping', location.lat, location.lng);
-      await refreshQueueLength();
+    if (!isOnline) {
+      await _connectivityProvider.addToQueue('ping', location.lat, location.lng);
       return true;
     }
 
@@ -702,8 +603,7 @@ class AppProvider extends ChangeNotifier {
       return true;
     } on Exception catch (e) {
       _log.error('Error sending ping', e);
-      await _offlineQueue.addToQueue('ping', location.lat, location.lng);
-      await refreshQueueLength();
+      await _connectivityProvider.addToQueue('ping', location.lat, location.lng);
       return true;
     }
   }
