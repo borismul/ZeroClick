@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Testing Infrastructure & Mocks | 0/TBD | Not started | - |
+| 1. Testing Infrastructure & Mocks | 5/6 | In progress | - |
 | 2. iOS Native Architecture | 0/TBD | Not started | - |
 | 3. Motion Detection Hardening | 0/TBD | Not started | - |
 | 4. Flutter Provider Split | 0/TBD | Not started | - |
