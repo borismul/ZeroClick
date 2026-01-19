@@ -26,6 +26,20 @@ protocol MotionActivityHandlerProtocol: AnyObject {
     /// Whether the device is currently in automotive motion
     var isAutomotive: Bool { get }
 
+    // MARK: - Confidence and Debounce Configuration
+
+    /// Minimum confidence level required to accept activity updates (default: .medium)
+    /// Activities below this threshold are ignored to reduce false positives
+    var minimumConfidence: CMMotionActivityConfidence { get set }
+
+    /// Time to wait before confirming automotive start (default: 2.0 seconds)
+    /// Prevents false trip starts from brief automotive detections
+    var automotiveDebounceSeconds: TimeInterval { get set }
+
+    /// Time to wait before confirming automotive end (default: 3.0 seconds)
+    /// Prevents false trip ends from momentary stationary/walking states (e.g., traffic stops)
+    var nonAutomotiveDebounceSeconds: TimeInterval { get set }
+
     /// Sets up the motion activity manager
     func setupMotionManager()
 
@@ -34,6 +48,9 @@ protocol MotionActivityHandlerProtocol: AnyObject {
 
     /// Stops monitoring for motion activity updates
     func stopActivityUpdates()
+
+    /// Cancels any pending debounce timer and resets pending state
+    func cancelPendingDebounce()
 }
 
 // MARK: - MotionActivityHandlerDelegate
@@ -41,11 +58,18 @@ protocol MotionActivityHandlerProtocol: AnyObject {
 /// Delegate protocol for receiving motion activity events.
 /// Uses AnyObject constraint to enable weak references.
 protocol MotionActivityHandlerDelegate: AnyObject {
-    /// Called when automotive motion detection changes
+    /// Called immediately when automotive motion detection changes (before debounce)
     /// - Parameters:
     ///   - handler: The handler that detected the change
     ///   - isAutomotive: Whether automotive motion is now detected
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didDetectAutomotive isAutomotive: Bool)
+
+    /// Called after debounce period confirms the automotive state change
+    /// Use this method to trigger trip start/stop actions to avoid false triggers
+    /// - Parameters:
+    ///   - handler: The handler that confirmed the change
+    ///   - isAutomotive: Whether automotive motion is confirmed
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool)
 
     /// Called when the motion state changes
     /// - Parameters:
