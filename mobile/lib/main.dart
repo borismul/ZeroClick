@@ -6,13 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'models/settings.dart';
 import 'providers/app_provider.dart';
+import 'providers/settings_provider.dart';
+import 'screens/cars_screen.dart';
 import 'screens/charging_map_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/permission_onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/trip_edit_screen.dart';
-import 'screens/cars_screen.dart';
 import 'services/auth_service.dart';
 import 'services/background_service.dart';
 import 'services/debug_log_service.dart';
@@ -39,8 +40,15 @@ class ZeroClickApp extends StatelessWidget {
   const ZeroClickApp({super.key});
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-        create: (_) => AppProvider(),
+  Widget build(BuildContext context) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          ChangeNotifierProxyProvider<SettingsProvider, AppProvider>(
+            create: (context) => AppProvider(context.read<SettingsProvider>()),
+            update: (context, settings, previous) =>
+                previous ?? AppProvider(settings),
+          ),
+        ],
         child: Consumer<AppProvider>(
           builder: (context, provider, child) {
             final locale = parseLocale(provider.settings.localeCode);
