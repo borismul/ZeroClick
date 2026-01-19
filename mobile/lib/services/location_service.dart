@@ -21,7 +21,23 @@ class LocationResult {
   final DateTime timestamp;
 }
 
-class LocationService {
+/// Abstract interface for location services - enables testing with mocks
+abstract class LocationServiceInterface {
+  Future<bool> requestPermissions();
+  Future<bool> get hasPermission;
+  Future<LocationResult?> getCurrentLocation();
+  Future<LocationResult?> getLastKnownLocation();
+  Future<bool> isLocationEnabled();
+  Future<bool> startBackgroundTracking({
+    required void Function(LocationResult) onLocationUpdate,
+    Duration pingInterval,
+  });
+  void stopBackgroundTracking();
+  bool get isTracking;
+  String? get lastError;
+}
+
+class LocationService implements LocationServiceInterface {
   static const _log = AppLogger('LocationService');
 
   bool _hasPermission = false;
@@ -30,9 +46,13 @@ class LocationService {
   void Function(LocationResult)? _onLocationUpdate;
   bool _isTracking = false;
 
+  @override
   String? lastError;
+
+  @override
   bool get isTracking => _isTracking;
 
+  @override
   Future<bool> requestPermissions() async {
     // Check if location services are enabled
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -55,6 +75,7 @@ class LocationService {
     return true;
   }
 
+  @override
   Future<bool> get hasPermission async {
     if (_hasPermission) return true;
 
@@ -63,6 +84,7 @@ class LocationService {
     return _hasPermission;
   }
 
+  @override
   Future<LocationResult?> getCurrentLocation() async {
     lastError = null;
 
@@ -135,6 +157,7 @@ class LocationService {
     }
   }
 
+  @override
   Future<LocationResult?> getLastKnownLocation() async {
     try {
       final position = await Geolocator.getLastKnownPosition();
@@ -154,8 +177,10 @@ class LocationService {
     }
   }
 
+  @override
   Future<bool> isLocationEnabled() => Geolocator.isLocationServiceEnabled();
 
+  @override
   /// Start background location tracking with periodic pings
   Future<bool> startBackgroundTracking({
     required void Function(LocationResult) onLocationUpdate,
@@ -212,6 +237,7 @@ class LocationService {
     return true;
   }
 
+  @override
   /// Stop background location tracking
   void stopBackgroundTracking() {
     _log.info('Stopping background tracking');
