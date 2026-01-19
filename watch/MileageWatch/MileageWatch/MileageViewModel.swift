@@ -16,10 +16,11 @@ class ZeroClickViewModel: ObservableObject {
     @AppStorage("userEmail") var userEmail: String = ""
 
     private var refreshTimer: Timer?
+    private var activeRefreshTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        // Auto-refresh every 30 seconds when there's an active trip
+        // Background refresh every 5 minutes, faster refresh only during active trips
         startAutoRefresh()
 
         // Listen for trip started notification from WatchConnectivity
@@ -36,10 +37,47 @@ class ZeroClickViewModel: ObservableObject {
 
     func startAutoRefresh() {
         refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        activeRefreshTimer?.invalidate()
+
+        // Background refresh every 5 minutes (was 30 seconds)
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.refreshAll()
             }
+        }
+    }
+
+    func stopAutoRefresh() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        activeRefreshTimer?.invalidate()
+        activeRefreshTimer = nil
+    }
+
+    // Start fast polling only during active trips (30s lightweight status check)
+    private func startActiveRefresh() {
+        guard activeRefreshTimer == nil else { return }
+        activeRefreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refreshActiveTrip()
+            }
+        }
+    }
+
+    private func stopActiveRefresh() {
+        activeRefreshTimer?.invalidate()
+        activeRefreshTimer = nil
+    }
+
+    // Lightweight refresh - only active trip status (1 Firestore read)
+    func refreshActiveTrip() async {
+        do {
+            self.activeTrip = try await APIClient.shared.getStatus()
+            if activeTrip?.active != true {
+                stopActiveRefresh()
+            }
+        } catch {
+            // Silent fail for status check
         }
     }
 
@@ -90,6 +128,13 @@ class ZeroClickViewModel: ObservableObject {
 
         } catch {
             self.error = error.localizedDescription
+        }
+
+        // Start fast polling only if trip is active, otherwise stop
+        if self.activeTrip?.active == true {
+            startActiveRefresh()
+        } else {
+            stopActiveRefresh()
         }
 
         isLoading = false
