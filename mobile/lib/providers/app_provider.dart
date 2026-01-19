@@ -18,13 +18,14 @@ import '../services/carplay_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue.dart';
+import 'car_provider.dart';
 import 'settings_provider.dart';
 
 // Callback for unknown device - used to trigger car linking flow
 typedef UnknownDeviceCallback = void Function(String deviceName);
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._settingsProvider) {
+  AppProvider(this._settingsProvider, this._carProvider) {
     _api = ApiService(
       baseUrl: _settingsProvider.apiUrl,
       userEmail: _settingsProvider.userEmail,
@@ -41,8 +42,9 @@ class AppProvider extends ChangeNotifier {
 
   static const _log = AppLogger('AppProvider');
 
-  // Settings provider dependency
+  // Provider dependencies
   final SettingsProvider _settingsProvider;
+  final CarProvider _carProvider;
 
   // Services
   late ApiService _api;
@@ -57,7 +59,6 @@ class AppProvider extends ChangeNotifier {
   ActiveTrip? _activeTrip;
   List<Trip> _trips = [];
   Stats? _stats;
-  CarData? _carData;
   List<UserLocation> _locations = [];
   bool _isLoading = false;
   String? _error;
@@ -69,15 +70,8 @@ class AppProvider extends ChangeNotifier {
   String? _pendingUnknownDevice; // Device waiting to be linked to a car
 
   // Loading states for each section (start true so spinners show on boot)
-  bool _isLoadingCars = true;
-  bool _isLoadingCarData = true;
   bool _isLoadingStats = true;
   bool _isLoadingTrips = true;
-
-  // Multi-car state
-  List<Car> _cars = [];
-  Car? _selectedCar; // Selected car (required, auto-selects default)
-  String? _selectedCarId; // For filtering
 
   // Navigation state
   int _navigationIndex = 0;
@@ -91,11 +85,8 @@ class AppProvider extends ChangeNotifier {
   ActiveTrip? get activeTrip => _activeTrip;
   List<Trip> get trips => _trips;
   Stats? get stats => _stats;
-  CarData? get carData => _carData;
   List<UserLocation> get locations => _locations;
   bool get isLoading => _isLoading;
-  bool get isLoadingCars => _isLoadingCars;
-  bool get isLoadingCarData => _isLoadingCarData;
   bool get isLoadingStats => _isLoadingStats;
   bool get isLoadingTrips => _isLoadingTrips;
   String? get error => _error;
@@ -107,11 +98,14 @@ class AppProvider extends ChangeNotifier {
   String? get pendingUnknownDevice => _pendingUnknownDevice;
   bool get isTrackingLocation => _location.isTracking;
 
-  // Multi-car getters
-  List<Car> get cars => _cars;
-  Car? get selectedCar => _selectedCar;
-  String? get selectedCarId => _selectedCarId;
-  Car? get defaultCar => _cars.isEmpty ? null : _cars.firstWhere((c) => c.isDefault, orElse: () => _cars.first);
+  // Delegate car getters to CarProvider
+  List<Car> get cars => _carProvider.cars;
+  Car? get selectedCar => _carProvider.selectedCar;
+  String? get selectedCarId => _carProvider.selectedCarId;
+  Car? get defaultCar => _carProvider.defaultCar;
+  CarData? get carData => _carProvider.carData;
+  bool get isLoadingCars => _carProvider.isLoadingCars;
+  bool get isLoadingCarData => _carProvider.isLoadingCarData;
 
   // Navigation getter
   int get navigationIndex => _navigationIndex;
@@ -239,7 +233,7 @@ class AppProvider extends ChangeNotifier {
 
   /// Sync car_id to native iOS based on Bluetooth device
   void _syncCarIdToNative(String deviceName) {
-    final car = findCarByDeviceId(deviceName);
+    final car = _carProvider.findCarByDeviceId(deviceName);
     if (car != null) {
       _log.info('Found car ${car.name} (${car.id}) - syncing to native');
       _background.setActiveCarId(car.id);
@@ -274,7 +268,7 @@ class AppProvider extends ChangeNotifier {
         notifyListeners();
 
         // Check if this device is linked to a car
-        final car = findCarByDeviceId(deviceName);
+        final car = _carProvider.findCarByDeviceId(deviceName);
         if (car == null) {
           _log.info('Unknown Bluetooth device: $deviceName');
           _pendingUnknownDevice = deviceName;
@@ -282,16 +276,6 @@ class AppProvider extends ChangeNotifier {
           onUnknownDevice?.call(deviceName);
         }
       });
-  }
-
-  /// Find car by its carplay_device_id
-  Car? findCarByDeviceId(String deviceId) {
-    for (final car in _cars) {
-      if (car.carplayDeviceId != null && car.carplayDeviceId!.toLowerCase() == deviceId.toLowerCase()) {
-        return car;
-      }
-    }
-    return null;
   }
 
   /// Try to auto-start trip when CarPlay or Bluetooth connects
@@ -313,7 +297,7 @@ class AppProvider extends ChangeNotifier {
 
     if (deviceName != null) {
       // Find car matching this Bluetooth device
-      final matchedCar = findCarByDeviceId(deviceName);
+      final matchedCar = _carProvider.findCarByDeviceId(deviceName);
 
       if (matchedCar != null) {
         // Bluetooth identifies the car - start trip for this specific car
@@ -352,11 +336,9 @@ class AppProvider extends ChangeNotifier {
 
   /// Link a device to a car and start trip
   Future<bool> linkDeviceAndStartTrip(String deviceName, Car car) async {
-    // Update car with device ID
+    // Update car with device ID via CarProvider
     try {
-      await _api.updateCar(car.id, carplayDeviceId: deviceName);
-      // Refresh cars list
-      await refreshCars();
+      await _carProvider.updateCar(car.id, carplayDeviceId: deviceName);
       // Clear pending
       _pendingUnknownDevice = null;
       // Show notification that car is linked
@@ -440,7 +422,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final carId = _selectedCarId ?? defaultCar?.id;
+      final carId = selectedCarId ?? defaultCar?.id;
       _trips = await _api.getTripsForCar(carId);
       _error = null;
     } on Exception catch (e) {
@@ -460,7 +442,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final carId = _selectedCarId ?? defaultCar?.id;
+      final carId = selectedCarId ?? defaultCar?.id;
       _stats = await _api.getStatsForCar(carId);
       _error = null;
     } on Exception catch (e) {
@@ -568,35 +550,9 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshCarData() async {
-    if (!isConfigured) return;
-
-    _isLoadingCarData = true;
-    notifyListeners();
-
-    try {
-      var carId = _selectedCarId;
-      if (carId == null || carId.isEmpty) {
-        carId = _cars.isNotEmpty ? _cars.first.id : null;
-      }
-      if (carId != null && carId.isNotEmpty) {
-        _carData = await _api.getCarDataById(carId);
-      } else {
-        _carData = null;
-      }
-      _error = null;
-    } on Exception catch (e) {
-      _log.error('Error refreshing car data', e);
-      _carData = null;
-    }
-
-    _isLoadingCarData = false;
-    notifyListeners();
-  }
-
   Future<void> refreshAll() async {
     // First load cars to set selectedCarId
-    await refreshCars();
+    await _carProvider.refreshCars();
     // Then load trips, stats, and locations in parallel
     await Future.wait([
       refreshActiveTrip(),
@@ -605,144 +561,8 @@ class AppProvider extends ChangeNotifier {
       refreshLocations(),
     ]);
     // Car data last - needs cars loaded and is slow (Audi API)
-    await refreshCarData();
+    await _carProvider.refreshCarData();
   }
-
-  // ============ Multi-Car Management ============
-
-  Future<void> refreshCars() async {
-    if (!isConfigured) return;
-
-    _isLoadingCars = true;
-    notifyListeners();
-
-    try {
-      _cars = await _api.getCars();
-      _error = null;
-
-      // Auto-select default car if none selected
-      if (_selectedCarId == null && _cars.isNotEmpty) {
-        final car = _cars.firstWhere(
-          (c) => c.isDefault,
-          orElse: () => _cars.first,
-        );
-        _selectedCar = car;
-        _selectedCarId = car.id;
-      }
-    } on Exception catch (e) {
-      _log.error('Error refreshing cars', e);
-    }
-
-    _isLoadingCars = false;
-    notifyListeners();
-  }
-
-  void selectCar(Car car) {
-    _selectedCar = car;
-    _selectedCarId = car.id;
-    notifyListeners();
-    // Refresh all data for selected car
-    refreshStats();
-    refreshTrips();
-    refreshCarData();
-  }
-
-  Future<Car> createCar({
-    required String name,
-    String brand = 'other',
-    String color = '#3B82F6',
-    String icon = 'car',
-  }) async {
-    final car = await _api.createCar(
-      name: name,
-      brand: brand,
-      color: color,
-      icon: icon,
-    );
-    await refreshCars();
-    return car;
-  }
-
-  Future<void> updateCar(
-    String carId, {
-    String? name,
-    String? brand,
-    String? color,
-    String? icon,
-    bool? isDefault,
-    String? carplayDeviceId,
-  }) async {
-    await _api.updateCar(
-      carId,
-      name: name,
-      brand: brand,
-      color: color,
-      icon: icon,
-      isDefault: isDefault,
-      carplayDeviceId: carplayDeviceId,
-    );
-    await refreshCars();
-  }
-
-  Future<void> deleteCar(String carId) async {
-    await _api.deleteCar(carId);
-    // If deleted car was selected, clear selection
-    if (_selectedCarId == carId) {
-      _selectedCar = null;
-      _selectedCarId = null;
-    }
-    await refreshCars();
-  }
-
-  Future<void> saveCarCredentials(String carId, CarCredentials creds) async {
-    await _api.saveCarCredentials(carId, creds);
-    await refreshCars();
-  }
-
-  Future<Map<String, dynamic>?> getCarCredentials(String carId) => _api.getCarCredentials(carId);
-
-  Future<void> deleteCarCredentials(String carId) async {
-    await _api.deleteCarCredentials(carId);
-    await refreshCars();
-  }
-
-  Future<Map<String, dynamic>> testCarCredentials(String carId, CarCredentials creds) =>
-      _api.testCarCredentials(carId, creds);
-
-  Future<String?> getTeslaAuthUrl(String carId) => _api.getTeslaAuthUrl(carId);
-
-  Future<bool> completeTeslaAuth(String carId, String callbackUrl) async {
-    final success = await _api.completeTeslaAuth(carId, callbackUrl);
-    // Don't refresh cars here - let the screen show success state first
-    return success;
-  }
-
-  // Audi OAuth
-  Future<String?> getAudiAuthUrl(String carId) => _api.getAudiAuthUrl(carId);
-
-  Future<Map<String, dynamic>> completeAudiAuth(String carId, String redirectUrl) =>
-      _api.completeAudiAuth(carId, redirectUrl);
-
-  // VW Group OAuth (Volkswagen, Skoda, SEAT, CUPRA)
-  Future<Map<String, dynamic>> getVWGroupAuthUrl(String carId, String brand) => _api.getVWGroupAuthUrl(carId, brand);
-
-  Future<Map<String, dynamic>> completeVWGroupAuth(String carId, String brand, String redirectUrl) =>
-      _api.completeVWGroupAuth(carId, brand, redirectUrl);
-
-  // Renault OAuth (Gigya-based)
-  Future<Map<String, dynamic>> renaultDirectLogin(
-    String carId,
-    String username,
-    String password, {
-    String locale = 'nl_NL',
-  }) =>
-      _api.renaultDirectLogin(carId, username, password, locale: locale);
-
-  Future<Map<String, dynamic>> getRenaultAuthUrl(String carId, {String locale = 'nl/nl'}) =>
-      _api.getRenaultAuthUrl(carId, locale: locale);
-
-  Future<Map<String, dynamic>> completeRenaultAuth(String carId, String gigyaToken, {String? personId}) =>
-      _api.completeRenaultAuth(carId, gigyaToken, personId: personId);
 
   // ============ Webhook Actions ============
 
@@ -785,7 +605,7 @@ class AppProvider extends ChangeNotifier {
   /// - For cars without API: requires Bluetooth to identify which car
   Future<bool> startTrip() async {
     // Check if we have a selected car
-    final car = _selectedCar ?? defaultCar;
+    final car = selectedCar ?? defaultCar;
 
     if (car == null) {
       _error = 'Geen auto geselecteerd. Voeg eerst een auto toe.';
@@ -801,7 +621,7 @@ class AppProvider extends ChangeNotifier {
 
     if (deviceName != null) {
       // Bluetooth connected - find matching car or use current
-      final matchedCar = findCarByDeviceId(deviceName);
+      final matchedCar = _carProvider.findCarByDeviceId(deviceName);
 
       if (matchedCar != null) {
         return startTripForCar(matchedCar, deviceName);
