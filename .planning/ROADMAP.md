@@ -2,7 +2,7 @@
 
 ## Overview
 
-Transform Zero Click from a functional personal-use app into a production-ready iOS App Store release. The journey starts with compliance requirements, then systematically addresses technical debt through iOS native refactoring, Flutter architecture improvements, and establishing test coverage.
+Transform Zero Click from a functional personal-use app into a production-ready iOS App Store release. **Testing infrastructure comes first** - we build comprehensive mocks and drive simulation before any refactoring, ensuring we can catch regressions immediately.
 
 ## Domain Expertise
 
@@ -14,33 +14,65 @@ None (standard Flutter/Swift development patterns)
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Compliance Foundation** - Privacy policy, terms of service, PrivacyInfo.xcprivacy
+- [ ] **Phase 1: Testing Infrastructure & Mocks** - Mock services, drive simulation, test foundation
 - [ ] **Phase 2: iOS Native Architecture** - Extract services from AppDelegate monolith
 - [ ] **Phase 3: Motion Detection Hardening** - Fix hysteresis, debouncing, state machine reliability
 - [ ] **Phase 4: Flutter Provider Split** - Break AppProvider into focused providers
 - [ ] **Phase 5: Flutter UI Refactoring** - Split oversized screen files
 - [ ] **Phase 6: Error Handling & Logging** - Crash reporting, structured logging, user feedback
-- [ ] **Phase 7: Testing Foundation** - Unit tests for critical paths
+- [ ] **Phase 7: Compliance Foundation** - Privacy policy, terms of service, PrivacyInfo.xcprivacy
 - [ ] **Phase 8: App Store Preparation** - Screenshots, metadata, final verification
 
 ## Phase Details
 
-### Phase 1: Compliance Foundation
-**Goal**: Meet basic App Store compliance requirements
-**Depends on**: Nothing (first phase)
-**Research**: Unlikely (standard iOS/Flutter patterns)
+### Phase 1: Testing Infrastructure & Mocks
+**Goal**: Build comprehensive test infrastructure with mock services and drive simulation before any refactoring
+**Depends on**: Nothing (first phase - critical safety net)
+**Research**: Likely (mocking iOS sensors, Flutter test patterns, drive simulation)
+**Research topics**:
+- Mocking CMMotionActivityManager in XCTest
+- Mocking CLLocationManager for GPS simulation
+- Flutter mocktail/mockito patterns for services
+- Integration testing with mock backends
+- Simulating complete drive scenarios
 **Plans**: TBD
 
 Key deliverables:
-- In-app privacy policy screen (link to web + inline text)
-- In-app terms of service screen
-- Verify PrivacyInfo.xcprivacy covers all API usage
-- Version management setup (semantic versioning)
-- CHANGELOG.md creation
+
+**Mock Services (Flutter):**
+- MockApiService - simulate backend responses
+- MockLocationService - feed GPS coordinates
+- MockBluetoothService - simulate car detection
+- MockBackgroundService - control trip lifecycle
+
+**Mock Services (iOS Native):**
+- MockLocationManager - GPS stream simulation
+- MockMotionActivityManager - motion state injection
+- MockWCSession - Watch connectivity testing
+
+**Mock Car APIs (Backend):**
+- MockAudiProvider - odometer, driving status
+- MockTeslaProvider - similar mocks
+- Generic mock car for testing
+
+**Drive Simulation Framework:**
+- DriveSimulator class that orchestrates a complete trip:
+  1. Inject motion state (automotive)
+  2. Feed GPS coordinates over time
+  3. Simulate car API responses
+  4. Verify webhook calls
+  5. Check final trip state
+- Pre-built drive scenarios (home→office, short trip, long trip, traffic)
+
+**Baseline Tests:**
+- Unit tests for existing AuthService
+- Unit tests for existing ApiService
+- Unit tests for trip state machine
+- Integration test: complete drive simulation
 
 ### Phase 2: iOS Native Architecture
 **Goal**: Extract focused services from monolithic AppDelegate.swift (828 lines)
-**Depends on**: Phase 1
+**Depends on**: Phase 1 (tests catch regressions)
 **Research**: Likely (iOS service patterns)
 **Research topics**: Best practices for iOS service extraction, singleton vs DI patterns, background task management patterns
 **Plans**: TBD
@@ -51,6 +83,8 @@ Key deliverables:
 - LiveActivityManager (ActivityKit, background task requests)
 - WatchConnectivityService (all WCSession handling)
 - AppDelegate reduced to thin coordinator (<200 lines)
+- **All services have mock implementations from Phase 1**
+- **Tests verify behavior unchanged after extraction**
 
 ### Phase 3: Motion Detection Hardening
 **Goal**: Make trip detection more reliable with proper state machine
@@ -64,10 +98,12 @@ Key deliverables:
 - Configurable confidence thresholds
 - State machine documentation
 - Better handling of edge cases (walk to car, car in traffic)
+- **Drive simulation tests for edge cases**
+- **Regression tests for all fixed scenarios**
 
 ### Phase 4: Flutter Provider Split
 **Goal**: Break AppProvider (954 lines, 50+ methods) into focused providers
-**Depends on**: Phase 1
+**Depends on**: Phase 1 (tests catch regressions)
 **Research**: Unlikely (established Provider patterns)
 **Plans**: TBD
 
@@ -77,6 +113,8 @@ Key deliverables:
 - ConnectivityProvider (Bluetooth, CarPlay, offline queue)
 - SettingsProvider (app settings, preferences)
 - AppProvider becomes thin orchestrator
+- **Unit tests for each new provider**
+- **Integration tests verify same behavior**
 
 ### Phase 5: Flutter UI Refactoring
 **Goal**: Split oversized screen files into manageable components
@@ -94,6 +132,7 @@ Key deliverables:
   - OnboardingPageController
   - PermissionRequestPage widgets
   - AuthFlowPage widget
+- **Widget tests for new components**
 
 ### Phase 6: Error Handling & Logging
 **Goal**: Production-grade error handling and crash reporting
@@ -108,19 +147,20 @@ Key deliverables:
 - Consistent API retry logic across iOS native and Flutter
 - User-facing error messages (not just console logs)
 - Remove/guard debug print statements
+- **Tests verify error scenarios handled correctly**
 
-### Phase 7: Testing Foundation
-**Goal**: Establish baseline test coverage for critical flows
-**Depends on**: Phase 4, Phase 5
-**Research**: Unlikely (standard Flutter/Swift testing)
+### Phase 7: Compliance Foundation
+**Goal**: Meet basic App Store compliance requirements
+**Depends on**: Phase 6
+**Research**: Unlikely (standard iOS/Flutter patterns)
 **Plans**: TBD
 
 Key deliverables:
-- Unit tests for AuthService (login, logout, token refresh)
-- Unit tests for TripProvider (trip state machine)
-- Unit tests for ApiService (error handling, retries)
-- Widget tests for key screens
-- Integration test for onboarding flow
+- In-app privacy policy screen (link to web + inline text)
+- In-app terms of service screen
+- Verify PrivacyInfo.xcprivacy covers all API usage
+- Version management setup (semantic versioning)
+- CHANGELOG.md creation
 
 ### Phase 8: App Store Preparation
 **Goal**: Complete all App Store Connect requirements
@@ -135,6 +175,7 @@ Key deliverables:
 - Age rating questionnaire
 - Final build verification checklist
 - TestFlight beta testing round
+- **Full drive simulation test passes**
 
 ## Progress
 
@@ -143,11 +184,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Compliance Foundation | 0/TBD | Not started | - |
+| 1. Testing Infrastructure & Mocks | 0/TBD | Not started | - |
 | 2. iOS Native Architecture | 0/TBD | Not started | - |
 | 3. Motion Detection Hardening | 0/TBD | Not started | - |
 | 4. Flutter Provider Split | 0/TBD | Not started | - |
 | 5. Flutter UI Refactoring | 0/TBD | Not started | - |
 | 6. Error Handling & Logging | 0/TBD | Not started | - |
-| 7. Testing Foundation | 0/TBD | Not started | - |
+| 7. Compliance Foundation | 0/TBD | Not started | - |
 | 8. App Store Preparation | 0/TBD | Not started | - |

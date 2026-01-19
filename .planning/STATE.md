@@ -5,11 +5,11 @@
 See: .planning/PROJECT.md (updated 2025-01-19)
 
 **Core value:** Prepare Zero Click for iOS App Store release through code quality improvements and compliance
-**Current focus:** Phase 1 — Compliance Foundation
+**Current focus:** Phase 1 — Testing Infrastructure & Mocks
 
 ## Current Position
 
-Phase: 1 of 8 (Compliance Foundation)
+Phase: 1 of 8 (Testing Infrastructure & Mocks)
 Plan: Not started
 Status: Ready to plan
 Last activity: 2025-01-19 — Project initialized

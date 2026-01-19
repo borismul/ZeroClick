@@ -12,11 +12,11 @@ Zero Click is a personal-use autonomous trip tracking system. The mobile app (Fl
 
 ## Goals
 
-1. **Code Quality:** Refactor oversized files (AppDelegate 828 lines, cars_screen 2008 lines, app_provider 954 lines)
-2. **iOS Native:** Extract services from monolithic AppDelegate, fix motion detection hysteresis
-3. **Flutter Architecture:** Split AppProvider into focused providers
-4. **Compliance:** Add privacy policy/terms screens, verify PrivacyInfo.xcprivacy
-5. **Testing:** Establish baseline test coverage for critical flows
+1. **Testing First:** Build comprehensive mock services and drive simulation before any refactoring
+2. **Code Quality:** Refactor oversized files (AppDelegate 828 lines, cars_screen 2008 lines, app_provider 954 lines)
+3. **iOS Native:** Extract services from monolithic AppDelegate, fix motion detection hysteresis
+4. **Flutter Architecture:** Split AppProvider into focused providers
+5. **Compliance:** Add privacy policy/terms screens, verify PrivacyInfo.xcprivacy
 6. **Release:** Complete App Store Connect requirements, prepare screenshots
 
 ## Target Platform
@@ -48,9 +48,12 @@ Zero Click is a personal-use autonomous trip tracking system. The mobile app (Fl
 | 2025-01-19 | iOS first, Android later | Focus resources on one platform |
 | 2025-01-19 | Comprehensive depth | Thorough refactoring for maintainability |
 | 2025-01-19 | Provider pattern retained | Working well, just needs splitting |
+| 2025-01-19 | Testing infrastructure first | Can't refactor safely without tests + drive simulation |
 
 ## Success Criteria
 
+- [ ] Drive simulation can run complete trip scenarios
+- [ ] All external dependencies have mock implementations
 - [ ] All files under 500 lines (prefer under 300)
 - [ ] AppDelegate responsibilities extracted to services
 - [ ] AppProvider split into 3+ focused providers
