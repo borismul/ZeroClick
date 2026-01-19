@@ -8,6 +8,7 @@ import '../models/car.dart';
 import '../providers/app_provider.dart';
 import '../providers/car_provider.dart';
 import '../utils/color_utils.dart';
+import '../widgets/car_widgets.dart';
 import 'oauth/audi_login_screen.dart';
 import 'oauth/tesla_login_screen.dart';
 import 'oauth/vw_group_login_screen.dart';
@@ -84,7 +85,7 @@ class _CarsScreenState extends State<CarsScreen> {
               itemCount: provider.cars.length,
               itemBuilder: (context, index) {
                 final car = provider.cars[index];
-                return _CarCard(car: car);
+                return CarCard(car: car);
               },
             ),
           );
@@ -102,142 +103,6 @@ class _CarsScreenState extends State<CarsScreen> {
       MaterialPageRoute<void>(
         builder: (context) => const AddEditCarScreen(),
       ),
-    );
-  }
-}
-
-class _CarCard extends StatelessWidget {
-  final Car car;
-
-  const _CarCard({required this.car});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => _editCar(context),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Color indicator
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: parseHexColor(car.color).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getCarIcon(car.icon),
-                  color: parseHexColor(car.color),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Car info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          car.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (car.isDefault) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              l10n.defaultBadge,
-                              style: const TextStyle(color: Colors.blue, fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      car.getBrandLabel(l10n),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _StatChip(
-                          icon: Icons.route,
-                          value: '${car.totalTrips} ${l10n.trips}',
-                        ),
-                        const SizedBox(width: 12),
-                        _StatChip(
-                          icon: Icons.straighten,
-                          value: '${car.totalKm.toStringAsFixed(0)} ${l10n.km}',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Arrow
-              Icon(Icons.chevron_right, color: Colors.grey[600]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _editCar(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => AddEditCarScreen(car: car),
-      ),
-    );
-  }
-
-  IconData _getCarIcon(String icon) {
-    switch (icon) {
-      case 'car-suv':
-        return Icons.directions_car;
-      case 'car-sports':
-        return Icons.sports_score;
-      case 'car-van':
-        return Icons.airport_shuttle;
-      case 'car-hatchback':
-        return Icons.directions_car_filled;
-      default:
-        return Icons.directions_car;
-    }
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String value;
-
-  const _StatChip({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 4),
-        Text(value, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-      ],
     );
   }
 }
@@ -579,7 +444,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
               // Tesla and Audi use OAuth, others use username/password
               if (_brand == 'tesla') ...[
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'Tesla',
                   brandColor: const Color(0xFFE82127),
                   icon: Icons.electric_car,
@@ -592,7 +457,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'audi') ...[
                 // Audi OAuth-only login
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'Audi',
                   brandColor: const Color(0xFFBB0A30),
                   icon: Icons.directions_car,
@@ -605,7 +470,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'renault') ...[
                 // Renault direct login (Gigya API)
-                _RenaultLoginForm(
+                RenaultLoginForm(
                   usernameController: _usernameController,
                   passwordController: _passwordController,
                   countryController: _countryController,
@@ -616,7 +481,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'volkswagen') ...[
                 // Volkswagen OAuth login
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'Volkswagen',
                   brandColor: const Color(0xFF001E50), // VW dark blue
                   icon: Icons.directions_car,
@@ -629,7 +494,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'skoda') ...[
                 // Skoda OAuth login
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'Skoda',
                   brandColor: const Color(0xFF4BA82E), // Skoda green
                   icon: Icons.eco,
@@ -642,7 +507,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'seat') ...[
                 // SEAT OAuth login
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'SEAT',
                   brandColor: const Color(0xFFE5007D), // SEAT magenta
                   icon: Icons.flash_on,
@@ -655,7 +520,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
                 ),
               ] else if (_brand == 'cupra') ...[
                 // CUPRA OAuth login
-                _OAuthLoginCard(
+                OAuthLoginCard(
                   brandName: 'CUPRA',
                   brandColor: const Color(0xFF95572B), // CUPRA copper
                   icon: Icons.speed,
@@ -1324,316 +1189,5 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       default:
         return Colors.blue;
     }
-  }
-}
-
-/// Renault branded login form (username/password via Gigya)
-class _RenaultLoginForm extends StatelessWidget {
-  final TextEditingController usernameController;
-  final TextEditingController passwordController;
-  final TextEditingController countryController;
-  final bool isLoading;
-  final bool isConnected;
-  final VoidCallback onLogin;
-  final VoidCallback? onLogout;
-
-  const _RenaultLoginForm({
-    required this.usernameController,
-    required this.passwordController,
-    required this.countryController,
-    required this.isLoading,
-    required this.isConnected,
-    required this.onLogin,
-    this.onLogout,
-  });
-
-  static const _renaultYellow = Color(0xFFFFCC33);
-
-  @override
-  Widget build(BuildContext context) {
-    if (isConnected) {
-      // Show connected status
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.green, width: 2),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 56),
-            const SizedBox(height: 16),
-            const Text(
-              'MY Renault verbonden',
-              style: TextStyle(
-                color: Colors.green,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Je account is succesvol gekoppeld',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
-            ),
-            if (onLogout != null) ...[
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: onLogout,
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Uitloggen'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    // Show branded login form
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _renaultYellow.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _renaultYellow.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: _renaultYellow,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.diamond_outlined, color: Colors.black, size: 32),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'MY Renault',
-            style: TextStyle(
-              color: Color(0xFFFFCC33),
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Log in met je MY Renault account',
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-
-          // Form fields
-          TextField(
-            controller: usernameController,
-            decoration: InputDecoration(
-              labelText: 'E-mail',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.email),
-              filled: true,
-              fillColor: Colors.grey[900],
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: passwordController,
-            decoration: InputDecoration(
-              labelText: 'Wachtwoord',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.lock),
-              filled: true,
-              fillColor: Colors.grey[900],
-            ),
-            obscureText: true,
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: countryController.text.isEmpty ? 'nl_NL' : countryController.text,
-            decoration: InputDecoration(
-              labelText: 'Land',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.flag),
-              filled: true,
-              fillColor: Colors.grey[900],
-            ),
-            items: const [
-              DropdownMenuItem(value: 'nl_NL', child: Text('Nederland')),
-              DropdownMenuItem(value: 'be_BE', child: Text('België')),
-              DropdownMenuItem(value: 'de_DE', child: Text('Deutschland')),
-              DropdownMenuItem(value: 'fr_FR', child: Text('France')),
-              DropdownMenuItem(value: 'en_GB', child: Text('United Kingdom')),
-              DropdownMenuItem(value: 'es_ES', child: Text('España')),
-              DropdownMenuItem(value: 'it_IT', child: Text('Italia')),
-              DropdownMenuItem(value: 'pt_PT', child: Text('Portugal')),
-            ],
-            onChanged: (value) {
-              countryController.text = value ?? 'nl_NL';
-            },
-          ),
-          const SizedBox(height: 20),
-
-          // Login button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: isLoading ? null : onLogin,
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black,
-                      ),
-                    )
-                  : const Icon(Icons.login),
-              label: const Text('Inloggen met Renault ID'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                backgroundColor: _renaultYellow,
-                foregroundColor: Colors.black,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// OAuth login card for Tesla/Audi/VW Group - shows connected status or login button
-class _OAuthLoginCard extends StatelessWidget {
-  final String brandName;
-  final Color brandColor;
-  final Color textColor;
-  final IconData icon;
-  final String description;
-  final String buttonText;
-  final bool isLoading;
-  final bool isConnected;
-  final VoidCallback onLogin;
-  final VoidCallback? onLogout;
-
-  const _OAuthLoginCard({
-    required this.brandName,
-    required this.brandColor,
-    this.textColor = Colors.white,
-    required this.icon,
-    required this.description,
-    required this.buttonText,
-    required this.isLoading,
-    required this.isConnected,
-    required this.onLogin,
-    this.onLogout,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (isConnected) {
-      // Show connected status with logout option
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.green, width: 2),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 56),
-            const SizedBox(height: 16),
-            Text(
-              '$brandName verbonden',
-              style: const TextStyle(
-                color: Colors.green,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Je account is succesvol gekoppeld',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
-            ),
-            if (onLogout != null) ...[
-              const SizedBox(height: 20),
-              TextButton.icon(
-                onPressed: onLogout,
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Uitloggen'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    // Show login card
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: brandColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: brandColor.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: brandColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: textColor, size: 32),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '$brandName koppelen',
-            style: TextStyle(
-              color: brandColor,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: isLoading ? null : onLogin,
-              icon: isLoading
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: textColor,
-                      ),
-                    )
-                  : const Icon(Icons.login),
-              label: Text(buttonText),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                backgroundColor: brandColor,
-                foregroundColor: textColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
