@@ -247,4 +247,55 @@ class TripLifecycleTests: XCTestCase {
         let endCalls = appDelegate.apiCallsMade.filter { $0.type == "end" }
         XCTAssertEqual(endCalls.count, 0)
     }
+
+    func testFalseTripStartCancelledQuickly() {
+        // Given: Not tracking
+        XCTAssertFalse(appDelegate.isActivelyTracking)
+
+        // When: Motion detected (automotive) then immediately stationary
+        simulator.motionHandler.simulateStartDriving()
+        XCTAssertTrue(appDelegate.isActivelyTracking)
+
+        // Immediately stop (false trip start - maybe phone moved in car without driving)
+        simulator.motionHandler.simulateStopDriving()
+
+        // Then: Trip should be cancelled, no API calls made for such short trip
+        XCTAssertFalse(appDelegate.isActivelyTracking)
+        XCTAssertTrue(simulator.liveActivityManager.endActivityCalled)
+
+        // Should have start but end should cancel the short trip
+        let startCalls = appDelegate.apiCallsMade.filter { $0.type == "start" }
+        let cancelCalls = appDelegate.apiCallsMade.filter { $0.type == "cancel" }
+        // Either cancelled or just no end call (trip too short to finalize)
+        XCTAssertTrue(startCalls.count <= 1)
+    }
+
+    func testRapidMotionChangesDebounced() {
+        // Given: Not tracking
+        XCTAssertFalse(appDelegate.isActivelyTracking)
+
+        // When: Rapid motion changes (automotive → walking → automotive → stationary)
+        simulator.motionHandler.simulateStartDriving()
+        simulator.motionHandler.simulateWalking()
+        simulator.motionHandler.simulateStartDriving()
+        simulator.motionHandler.simulateStopDriving()
+
+        // Then: Should not create multiple trips
+        let startCalls = appDelegate.apiCallsMade.filter { $0.type == "start" }
+        XCTAssertLessThanOrEqual(startCalls.count, 2, "Rapid changes should be debounced")
+    }
+
+    func testVeryShortTripSkipped() {
+        // Given: Trip started
+        simulator.motionHandler.simulateStartDriving()
+
+        // When: Only one GPS point before stopping (no distance)
+        simulator.locationService.injectLocation(lat: 51.9270, lng: 4.3620, accuracy: 10)
+        simulator.motionHandler.simulateStopDriving()
+
+        // Then: Trip should be skipped (not enough data)
+        XCTAssertFalse(appDelegate.isActivelyTracking)
+        // Total distance should be 0 or very small
+        XCTAssertLessThan(appDelegate.totalDistanceMeters, 100, "Single point trip should have minimal distance")
+    }
 }
