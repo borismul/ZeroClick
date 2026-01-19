@@ -271,7 +271,7 @@ class _TripMapScreenState extends State<TripMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'nl.borism.mileageTracker',
+                userAgentPackageName: 'com.zeroclick.app',
               ),
               // Expected route (orange, underneath)
               if (_expectedRoute != null && _expectedRoute!.isNotEmpty)

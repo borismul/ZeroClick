@@ -9,9 +9,12 @@ import 'providers/app_provider.dart';
 import 'screens/charging_map_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
+import 'screens/permission_onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/trip_edit_screen.dart';
+import 'screens/cars_screen.dart';
 import 'services/auth_service.dart';
+import 'services/background_service.dart';
 import 'services/debug_log_service.dart';
 import 'widgets/device_link_dialog.dart';
 
@@ -19,7 +22,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Initialize debug log service to receive native logs
   DebugLogService.instance.init();
-  runApp(const MileageTrackerApp());
+  runApp(const ZeroClickApp());
 }
 
 /// Convert locale code to Locale object
@@ -32,8 +35,8 @@ Locale? parseLocale(String? code) {
   return Locale(parts[0], parts[1]);
 }
 
-class MileageTrackerApp extends StatelessWidget {
-  const MileageTrackerApp({super.key});
+class ZeroClickApp extends StatelessWidget {
+  const ZeroClickApp({super.key});
 
   @override
   Widget build(BuildContext context) => ChangeNotifierProvider(
@@ -42,7 +45,7 @@ class MileageTrackerApp extends StatelessWidget {
           builder: (context, provider, child) {
             final locale = parseLocale(provider.settings.localeCode);
             return MaterialApp(
-              title: 'Mileage Tracker',
+              title: 'Zero Click',
               debugShowCheckedModeBanner: false,
               locale: locale,
               localizationsDelegates: const [
@@ -111,7 +114,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final _screens = const [
     DashboardScreen(),
     HistoryScreen(),
@@ -119,87 +122,161 @@ class _MainScreenState extends State<MainScreen> {
     SettingsScreen(),
   ];
 
+  bool? _onboardingComplete;
+  bool _shouldStartTutorial = false;
+
   @override
   void initState() {
     super.initState();
-    // Set up callback for unknown device detection
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AppProvider>(context, listen: false).onUnknownDevice = (deviceName) {
-        if (mounted) {
-          showDeviceLinkDialog(context, deviceName);
-        }
-      };
-      // Show first-launch warning
-      _showBackgroundWarningIfNeeded();
-    });
+    WidgetsBinding.instance.addObserver(this);
+    _checkOnboarding();
   }
 
-  Future<void> _showBackgroundWarningIfNeeded() async {
+  Future<void> _checkOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
-    final hasSeenWarning = prefs.getBool('has_seen_background_warning') ?? false;
+    final complete = prefs.getBool('onboarding_complete') ?? false;
+    if (mounted) {
+      setState(() {
+        _onboardingComplete = complete;
+      });
+      // Set up callback for unknown device detection after onboarding
+      if (complete) {
+        _setupAfterOnboarding();
+      }
+    }
+  }
 
-    if (!hasSeenWarning && mounted) {
-      final l10n = AppLocalizations.of(context);
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Welkom!'),
-          content: const SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Deze app detecteert automatisch wanneer je rijdt en houdt je ritten bij.',
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Stel je auto in voor de beste ervaring:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Auto-API koppelen',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text("Ga naar Auto's -> kies je auto -> koppel je account (Audi, VW, Tesla, etc.). Hiermee krijg je toegang tot kilometerstand en meer."),
-                SizedBox(height: 12),
-                Text(
-                  'Bluetooth koppelen',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text('Verbind je telefoon via Bluetooth met je auto en open deze app. Koppel je auto in de melding die verschijnt. Dit zorgt voor betrouwbare ritdetectie.'),
-                SizedBox(height: 16),
-                Text(
-                  'Tip: Stel beide in voor de beste betrouwbaarheid!',
-                  style: TextStyle(fontStyle: FontStyle.italic, color: Colors.blue),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Belangrijk: Geef locatietoegang "Altijd" voor automatische ritdetectie op de achtergrond.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
-            ),
+  void _setupAfterOnboarding() {
+    Provider.of<AppProvider>(context, listen: false).onUnknownDevice = (deviceName) {
+      if (mounted) {
+        showDeviceLinkDialog(context, deviceName);
+      }
+    };
+  }
+
+  Future<void> _completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_complete', true);
+    // Also mark old warning as seen for migration
+    await prefs.setBool('has_seen_background_warning', true);
+
+    // Start native background monitoring now that permissions are granted
+    await BackgroundService().startMonitoring();
+
+    if (mounted) {
+      // Sync auth email to settings and refresh data
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      final auth = AuthService();
+      if (auth.isSignedIn && auth.userEmail != null) {
+        await provider.saveSettings(
+          provider.settings.copyWith(userEmail: auth.userEmail),
+        );
+      }
+
+      // Check if tutorial should start
+      final tutorialComplete = prefs.getBool('tutorial_complete') ?? false;
+
+      setState(() {
+        _onboardingComplete = true;
+        _shouldStartTutorial = !tutorialComplete;
+      });
+      _setupAfterOnboarding();
+
+      // Refresh all data now that user is logged in
+      if (provider.isConfigured) {
+        provider.refreshAll();
+      }
+
+      // Show setup dialog after frame is built
+      if (_shouldStartTutorial) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showSetupDialog();
+          }
+        });
+      }
+    }
+  }
+
+  void _showSetupDialog() {
+    final l10n = AppLocalizations.of(context);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.directions_car, size: 48, color: Colors.blue),
+        title: Text(l10n.tutorialDialogTitle),
+        content: Text(l10n.tutorialDialogContent),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _skipTutorial();
+            },
+            child: Text(l10n.tutorialDialogLater),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                prefs.setBool('has_seen_background_warning', true);
-                Navigator.of(context).pop();
-              },
-              child: Text(l10n.understood),
-            ),
-          ],
-        ),
-      );
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _startCarSetup();
+            },
+            child: Text(l10n.tutorialDialogSetup),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _skipTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tutorial_complete', true);
+    setState(() => _shouldStartTutorial = false);
+  }
+
+  void _startCarSetup() {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    provider.navigateTo(3); // Go to Settings tab
+    // Navigate to Cars screen
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => const CarsScreen(showTutorial: true),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data when app comes to foreground
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      if (provider.isConfigured) {
+        provider.refreshAll();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+
+    // Show loading while checking onboarding status
+    if (_onboardingComplete == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Show onboarding if not complete
+    if (_onboardingComplete == false) {
+      return PermissionOnboardingScreen(onComplete: _completeOnboarding);
+    }
+
     return Consumer<AppProvider>(
       builder: (context, provider, child) => Scaffold(
         appBar: AppBar(

@@ -2,14 +2,40 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 import '../models/car.dart';
 import '../utils/color_utils.dart';
 
-class CarsScreen extends StatelessWidget {
-  const CarsScreen({super.key});
+class CarsScreen extends StatefulWidget {
+  final bool showTutorial;
+  const CarsScreen({super.key, this.showTutorial = false});
+
+  @override
+  State<CarsScreen> createState() => _CarsScreenState();
+}
+
+class _CarsScreenState extends State<CarsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showTutorial) {
+      // Auto-open add car dialog when coming from tutorial
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _completeTutorial();
+          _showAddCarDialog(context);
+        }
+      });
+    }
+  }
+
+  Future<void> _completeTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tutorial_complete', true);
+  }
 
   @override
   Widget build(BuildContext context) {

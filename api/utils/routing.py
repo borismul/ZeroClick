@@ -12,6 +12,8 @@ def get_osrm_distance_from_trail(gps_trail: list) -> float | None:
     """
     Calculate driving distance from GPS trail using OSRM.
 
+    If trail has >25 points, splits into multiple requests and sums distances.
+
     Args:
         gps_trail: List of GPS points with lat/lng keys
 
@@ -22,29 +24,45 @@ def get_osrm_distance_from_trail(gps_trail: list) -> float | None:
         return None
 
     try:
-        # Sample waypoints if too many (OSRM URL length limit)
-        waypoints = gps_trail
-        if len(gps_trail) > 25:
-            waypoints = [gps_trail[0]]
-            step = (len(gps_trail) - 2) / 22
-            for i in range(1, 23):
-                waypoints.append(gps_trail[int(i * step)])
-            waypoints.append(gps_trail[-1])
+        # Split into chunks of max 25 points (with 1 point overlap for continuity)
+        max_points = 25
+        total_distance_km = 0.0
+        chunks = []
 
-        # Build OSRM coords string (lon,lat order)
-        coords = ";".join(
-            f"{p.get('lng', p.get('lon'))},{p.get('lat')}"
-            for p in waypoints
-        )
-        url = f"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false"
+        if len(gps_trail) <= max_points:
+            chunks = [gps_trail]
+        else:
+            # Split with overlap: [0-24], [24-48], [48-72], etc.
+            i = 0
+            while i < len(gps_trail) - 1:
+                end = min(i + max_points, len(gps_trail))
+                chunks.append(gps_trail[i:end])
+                i = end - 1  # Overlap by 1 point for route continuity
 
-        response = requests.get(url, timeout=10)
-        data = response.json()
+        for chunk_idx, chunk in enumerate(chunks):
+            if len(chunk) < 2:
+                continue
 
-        if data.get("code") == "Ok" and data.get("routes"):
-            distance_km = data["routes"][0]["distance"] / 1000
-            logger.info(f"OSRM distance from trail ({len(gps_trail)} points): {distance_km:.1f} km")
-            return distance_km
+            # Build OSRM coords string (lon,lat order)
+            coords = ";".join(
+                f"{p.get('lng', p.get('lon'))},{p.get('lat')}"
+                for p in chunk
+            )
+            url = f"https://router.project-osrm.org/route/v1/driving/{coords}?overview=false"
+
+            response = requests.get(url, timeout=10)
+            data = response.json()
+
+            if data.get("code") == "Ok" and data.get("routes"):
+                chunk_km = data["routes"][0]["distance"] / 1000
+                total_distance_km += chunk_km
+            else:
+                logger.warning(f"OSRM chunk {chunk_idx + 1}/{len(chunks)} failed: {data.get('code')}")
+                return None  # If any chunk fails, fall back to haversine
+
+        logger.info(f"OSRM distance from trail ({len(gps_trail)} points, {len(chunks)} chunks): {total_distance_km:.1f} km")
+        return total_distance_km
+
     except Exception as e:
         logger.error(f"OSRM trail distance error: {e}")
 

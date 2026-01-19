@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ActiveTripView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
 
     var body: some View {
         GeometryReader { geometry in
@@ -122,5 +122,5 @@ struct ActiveTripView: View {
 
 #Preview {
     ActiveTripView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

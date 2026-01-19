@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
     @State private var emailInput: String = ""
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -63,12 +64,36 @@ struct SettingsView: View {
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
+
+                    // Delete Account button
+                    Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("Account verwijderen")
+                        }
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.red)
+                    .padding(.top, 16)
                 }
             }
             .padding(.horizontal, 8)
         }
         .onAppear {
             emailInput = viewModel.userEmail
+        }
+        .alert("Account verwijderen?", isPresented: $showingDeleteConfirmation) {
+            Button("Annuleren", role: .cancel) { }
+            Button("Verwijderen", role: .destructive) {
+                Task {
+                    await viewModel.deleteAccount()
+                }
+            }
+        } message: {
+            Text("Dit verwijdert permanent al je gegevens.")
         }
     }
 
@@ -83,5 +108,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

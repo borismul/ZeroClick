@@ -6,7 +6,7 @@ class DebugLogService extends ChangeNotifier {
   DebugLogService._();
   static final DebugLogService instance = DebugLogService._();
 
-  static const _channel = MethodChannel('nl.borism.mileage/debug');
+  static const _channel = MethodChannel('com.zeroclick/debug');
   static const int _maxLogs = 500;
 
   final List<DebugLogEntry> _logs = [];

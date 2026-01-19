@@ -1,4 +1,4 @@
-package nl.borism.mileage_tracker
+package com.zeroclick.app
 
 import android.app.*
 import android.content.Context
@@ -39,7 +39,7 @@ class CarDetectionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Kilometerregistratie",
+                "Zero Click",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Detecteert auto verbinding"
@@ -58,7 +58,7 @@ class CarDetectionService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Kilometerregistratie")
+            .setContentTitle("Zero Click")
             .setContentText(if (isCarConnected) "Verbonden met auto" else "Wacht op auto verbinding...")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)

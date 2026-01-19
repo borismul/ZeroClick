@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CarStatusView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
 
     var body: some View {
         ScrollView {
@@ -240,5 +240,5 @@ extension Color {
 
 #Preview {
     CarStatusView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

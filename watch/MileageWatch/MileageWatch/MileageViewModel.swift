@@ -3,7 +3,7 @@ import SwiftUI
 import Combine
 
 @MainActor
-class MileageViewModel: ObservableObject {
+class ZeroClickViewModel: ObservableObject {
     @Published var activeTrip: ActiveTrip?
     @Published var stats: Stats?
     @Published var recentTrips: [Trip] = []
@@ -100,5 +100,31 @@ class MileageViewModel: ObservableObject {
         Task {
             await refreshAll()
         }
+    }
+
+    // MARK: - Account Management
+
+    /// Delete the current user's account and all associated data
+    func deleteAccount() async {
+        isLoading = true
+        error = nil
+
+        do {
+            try await APIClient.shared.deleteAccount()
+            // Clear local data
+            userEmail = ""
+            activeTrip = nil
+            stats = nil
+            recentTrips = []
+            cars = []
+            selectedCar = nil
+            carData = nil
+            // Clear token cache
+            APIClient.shared.clearTokenCache()
+        } catch {
+            self.error = "Verwijderen mislukt: \(error.localizedDescription)"
+        }
+
+        isLoading = false
     }
 }

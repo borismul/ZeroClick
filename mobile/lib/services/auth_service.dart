@@ -17,7 +17,7 @@ class AuthService {
   AuthService._internal();
   static final AuthService _instance = AuthService._internal();
 
-  static const _channel = MethodChannel('nl.borism.mileage/background');
+  static const _channel = MethodChannel('com.zeroclick/background');
   // iOS client ID from GoogleService-Info.plist
   static const _iosClientId = '269285054406-ft7anq4an8h6d4rh8mmnjca8c67uda96.apps.googleusercontent.com';
   // Server client ID for backend token verification
@@ -38,6 +38,7 @@ class AuthService {
   String? _accessToken;
   String? _refreshToken;
   DateTime? _tokenExpiry;
+  String? _storedEmail; // Email from SharedPreferences (survives Google session expiry)
   bool _initialized = false;
 
   // API base URL - will be set by AppProvider
@@ -51,8 +52,9 @@ class AuthService {
   GoogleSignInAccount? get currentUser => _currentUser;
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
-  String? get userEmail => _currentUser?.email;
-  bool get isSignedIn => _currentUser != null && _accessToken != null;
+  String? get userEmail => _currentUser?.email ?? _storedEmail;
+  // User is signed in if we have a valid access token (don't require Google session)
+  bool get isSignedIn => _accessToken != null;
 
   /// Check if token is expired or about to expire (within 5 minutes)
   bool get isTokenExpired {
@@ -89,21 +91,27 @@ class AuthService {
 
       // Check if user was previously signed in
       final wasSignedIn = await _wasUserSignedIn();
-      _log.info('Was previously signed in: $wasSignedIn');
+      _log.info('Was previously signed in: $wasSignedIn, hasToken=${_accessToken != null}, hasRefresh=${_refreshToken != null}');
 
       if (wasSignedIn) {
-        // Try to restore session
-        if (_accessToken != null && !isTokenExpired) {
-          // Token still valid - try to restore Google user info
-          await _autoSignIn();
-        } else if (_refreshToken != null) {
-          // Token expired but we have refresh token - refresh it
-          await _autoSignIn();
-          if (_currentUser != null) {
+        // If we have valid API tokens, we're good - just refresh if needed
+        if (_accessToken != null) {
+          if (isTokenExpired && _refreshToken != null) {
+            _log.info('Token expired, refreshing...');
             await refreshAccessToken();
           }
+          // We have API tokens - no need for Google session
+          _log.info('Session restored with API tokens');
+        } else if (_refreshToken != null) {
+          // No access token but have refresh - try to refresh
+          _log.info('No access token, trying refresh...');
+          final refreshed = await refreshAccessToken();
+          if (!refreshed) {
+            // Refresh failed - need fresh Google sign in
+            await _autoSignIn();
+          }
         } else {
-          // No tokens - need fresh sign in
+          // No tokens at all - need fresh sign in
           await _autoSignIn();
         }
       }
@@ -118,11 +126,12 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString(_keyAccessToken);
     _refreshToken = prefs.getString(_keyRefreshToken);
+    _storedEmail = prefs.getString(_keyUserEmail);
     final expiryMs = prefs.getInt(_keyTokenExpiry);
     if (expiryMs != null) {
       _tokenExpiry = DateTime.fromMillisecondsSinceEpoch(expiryMs);
     }
-    _log.info('Loaded stored tokens: access=${_accessToken != null}, refresh=${_refreshToken != null}');
+    _log.info('Loaded stored tokens: access=${_accessToken != null}, refresh=${_refreshToken != null}, email=$_storedEmail');
   }
 
   Future<void> _saveTokens(String accessToken, String refreshToken, int expiresIn) async {
@@ -168,6 +177,26 @@ class AuthService {
     }
   }
 
+  /// Try to restore Google session in background (non-blocking, fire-and-forget)
+  /// This is optional - we can work with just API tokens
+  void _tryRestoreGoogleSession() {
+    Future(() async {
+      try {
+        if (!_googleSignIn.supportsAuthenticate()) return;
+
+        final user = await _googleSignIn.authenticate(
+          scopeHint: ['openid', 'email', 'profile'],
+        );
+        _currentUser = user;
+        _userController.add(_currentUser);
+        _log.info('Google session restored: ${user.email}');
+      } on Exception catch (e) {
+        // This is fine - we can work without Google session
+        _log.info('Google session restore skipped: $e');
+      }
+    });
+  }
+
   Future<void> _autoSignIn() async {
     try {
       _log.info('Auto sign-in...');
@@ -203,7 +232,8 @@ class AuthService {
 
     } on GoogleSignInException catch (e) {
       _log.warning('Auto sign-in failed: ${e.code.name} - ${e.description}');
-      if (e.code != GoogleSignInExceptionCode.canceled) {
+      // Only clear signed-in state if we don't have valid API tokens
+      if (e.code != GoogleSignInExceptionCode.canceled && _accessToken == null) {
         await _saveSignedInState(false);
       }
     } on Exception catch (e) {

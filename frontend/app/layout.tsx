@@ -3,7 +3,7 @@ import { Providers } from './providers'
 
 export const metadata = {
   title: 'Kilometerregistratie',
-  description: 'Mileage tracking dashboard',
+  description: 'Zero Click - Automatic trip tracking',
   icons: {
     icon: '/icon.png',
     apple: '/icon.png',

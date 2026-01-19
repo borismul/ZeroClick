@@ -1,16 +1,11 @@
 import SwiftUI
 
 struct TripsListView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                Text("Recente Ritten")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
-
+        List {
+            Section {
                 if viewModel.recentTrips.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "car")
@@ -22,13 +17,29 @@ struct TripsListView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.recentTrips) { trip in
                         TripRow(trip: trip)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     }
                 }
+            } header: {
+                Text("Recente Ritten")
+                    .font(.headline)
             }
-            .padding(.horizontal, 4)
+        }
+        .listStyle(.plain)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task { await viewModel.refreshAll() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(viewModel.isLoading)
+            }
         }
     }
 }
@@ -126,5 +137,5 @@ struct TripTypeBadge: View {
 
 #Preview {
     TripsListView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

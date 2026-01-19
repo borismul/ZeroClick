@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/logging/app_logger.dart';
 import '../models/car.dart';
+import '../models/location.dart';
 import '../models/settings.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
@@ -17,6 +18,7 @@ import '../services/background_service.dart';
 import '../services/bluetooth_service.dart';
 import '../services/carplay_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import '../services/offline_queue.dart';
 
 // Callback for unknown device - used to trigger car linking flow
@@ -33,6 +35,7 @@ class AppProvider extends ChangeNotifier {
     _carPlay = CarPlayService();
     _bluetooth = BluetoothService();
     _background = BackgroundService();
+    _notifications = NotificationService();
     // Fire and forget - don't block constructor
     Future.microtask(_init);
   }
@@ -47,6 +50,7 @@ class AppProvider extends ChangeNotifier {
   late CarPlayService _carPlay;
   late BluetoothService _bluetooth;
   late BackgroundService _background;
+  late NotificationService _notifications;
 
   // State
   AppSettings _settings = AppSettings.defaults();
@@ -54,6 +58,7 @@ class AppProvider extends ChangeNotifier {
   List<Trip> _trips = [];
   Stats? _stats;
   CarData? _carData;
+  List<UserLocation> _locations = [];
   bool _isLoading = false;
   String? _error;
   int _queueLength = 0;
@@ -87,6 +92,7 @@ class AppProvider extends ChangeNotifier {
   List<Trip> get trips => _trips;
   Stats? get stats => _stats;
   CarData? get carData => _carData;
+  List<UserLocation> get locations => _locations;
   bool get isLoading => _isLoading;
   bool get isLoadingCars => _isLoadingCars;
   bool get isLoadingCarData => _isLoadingCarData;
@@ -120,6 +126,9 @@ class AppProvider extends ChangeNotifier {
     // Load settings (local, should be fast)
     await _loadSettings();
 
+    // Initialize notifications (permissions handled by onboarding)
+    await _notifications.init();
+
     // Setup listeners
     _listenToConnectivity();
     _setupCarPlayListener();
@@ -137,14 +146,14 @@ class AppProvider extends ChangeNotifier {
     }
 
     // CRITICAL: Set auth token on API service
-    if (auth.isSignedIn && auth.idToken != null) {
-      _api.setAuthToken(auth.idToken);
+    if (auth.isSignedIn && auth.accessToken != null) {
+      _api.setAuthToken(auth.accessToken);
     }
 
     // Set up token refresh callback for 401 handling
     _api.setTokenRefreshCallback(() async {
       _log.info('Token refresh requested by API client');
-      final newToken = await auth.refreshToken();
+      final newToken = await auth.refreshTokenForApi();
       if (newToken != null) {
         // Also sync the refreshed token to Watch
         await auth.syncTokenToWatch();
@@ -240,8 +249,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   void _setupBackgroundListener() {
-    // Start background monitoring for car detection (survives force-quit)
-    _background.startMonitoring();
+    // NOTE: Don't call _background.startMonitoring() here!
+    // It's called from main.dart after onboarding completes to avoid
+    // triggering location permission before user goes through onboarding.
 
     // Listen for car detection events from background (motion detection)
     // Note: Native iOS already calls the API directly, this is just for UI updates
@@ -297,34 +307,40 @@ class AppProvider extends ChangeNotifier {
       return;
     }
 
-    // Check if default car has API support - if so, motion detection handles it
-    final car = defaultCar;
-    if (car != null && car.brand != 'other') {
-      _log.info('Car has API support - motion detection will handle trip start');
-      return;
-    }
-
-    // For cars without API, try Bluetooth identification
+    // PRIORITY 1: Check Bluetooth FIRST - this identifies the specific car
     final deviceName = _connectedBluetoothDevice ?? await _bluetooth.getConnectedDevice();
 
-    if (deviceName == null) {
-      _log.info('No Bluetooth device connected - cannot identify car');
+    if (deviceName != null) {
+      // Find car matching this Bluetooth device
+      final matchedCar = findCarByDeviceId(deviceName);
+
+      if (matchedCar != null) {
+        // Bluetooth identifies the car - start trip for this specific car
+        _log.info('Bluetooth identified car: ${matchedCar.name} for device: $deviceName');
+        await startTripForCar(matchedCar, deviceName);
+        return;
+      } else {
+        // Unknown Bluetooth device - ask user to link it
+        _log.info('Unknown Bluetooth device: $deviceName - prompting user to link');
+        _pendingUnknownDevice = deviceName;
+        notifyListeners();
+        // Show push notification for background awareness
+        unawaited(_notifications.showUnknownDeviceNotification(deviceName));
+        // Trigger UI callback for foreground dialog
+        onUnknownDevice?.call(deviceName);
+        return;
+      }
+    }
+
+    // PRIORITY 2: No Bluetooth - fall back to motion detection for cars with API
+    final car = defaultCar;
+    if (car != null && car.brand != 'other') {
+      _log.info('No Bluetooth, but default car has API - motion detection will handle trip start');
       return;
     }
 
-    // Find matching car
-    final matchedCar = findCarByDeviceId(deviceName);
-
-    if (matchedCar != null) {
-      _log.info('Found car: ${matchedCar.name} for device: $deviceName');
-      await startTripForCar(matchedCar, deviceName);
-    } else {
-      _log.info('Unknown device: $deviceName');
-      _pendingUnknownDevice = deviceName;
-      notifyListeners();
-      // Trigger callback for UI to show linking dialog
-      onUnknownDevice?.call(deviceName);
-    }
+    // No Bluetooth AND no API support - cannot identify car
+    _log.info('No Bluetooth device connected and no API support - cannot identify car');
   }
 
   /// Clear pending unknown device (after user links it or dismisses)
@@ -342,6 +358,8 @@ class AppProvider extends ChangeNotifier {
       await refreshCars();
       // Clear pending
       _pendingUnknownDevice = null;
+      // Show notification that car is linked
+      unawaited(_notifications.showCarLinkedNotification(car.name, deviceName));
       // Sync car_id to native for future trips
       unawaited(_background.setActiveCarId(car.id));
       // Start trip for this car
@@ -526,6 +544,53 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // ============ Location Management ============
+
+  Future<void> refreshLocations() async {
+    if (!isConfigured) return;
+
+    try {
+      _locations = await _api.getLocations();
+      _error = null;
+    } on Exception catch (e) {
+      _log.error('Error refreshing locations', e);
+    }
+    notifyListeners();
+  }
+
+  /// Check if an address is a known location
+  bool isKnownLocation(String? address) {
+    if (address == null || address.isEmpty) return false;
+    final lower = address.toLowerCase();
+    // Built-in locations
+    if (lower == 'thuis' || lower == 'home' || lower == 'kantoor' || lower == 'office') {
+      return true;
+    }
+    // User-defined locations
+    return _locations.any((loc) => loc.name.toLowerCase() == lower);
+  }
+
+  /// Add a new named location
+  Future<bool> addLocation({
+    required String name,
+    required double lat,
+    required double lng,
+  }) async {
+    if (!isConfigured) return false;
+
+    try {
+      await _api.addLocation(name: name, lat: lat, lng: lng);
+      await refreshLocations();
+      await refreshTrips(); // Trips get updated with new location name
+      return true;
+    } on Exception catch (e) {
+      _log.error('Error adding location', e);
+      _error = 'Kon locatie niet opslaan';
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> refreshCarData() async {
     if (!isConfigured) return;
 
@@ -555,11 +620,12 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshAll() async {
     // First load cars to set selectedCarId
     await refreshCars();
-    // Then load trips and stats in parallel
+    // Then load trips, stats, and locations in parallel
     await Future.wait([
       refreshActiveTrip(),
       refreshTrips(),
       refreshStats(),
+      refreshLocations(),
     ]);
     // Car data last - needs cars loaded and is slow (Audi API)
     await refreshCarData();
@@ -724,11 +790,15 @@ class AppProvider extends ChangeNotifier {
       await refreshActiveTrip();
       await _background.startTrip();
       await _background.notifyWatchTripStarted();
+      // Show trip started notification
+      unawaited(_notifications.showTripStartedNotification(car.name));
       return true;
     } on Exception {
       await _offlineQueue.addToQueue('start', location.lat, location.lng, deviceId: deviceId);
       await refreshQueueLength();
       await _background.startTrip();
+      // Show trip started notification even in offline mode
+      unawaited(_notifications.showTripStartedNotification(car.name));
       return true;
     }
   }
@@ -872,5 +942,13 @@ class AppProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  // ============ Account Management ============
+
+  /// Delete the current user's account and all associated data.
+  /// This is permanent and cannot be undone.
+  Future<void> deleteAccount() async {
+    await _api.deleteAccount();
   }
 }

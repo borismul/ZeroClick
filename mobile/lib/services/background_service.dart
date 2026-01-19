@@ -13,7 +13,7 @@ class BackgroundService {
     _setupMethodCallHandler();
   }
 
-  static const _channel = MethodChannel('nl.borism.mileage/background');
+  static const _channel = MethodChannel('com.zeroclick/background');
   static const _log = AppLogger('BackgroundService');
 
   CarDetectedCallback? _onCarDetected;
@@ -44,7 +44,7 @@ class BackgroundService {
         case 'getAuthToken':
           // Watch is requesting a fresh auth token - actually refresh it
           _log.info('Watch requesting auth token - refreshing...');
-          final token = await AuthService().refreshToken();
+          final token = await AuthService().refreshTokenForApi();
           _log.info('Token refresh result: ${token != null ? "success" : "failed"}');
           return token;
         default:

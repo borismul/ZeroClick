@@ -359,9 +359,9 @@ class TripService:
         db.collection("trips").document(trip_id).set(trip_data)
         logger.info(f"Trip finalized: {trip_id}, {distance_km} km (source: {distance_source}), {start_loc['label']} -> {end_loc['label']}")
 
-        # Save end GPS as last_parked for next trip start
+        # Save end GPS and odometer as last_parked for next trip start
         if effective_car_id and effective_car_id != "unknown":
-            car_service.save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"])
+            car_service.save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"], end_odo)
 
         return trip_data
 

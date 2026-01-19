@@ -126,7 +126,7 @@ class _ChargingMapScreenState extends State<ChargingMapScreen> {
     );
 
     final response = await http.get(url, headers: {
-      'User-Agent': 'MileageTracker/1.0',
+      'User-Agent': 'ZeroClick/1.0',
     });
 
     if (response.statusCode != 200) {
@@ -206,7 +206,7 @@ class _ChargingMapScreenState extends State<ChargingMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'nl.borism.mileageTracker',
+                userAgentPackageName: 'com.zeroclick.app',
               ),
               MarkerLayer(markers: _buildMarkers()),
             ],

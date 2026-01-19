@@ -11,7 +11,7 @@ class CarPlayService {
     _setupMethodCallHandler();
   }
 
-  static const _channel = MethodChannel('nl.borism.mileage/carplay');
+  static const _channel = MethodChannel('com.zeroclick/carplay');
   static const _log = AppLogger('CarPlayService');
 
   CarPlayCallback? _onConnectionChanged;

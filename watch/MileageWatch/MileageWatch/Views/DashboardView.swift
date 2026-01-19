@@ -1,48 +1,64 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                // Active Trip Banner
-                if let trip = viewModel.activeTrip, trip.active {
-                    ActiveTripCard(trip: trip)
-                }
-
-                // Stats Summary
-                if let stats = viewModel.stats {
-                    StatsCard(stats: stats)
-                }
-
-                // Car selector if multiple cars
-                if viewModel.cars.count > 1 {
-                    CarSelectorRow(
-                        cars: viewModel.cars,
-                        selectedCar: viewModel.selectedCar
-                    ) { car in
-                        viewModel.selectCar(car)
-                    }
-                }
-
-                // Error message
-                if let error = viewModel.error {
-                    Text(error)
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                }
-
-                // Pull to refresh hint
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
+        List {
+            // Active Trip Banner
+            if let trip = viewModel.activeTrip, trip.active {
+                ActiveTripCard(trip: trip)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
             }
-            .padding(.horizontal, 4)
+
+            // Stats Summary
+            if let stats = viewModel.stats {
+                StatsCard(stats: stats)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            }
+
+            // Car selector if multiple cars
+            if viewModel.cars.count > 1 {
+                CarSelectorRow(
+                    cars: viewModel.cars,
+                    selectedCar: viewModel.selectedCar
+                ) { car in
+                    viewModel.selectCar(car)
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            }
+
+            // Error message
+            if let error = viewModel.error {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .listRowBackground(Color.clear)
+            }
+
+            // Loading indicator
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .listRowBackground(Color.clear)
+            }
         }
+        .listStyle(.plain)
         .navigationTitle("Kilometerstand")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task { await viewModel.refreshAll() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(viewModel.isLoading)
+            }
+        }
     }
 }
 
@@ -189,5 +205,5 @@ struct CarSelectorRow: View {
 
 #Preview {
     DashboardView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

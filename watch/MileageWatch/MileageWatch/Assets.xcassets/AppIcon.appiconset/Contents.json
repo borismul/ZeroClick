@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "Icon-48.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "24x24",
@@ -8,6 +9,7 @@
       "role" : "notificationCenter"
     },
     {
+      "filename" : "Icon-55.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "27.5x27.5",
@@ -15,18 +17,21 @@
       "role" : "notificationCenter"
     },
     {
+      "filename" : "Icon-58.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "29x29",
       "role" : "companionSettings"
     },
     {
+      "filename" : "Icon-87.png",
       "idiom" : "watch",
       "scale" : "3x",
       "size" : "29x29",
       "role" : "companionSettings"
     },
     {
+      "filename" : "Icon-66.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "33x33",
@@ -34,6 +39,7 @@
       "role" : "notificationCenter"
     },
     {
+      "filename" : "Icon-80.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "40x40",
@@ -41,6 +47,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-88.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "44x44",
@@ -48,6 +55,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-92.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "46x46",
@@ -55,6 +63,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-100.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "50x50",
@@ -62,6 +71,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-102.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "51x51",
@@ -69,6 +79,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-108.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "54x54",
@@ -76,6 +87,7 @@
       "role" : "appLauncher"
     },
     {
+      "filename" : "Icon-172.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "86x86",
@@ -83,6 +95,7 @@
       "role" : "quickLook"
     },
     {
+      "filename" : "Icon-196.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "98x98",
@@ -90,6 +103,7 @@
       "role" : "quickLook"
     },
     {
+      "filename" : "Icon-216.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "108x108",
@@ -97,6 +111,7 @@
       "role" : "quickLook"
     },
     {
+      "filename" : "Icon-234.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "117x117",
@@ -104,6 +119,7 @@
       "role" : "quickLook"
     },
     {
+      "filename" : "Icon-258.png",
       "idiom" : "watch",
       "scale" : "2x",
       "size" : "129x129",
@@ -111,6 +127,7 @@
       "role" : "quickLook"
     },
     {
+      "filename" : "Icon-1024.png",
       "idiom" : "watch-marketing",
       "scale" : "1x",
       "size" : "1024x1024"

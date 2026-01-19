@@ -2,7 +2,7 @@
   "@@locale": "en",
   "@@last_modified": "2025-01-05",
 
-  "appTitle": "Mileage Tracker",
+  "appTitle": "Zero Click",
   "@appTitle": {"description": "App title shown in app bar"},
 
   "tabStatus": "Status",
@@ -245,7 +245,7 @@
   "aboutApp": "About this app",
   "@aboutApp": {"description": "About section"},
 
-  "aboutDescription": "This app replaces the iPhone Shortcuts automation for mileage tracking. It automatically detects when you get in the car via Bluetooth/CarPlay and tracks trips.",
+  "aboutDescription": "Zero Click automatically detects when you get in the car via Bluetooth/CarPlay and tracks trips. No manual entry required.",
   "@aboutDescription": {"description": "App description"},
 
   "loggedInAs": "Logged in as {email}",
@@ -520,5 +520,95 @@
   "@distanceSourceGps": {"description": "Distance estimated from GPS points"},
 
   "distanceEstimated": "Distance estimated",
-  "@distanceEstimated": {"description": "Warning that distance is estimated"}
+  "@distanceEstimated": {"description": "Warning that distance is estimated"},
+
+  "saveLocation": "Save location",
+  "@saveLocation": {"description": "Save location dialog title"},
+
+  "locationName": "Name for this location",
+  "@locationName": {"description": "Location name field label"},
+
+  "locationNameHint": "E.g. Customer ABC",
+  "@locationNameHint": {"description": "Location name field hint"},
+
+  "deleteAccount": "Delete account",
+  "@deleteAccount": {"description": "Delete account button"},
+
+  "deleteAccountSubtitle": "Delete your account and all data",
+  "@deleteAccountSubtitle": {"description": "Delete account subtitle"},
+
+  "deleteAccountTitle": "Delete account?",
+  "@deleteAccountTitle": {"description": "Delete account dialog title"},
+
+  "deleteAccountConfirmation": "This permanently deletes all your trips and data. This action cannot be undone.",
+  "@deleteAccountConfirmation": {"description": "Delete account confirmation message"},
+
+  "accountDeleted": "Account deleted",
+  "@accountDeleted": {"description": "Account deleted success message"},
+
+  "deleteAccountError": "Error deleting account: {error}",
+  "@deleteAccountError": {"description": "Delete account error message", "placeholders": {"error": {"type": "String"}}},
+
+  "onboardingWelcome": "Welcome to Zero Click",
+  "onboardingWelcomeSubtitle": "We need a few permissions to automatically track your trips. Let's set them up one by one.",
+  "onboardingNext": "Next",
+  "onboardingSkip": "Skip",
+  "onboardingDone": "Done",
+  "onboardingOpenSettings": "Open Settings",
+
+  "onboardingLoginTitle": "Sign In",
+  "onboardingLoginDescription": "Sign in with your Google account to sync your trips across devices and access the web dashboard.",
+  "onboardingLoginButton": "Sign in with Google",
+  "onboardingLoggingIn": "Signing in...",
+
+  "onboardingNotificationsTitle": "Notifications",
+  "onboardingNotificationsDescription": "We'll notify you when a trip starts or ends, so you know everything is being tracked.",
+  "onboardingNotificationsButton": "Allow Notifications",
+
+  "onboardingLocationTitle": "Location Access",
+  "onboardingLocationDescription": "We need your location to track where your trips start and end. This is essential for mileage registration.",
+  "onboardingLocationButton": "Allow Location",
+  "onboardingLocationAlwaysTitle": "Background Location",
+  "onboardingLocationAlwaysDescription": "For automatic trip detection, we need 'Always' access. This lets us track trips even when the app is in the background.",
+  "onboardingLocationAlwaysInstructions": "Tap 'Open Settings', then go to Location and select 'Always'.",
+  "onboardingLocationAlwaysGranted": "Background location enabled!",
+
+  "onboardingMotionTitle": "Motion & Fitness",
+  "onboardingMotionDescription": "We use motion sensors to detect when you're driving. This helps start trips automatically without draining your battery.",
+  "onboardingMotionButton": "Allow Motion Access",
+
+  "onboardingHowItWorksTitle": "How it works",
+  "onboardingHowItWorksDescription": "Zero Click uses motion sensors to detect when you're driving. Fully automatic!",
+  "onboardingFeatureMotion": "Motion Detection",
+  "onboardingFeatureMotionDesc": "Your phone detects driving motion and automatically starts tracking. Works fully in the background.",
+  "onboardingFeatureBluetooth": "Car Recognition",
+  "onboardingFeatureBluetoothDesc": "Connect via Bluetooth to identify which car you're driving. Trips are linked to the right vehicle.",
+  "onboardingFeatureCarApi": "Car Account",
+  "onboardingFeatureCarApiDesc": "Link your car's app (myAudi, Tesla, etc.) for automatic odometer readings at trip start and end.",
+
+  "onboardingSetupTitle": "Set up your car",
+  "onboardingSetupDescription": "Follow these steps to get the best experience.",
+  "onboardingSetupStep1Title": "Add your car",
+  "onboardingSetupStep1Desc": "Give your car a name and choose a color. This helps you recognize trips later.",
+  "onboardingSetupStep1Button": "Add car now",
+  "onboardingSetupStep2Title": "Go to your car",
+  "onboardingSetupStep2Desc": "Walk to your car and turn it on. Make sure Bluetooth is enabled on your phone.",
+  "onboardingSetupStep3Title": "Connect Bluetooth",
+  "onboardingSetupStep3Desc": "Pair your phone with your car's Bluetooth. A notification will appear to link it to your car in the app.",
+  "onboardingSetupStep4Title": "Link car account",
+  "onboardingSetupStep4Desc": "Connect your car's app (myAudi, Tesla, etc.) for automatic odometer readings. You can do this later in Settings.",
+  "onboardingSetupLater": "I'll do this later",
+
+  "onboardingAllSet": "You're all set!",
+  "onboardingAllSetDescription": "Permissions are configured. Your trips will now be tracked automatically when you connect to your car.",
+  "onboardingGetStarted": "Get Started",
+
+  "tutorialDialogTitle": "Set up your car",
+  "tutorialDialogContent": "Add your car to get the most out of Zero Click. We'll link your trips to the right vehicle and read your odometer automatically.",
+  "tutorialDialogSetup": "Add car now",
+  "tutorialDialogLater": "Later",
+  "tutorialMyCarsTitle": "My Cars",
+  "tutorialMyCarsDesc": "Tap here to add and manage your cars",
+  "tutorialAddCarTitle": "Add a car",
+  "tutorialAddCarDesc": "Tap here to add your first car"
 }

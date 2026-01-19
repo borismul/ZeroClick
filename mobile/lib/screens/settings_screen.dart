@@ -44,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final success = await _authService.signIn();
     if (success && mounted) {
       final email = _authService.userEmail;
-      final token = _authService.idToken;
+      final token = _authService.accessToken;
       final provider = context.read<AppProvider>();
 
       // CRITICAL: Set auth token on API service BEFORE making requests
@@ -77,6 +77,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
         userEmail: '',
       ));
       setState(() {});
+    }
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteAccountTitle),
+        content: Text(l10n.deleteAccountConfirmation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteAccount();
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context);
+
+    // Show loading dialog
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Delete account via API
+      final provider = context.read<AppProvider>();
+      await provider.deleteAccount();
+
+      // Sign out
+      await _authService.signOut();
+
+      // Clear local settings
+      provider.saveSettings(provider.settings.copyWith(
+        userEmail: '',
+      ));
+
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.accountDeleted),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.deleteAccountError(e.toString())),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -124,6 +196,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: _signOut,
                     child: Text(l10n.logout),
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: Text(l10n.deleteAccount),
+                  subtitle: Text(l10n.deleteAccountSubtitle),
+                  onTap: _showDeleteAccountDialog,
                 ),
               ),
             ] else ...[

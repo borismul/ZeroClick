@@ -664,4 +664,214 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get distanceEstimated => 'Distance estimated';
+
+  @override
+  String get saveLocation => 'Save location';
+
+  @override
+  String get locationName => 'Name for this location';
+
+  @override
+  String get locationNameHint => 'E.g. Customer ABC';
+
+  @override
+  String get deleteAccount => 'Delete account';
+
+  @override
+  String get deleteAccountSubtitle => 'Delete your account and all data';
+
+  @override
+  String get deleteAccountTitle => 'Delete account?';
+
+  @override
+  String get deleteAccountConfirmation =>
+      'This permanently deletes all your trips and data. This action cannot be undone.';
+
+  @override
+  String get accountDeleted => 'Account deleted';
+
+  @override
+  String deleteAccountError(String error) {
+    return 'Error deleting account: $error';
+  }
+
+  @override
+  String get onboardingWelcome => 'Welcome to Zero Click';
+
+  @override
+  String get onboardingWelcomeSubtitle =>
+      'We need a few permissions to automatically track your trips. Let\'s set them up one by one.';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingSkip => 'Skip';
+
+  @override
+  String get onboardingDone => 'Done';
+
+  @override
+  String get onboardingOpenSettings => 'Open Settings';
+
+  @override
+  String get onboardingLoginTitle => 'Sign In';
+
+  @override
+  String get onboardingLoginDescription =>
+      'Sign in with your Google account to sync your trips across devices and access the web dashboard.';
+
+  @override
+  String get onboardingLoginButton => 'Sign in with Google';
+
+  @override
+  String get onboardingLoggingIn => 'Signing in...';
+
+  @override
+  String get onboardingNotificationsTitle => 'Notifications';
+
+  @override
+  String get onboardingNotificationsDescription =>
+      'We\'ll notify you when a trip starts or ends, so you know everything is being tracked.';
+
+  @override
+  String get onboardingNotificationsButton => 'Allow Notifications';
+
+  @override
+  String get onboardingLocationTitle => 'Location Access';
+
+  @override
+  String get onboardingLocationDescription =>
+      'We need your location to track where your trips start and end. This is essential for mileage registration.';
+
+  @override
+  String get onboardingLocationButton => 'Allow Location';
+
+  @override
+  String get onboardingLocationAlwaysTitle => 'Background Location';
+
+  @override
+  String get onboardingLocationAlwaysDescription =>
+      'For automatic trip detection, we need \'Always\' access. This lets us track trips even when the app is in the background.';
+
+  @override
+  String get onboardingLocationAlwaysInstructions =>
+      'Tap \'Open Settings\', then go to Location and select \'Always\'.';
+
+  @override
+  String get onboardingLocationAlwaysGranted => 'Background location enabled!';
+
+  @override
+  String get onboardingMotionTitle => 'Motion & Fitness';
+
+  @override
+  String get onboardingMotionDescription =>
+      'We use motion sensors to detect when you\'re driving. This helps start trips automatically without draining your battery.';
+
+  @override
+  String get onboardingMotionButton => 'Allow Motion Access';
+
+  @override
+  String get onboardingHowItWorksTitle => 'How it works';
+
+  @override
+  String get onboardingHowItWorksDescription =>
+      'Zero Click uses motion sensors to detect when you\'re driving. Fully automatic!';
+
+  @override
+  String get onboardingFeatureMotion => 'Motion Detection';
+
+  @override
+  String get onboardingFeatureMotionDesc =>
+      'Your phone detects driving motion and automatically starts tracking. Works fully in the background.';
+
+  @override
+  String get onboardingFeatureBluetooth => 'Car Recognition';
+
+  @override
+  String get onboardingFeatureBluetoothDesc =>
+      'Connect via Bluetooth to identify which car you\'re driving. Trips are linked to the right vehicle.';
+
+  @override
+  String get onboardingFeatureCarApi => 'Car Account';
+
+  @override
+  String get onboardingFeatureCarApiDesc =>
+      'Link your car\'s app (myAudi, Tesla, etc.) for automatic odometer readings at trip start and end.';
+
+  @override
+  String get onboardingSetupTitle => 'Set up your car';
+
+  @override
+  String get onboardingSetupDescription =>
+      'Follow these steps to get the best experience.';
+
+  @override
+  String get onboardingSetupStep1Title => 'Add your car';
+
+  @override
+  String get onboardingSetupStep1Desc =>
+      'Give your car a name and choose a color. This helps you recognize trips later.';
+
+  @override
+  String get onboardingSetupStep1Button => 'Add car now';
+
+  @override
+  String get onboardingSetupStep2Title => 'Go to your car';
+
+  @override
+  String get onboardingSetupStep2Desc =>
+      'Walk to your car and turn it on. Make sure Bluetooth is enabled on your phone.';
+
+  @override
+  String get onboardingSetupStep3Title => 'Connect Bluetooth';
+
+  @override
+  String get onboardingSetupStep3Desc =>
+      'Pair your phone with your car\'s Bluetooth. A notification will appear to link it to your car in the app.';
+
+  @override
+  String get onboardingSetupStep4Title => 'Link car account';
+
+  @override
+  String get onboardingSetupStep4Desc =>
+      'Connect your car\'s app (myAudi, Tesla, etc.) for automatic odometer readings. You can do this later in Settings.';
+
+  @override
+  String get onboardingSetupLater => 'I\'ll do this later';
+
+  @override
+  String get onboardingAllSet => 'You\'re all set!';
+
+  @override
+  String get onboardingAllSetDescription =>
+      'Permissions are configured. Your trips will now be tracked automatically when you connect to your car.';
+
+  @override
+  String get onboardingGetStarted => 'Get Started';
+
+  @override
+  String get tutorialDialogTitle => 'Set up your car';
+
+  @override
+  String get tutorialDialogContent =>
+      'Add your car to get the most out of Zero Click. We\'ll link your trips to the right vehicle and read your odometer automatically.';
+
+  @override
+  String get tutorialDialogSetup => 'Add car now';
+
+  @override
+  String get tutorialDialogLater => 'Later';
+
+  @override
+  String get tutorialMyCarsTitle => 'My Cars';
+
+  @override
+  String get tutorialMyCarsDesc => 'Tap here to add and manage your cars';
+
+  @override
+  String get tutorialAddCarTitle => 'Add a car';
+
+  @override
+  String get tutorialAddCarDesc => 'Tap here to add your first car';
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatsView: View {
-    @EnvironmentObject var viewModel: MileageViewModel
+    @EnvironmentObject var viewModel: ZeroClickViewModel
 
     var body: some View {
         ScrollView {
@@ -119,5 +119,5 @@ struct StatCard: View {
 
 #Preview {
     StatsView()
-        .environmentObject(MileageViewModel())
+        .environmentObject(ZeroClickViewModel())
 }

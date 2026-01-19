@@ -1,4 +1,4 @@
-package nl.borism.mileage_tracker
+package com.zeroclick.app
 
 import android.content.Intent
 import android.os.Build
@@ -8,7 +8,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "nl.borism.mileage/carplay"
+    private val CHANNEL = "com.zeroclick/carplay"
     private var methodChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

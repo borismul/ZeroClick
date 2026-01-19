@@ -169,7 +169,17 @@ class APIClient {
     func getCarData(carId: String) async throws -> CarData {
         try await makeRequest("/cars/\(carId)/data")
     }
+
+    // MARK: - Account Management
+
+    /// Delete the current user's account and all associated data
+    func deleteAccount() async throws {
+        let _: EmptyResponse = try await makeRequest("/account", method: "DELETE")
+    }
 }
+
+/// Empty response type for endpoints that don't return data
+struct EmptyResponse: Decodable {}
 
 enum APIError: Error, LocalizedError {
     case invalidURL

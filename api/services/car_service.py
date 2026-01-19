@@ -339,21 +339,24 @@ class CarService:
 
         return {"status": "deleted"}
 
-    def save_last_parked_gps(self, user_id: str, car_id: str, lat: float, lng: float, timestamp: str):
-        """Save the last parked GPS position for a car."""
+    def save_last_parked_gps(self, user_id: str, car_id: str, lat: float, lng: float, timestamp: str, odometer: float | None = None):
+        """Save the last parked GPS position and odometer for a car."""
         try:
             db = get_db()
-            db.collection("users").document(user_id).collection("cars").document(car_id).update({
+            update_data = {
                 "last_parked_lat": lat,
                 "last_parked_lng": lng,
                 "last_parked_at": timestamp,
-            })
-            logger.info(f"Saved last parked GPS for {car_id}: {lat}, {lng}")
+            }
+            if odometer is not None:
+                update_data["last_parked_odo"] = odometer
+            db.collection("users").document(user_id).collection("cars").document(car_id).update(update_data)
+            logger.info(f"Saved last parked GPS for {car_id}: {lat}, {lng}, odo={odometer}")
         except Exception as e:
             logger.error(f"Failed to save last parked GPS: {e}")
 
     def get_last_parked_gps(self, user_id: str, car_id: str) -> dict | None:
-        """Get the last parked GPS position for a car."""
+        """Get the last parked GPS position and odometer for a car."""
         try:
             db = get_db()
             car_doc = db.collection("users").document(user_id).collection("cars").document(car_id).get()
@@ -364,6 +367,7 @@ class CarService:
                         "lat": data["last_parked_lat"],
                         "lng": data["last_parked_lng"],
                         "timestamp": data.get("last_parked_at", ""),
+                        "odometer": data.get("last_parked_odo"),
                     }
         except Exception as e:
             logger.error(f"Failed to get last parked GPS: {e}")
@@ -455,10 +459,11 @@ class CarService:
                 is_parked = True
                 vehicle_state = "charging"
             else:
-                # Fallback: check raw data for legacy providers
+                # State unknown - return None to indicate unreliable data
+                # This prevents counters from being reset based on bad API data
                 raw = data.raw_data or {}
                 vehicle_state = raw.get("state", {}).get("val", "unknown")
-                is_parked = "parked" in str(vehicle_state).lower()
+                is_parked = None  # Unknown state - don't assume parked or driving
 
             # Get odometer
             odometer = data.odometer_km
@@ -517,7 +522,7 @@ class CarService:
 
             # If parked with GPS, save it for future trip starts
             if status["is_parked"] and status.get("lat") and status.get("lng"):
-                self.save_last_parked_gps(user_id, car_info["car_id"], status["lat"], status["lng"], timestamp)
+                self.save_last_parked_gps(user_id, car_info["car_id"], status["lat"], status["lng"], timestamp, status.get("odometer"))
 
             if status["is_driving"]:
                 # Add last parked GPS to status for trip start

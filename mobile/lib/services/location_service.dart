@@ -74,13 +74,11 @@ class LocationService {
       return null;
     }
 
+    // Don't auto-request - onboarding handles this
     if (!await hasPermission) {
-      final granted = await requestPermissions();
-      if (!granted) {
-        lastError = 'Geen locatiepermissie';
-        _log.warning('Location permission not granted');
-        return null;
-      }
+      lastError = 'Geen locatiepermissie';
+      _log.warning('Location permission not granted');
+      return null;
     }
 
     try {
@@ -168,12 +166,11 @@ class LocationService {
       return true;
     }
 
-    // Request always permission for background tracking
-    var status = await Permission.locationAlways.request();
+    // Check permission but don't auto-request - onboarding handles this
+    final status = await Permission.locationAlways.status;
     if (!status.isGranted) {
-      // Fall back to when in use
-      status = await Permission.locationWhenInUse.request();
-      if (!status.isGranted) {
+      final whenInUse = await Permission.locationWhenInUse.status;
+      if (!whenInUse.isGranted) {
         _log.warning('Location permission not granted for background tracking');
         return false;
       }

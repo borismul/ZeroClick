@@ -4,6 +4,7 @@ import CoreLocation
 import CoreMotion
 import WatchConnectivity
 import ActivityKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, CLLocationManagerDelegate, WCSessionDelegate {
@@ -51,6 +52,9 @@ import ActivityKit
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
 
+        // Set notification center delegate for flutter_local_notifications
+        UNUserNotificationCenter.current().delegate = self
+
         // Check if launched for location
         if launchOptions?[.location] != nil {
             print("[App] Launched by iOS for location update")
@@ -60,12 +64,12 @@ import ActivityKit
         if let controller = window?.rootViewController as? FlutterViewController {
             // Debug channel for sending logs to Flutter
             debugChannel = FlutterMethodChannel(
-                name: "nl.borism.mileage/debug",
+                name: "com.zeroclick/debug",
                 binaryMessenger: controller.binaryMessenger
             )
 
             backgroundChannel = FlutterMethodChannel(
-                name: "nl.borism.mileage/background",
+                name: "com.zeroclick/background",
                 binaryMessenger: controller.binaryMessenger
             )
 
@@ -113,6 +117,11 @@ import ActivityKit
                         result(false)
                     }
                 case "startBackgroundMonitoring":
+                    // Setup managers if not already done (after onboarding)
+                    if self?.locationManager == nil {
+                        self?.setupLocationManager()
+                        self?.setupMotionManager()
+                    }
                     self?.startMonitoring()
                     result(true)
                 case "stopBackgroundMonitoring":
@@ -134,7 +143,8 @@ import ActivityKit
                     self?.notifyWatchTripStarted()
                     result(true)
                 case "startTrip":
-                    self?.startDriveTracking()
+                    // Flutter already shows notification, skip native one
+                    self?.startDriveTracking(showNotification: false)
                     result(true)
                 case "endTrip":
                     self?.stopDriveTracking()
@@ -152,10 +162,15 @@ import ActivityKit
         // Setup WatchConnectivity
         setupWatchConnectivity()
 
-        // Start monitoring
-        setupLocationManager()
-        setupMotionManager()
-        startMonitoring()
+        // Only setup and start monitoring if onboarding already complete
+        let onboardingComplete = UserDefaults.standard.bool(forKey: "flutter.onboarding_complete")
+        if onboardingComplete {
+            setupLocationManager()
+            setupMotionManager()
+            startMonitoring()
+        } else {
+            print("[Monitor] Waiting for onboarding to complete")
+        }
 
 
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -270,9 +285,32 @@ import ActivityKit
         }
     }
 
+    // MARK: - Notifications
+
+    private func showTripStartedNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "Rit wordt getrackt"
+        content.body = "Je rit wordt nu automatisch geregistreerd"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "trip_tracking_\(UUID().uuidString)",
+            content: content,
+            trigger: nil  // Show immediately
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                self.debugLog("Notification", "Failed to show notification: \(error)")
+            } else {
+                self.debugLog("Notification", "Trip tracking notification shown")
+            }
+        }
+    }
+
     // MARK: - Drive Tracking
 
-    private func startDriveTracking() {
+    private func startDriveTracking(showNotification: Bool = true) {
         debugLog("Drive", "startDriveTracking() called, isActivelyTracking: \(isActivelyTracking)")
 
         guard !isActivelyTracking else {
@@ -287,6 +325,11 @@ import ActivityKit
         // Switch to high accuracy FIRST
         setHighAccuracy()
 
+        // Show push notification for trip tracking (skip if Flutter already showed one)
+        if showNotification {
+            showTripStartedNotification()
+        }
+
         debugLog("Drive", "Starting Live Activity...")
         // Start Live Activity (shows on Lock Screen + Dynamic Island + Watch Smart Stack)
         startLiveActivity()
@@ -299,9 +342,9 @@ import ActivityKit
             }
         }
 
-        // Start ping timer
+        // Start ping timer - 15s for better GPS trail resolution
         pingTimer?.invalidate()
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+        pingTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: true) { [weak self] _ in
             self?.sendPing()
         }
 
@@ -346,8 +389,8 @@ import ActivityKit
             return
         }
 
-        // Debounce
-        if let lastPing = lastPingTime, Date().timeIntervalSince(lastPing) < 50 {
+        // Debounce - 12s (80% of 15s ping interval)
+        if let lastPing = lastPingTime, Date().timeIntervalSince(lastPing) < 12 {
             return
         }
         lastPingTime = Date()
@@ -695,25 +738,24 @@ import ActivityKit
 
         // Check availability
         let authInfo = ActivityAuthorizationInfo()
-        debugLog("LiveActivity", "areActivitiesEnabled: \(authInfo.areActivitiesEnabled), frequentPushesEnabled: \(authInfo.frequentPushesEnabled)")
+        debugLog("LiveActivity", "areActivitiesEnabled: \(authInfo.areActivitiesEnabled)")
 
         guard authInfo.areActivitiesEnabled else {
-            debugLog("LiveActivity", "Not enabled in Settings - check Settings > Mileage > Live Activities")
+            debugLog("LiveActivity", "Not enabled in Settings")
             return
         }
 
-        // End existing activities first
+        // End existing activities (don't await - fire and forget)
         let existingActivities = Activity<TripActivityAttributes>.activities
-        debugLog("LiveActivity", "Ending \(existingActivities.count) existing activities")
-        for activity in existingActivities {
-            await activity.end(nil, dismissalPolicy: .immediate)
+        if !existingActivities.isEmpty {
+            debugLog("LiveActivity", "Ending \(existingActivities.count) existing activities")
+            for activity in existingActivities {
+                Task { await activity.end(nil, dismissalPolicy: .immediate) }
+            }
         }
         currentActivityStorage = nil
 
-        // Small delay to ensure previous activities are fully dismissed
-        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-
-        // Create new activity
+        // Create new activity immediately - no delays
         let attributes = TripActivityAttributes(
             tripId: UUID().uuidString,
             carName: activeCarId ?? "Auto"
@@ -738,21 +780,7 @@ import ActivityKit
             currentActivityStorage = activity
             debugLog("LiveActivity", "Started successfully: \(activity.id)")
         } catch {
-            debugLog("LiveActivity", "Failed to start: \(error.localizedDescription)")
-            // Retry once after a short delay
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            debugLog("LiveActivity", "Retrying...")
-            do {
-                let activity = try Activity.request(
-                    attributes: attributes,
-                    content: .init(state: state, staleDate: nil),
-                    pushType: nil
-                )
-                currentActivityStorage = activity
-                debugLog("LiveActivity", "Retry succeeded: \(activity.id)")
-            } catch {
-                debugLog("LiveActivity", "Retry also failed: \(error.localizedDescription)")
-            }
+            debugLog("LiveActivity", "Failed: \(error.localizedDescription)")
         }
     }
 

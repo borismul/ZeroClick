@@ -5,7 +5,7 @@ import Security
 class KeychainHelper {
     static let shared = KeychainHelper()
 
-    private let service = "nl.borism.mileageTracker"
+    private let service = "com.zeroclick.app"
     private let tokenAccount = "authToken"
     private let refreshTokenAccount = "refreshToken"
     private let emailAccount = "userEmail"

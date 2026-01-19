@@ -10,7 +10,7 @@ import SwiftUI
 import WidgetKit
 
 struct TripLiveActivityControl: ControlWidget {
-    static let kind: String = "nl.borism.kmstand.watch.TripLiveActivity"
+    static let kind: String = "com.zeroclick.watch.TripLiveActivity"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

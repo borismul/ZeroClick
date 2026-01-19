@@ -9,7 +9,7 @@ class AppLocalizationsNl extends AppLocalizations {
   AppLocalizationsNl([String locale = 'nl']) : super(locale);
 
   @override
-  String get appTitle => 'Kilometerregistratie';
+  String get appTitle => 'Zero Click';
 
   @override
   String get tabStatus => 'Status';
@@ -274,7 +274,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Deze app vervangt de iPhone Opdrachten automatisering voor kilometerregistratie. Het detecteert automatisch wanneer je in de auto stapt via Bluetooth/CarPlay en houdt ritten bij.';
+      'Zero Click detecteert automatisch wanneer je in de auto stapt via Bluetooth/CarPlay en houdt ritten bij. Geen handmatige invoer nodig.';
 
   @override
   String loggedInAs(String email) {
@@ -665,4 +665,215 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get distanceEstimated => 'Afstand geschat';
+
+  @override
+  String get saveLocation => 'Locatie opslaan';
+
+  @override
+  String get locationName => 'Naam voor deze locatie';
+
+  @override
+  String get locationNameHint => 'Bijv. Klant ABC';
+
+  @override
+  String get deleteAccount => 'Account verwijderen';
+
+  @override
+  String get deleteAccountSubtitle => 'Verwijder je account en alle gegevens';
+
+  @override
+  String get deleteAccountTitle => 'Account verwijderen?';
+
+  @override
+  String get deleteAccountConfirmation =>
+      'Dit verwijdert permanent al je ritten en gegevens. Deze actie kan niet ongedaan worden gemaakt.';
+
+  @override
+  String get accountDeleted => 'Account verwijderd';
+
+  @override
+  String deleteAccountError(String error) {
+    return 'Fout bij verwijderen: $error';
+  }
+
+  @override
+  String get onboardingWelcome => 'Welkom bij Zero Click';
+
+  @override
+  String get onboardingWelcomeSubtitle =>
+      'We hebben een paar permissies nodig om je ritten automatisch te volgen. Laten we ze één voor één instellen.';
+
+  @override
+  String get onboardingNext => 'Volgende';
+
+  @override
+  String get onboardingSkip => 'Overslaan';
+
+  @override
+  String get onboardingDone => 'Klaar';
+
+  @override
+  String get onboardingOpenSettings => 'Open Instellingen';
+
+  @override
+  String get onboardingLoginTitle => 'Inloggen';
+
+  @override
+  String get onboardingLoginDescription =>
+      'Log in met je Google-account om je ritten te synchroniseren en toegang te krijgen tot het webdashboard.';
+
+  @override
+  String get onboardingLoginButton => 'Inloggen met Google';
+
+  @override
+  String get onboardingLoggingIn => 'Bezig met inloggen...';
+
+  @override
+  String get onboardingNotificationsTitle => 'Notificaties';
+
+  @override
+  String get onboardingNotificationsDescription =>
+      'We sturen een melding als een rit begint of eindigt, zodat je weet dat alles wordt bijgehouden.';
+
+  @override
+  String get onboardingNotificationsButton => 'Sta notificaties toe';
+
+  @override
+  String get onboardingLocationTitle => 'Locatietoegang';
+
+  @override
+  String get onboardingLocationDescription =>
+      'We hebben je locatie nodig om te registreren waar ritten starten en eindigen. Dit is essentieel voor kilometerregistratie.';
+
+  @override
+  String get onboardingLocationButton => 'Sta locatie toe';
+
+  @override
+  String get onboardingLocationAlwaysTitle => 'Achtergrondlocatie';
+
+  @override
+  String get onboardingLocationAlwaysDescription =>
+      'Voor automatische ritdetectie hebben we \'Altijd\' toegang nodig. Hiermee kunnen we ritten volgen, ook als de app op de achtergrond draait.';
+
+  @override
+  String get onboardingLocationAlwaysInstructions =>
+      'Tik op \'Open Instellingen\', ga naar Locatie en kies \'Altijd\'.';
+
+  @override
+  String get onboardingLocationAlwaysGranted =>
+      'Achtergrondlocatie ingeschakeld!';
+
+  @override
+  String get onboardingMotionTitle => 'Beweging en fitness';
+
+  @override
+  String get onboardingMotionDescription =>
+      'We gebruiken bewegingssensoren om te detecteren wanneer je rijdt. Dit helpt ritten automatisch te starten zonder je batterij leeg te trekken.';
+
+  @override
+  String get onboardingMotionButton => 'Sta bewegingstoegang toe';
+
+  @override
+  String get onboardingHowItWorksTitle => 'Zo werkt het';
+
+  @override
+  String get onboardingHowItWorksDescription =>
+      'Zero Click gebruikt bewegingssensoren om te detecteren wanneer je rijdt. Volledig automatisch!';
+
+  @override
+  String get onboardingFeatureMotion => 'Bewegingsdetectie';
+
+  @override
+  String get onboardingFeatureMotionDesc =>
+      'Je telefoon detecteert rijbewegingen en start automatisch met registreren. Werkt volledig op de achtergrond.';
+
+  @override
+  String get onboardingFeatureBluetooth => 'Auto herkenning';
+
+  @override
+  String get onboardingFeatureBluetoothDesc =>
+      'Verbind via Bluetooth om te herkennen in welke auto je rijdt. Ritten worden aan de juiste auto gekoppeld.';
+
+  @override
+  String get onboardingFeatureCarApi => 'Auto account';
+
+  @override
+  String get onboardingFeatureCarApiDesc =>
+      'Koppel de app van je auto (myAudi, Tesla, etc.) voor automatische kilometerstanden bij start en einde.';
+
+  @override
+  String get onboardingSetupTitle => 'Stel je auto in';
+
+  @override
+  String get onboardingSetupDescription =>
+      'Volg deze stappen voor de beste ervaring.';
+
+  @override
+  String get onboardingSetupStep1Title => 'Voeg je auto toe';
+
+  @override
+  String get onboardingSetupStep1Desc =>
+      'Geef je auto een naam en kies een kleur. Dit helpt je ritten later herkennen.';
+
+  @override
+  String get onboardingSetupStep1Button => 'Auto toevoegen';
+
+  @override
+  String get onboardingSetupStep2Title => 'Ga naar je auto';
+
+  @override
+  String get onboardingSetupStep2Desc =>
+      'Loop naar je auto en start hem. Zorg dat Bluetooth aan staat op je telefoon.';
+
+  @override
+  String get onboardingSetupStep3Title => 'Verbind Bluetooth';
+
+  @override
+  String get onboardingSetupStep3Desc =>
+      'Koppel je telefoon met de Bluetooth van je auto. Er verschijnt een melding om deze te koppelen aan je auto in de app.';
+
+  @override
+  String get onboardingSetupStep4Title => 'Koppel auto account';
+
+  @override
+  String get onboardingSetupStep4Desc =>
+      'Verbind de app van je auto (myAudi, Tesla, etc.) voor automatische kilometerstanden. Dit kan ook later in Instellingen.';
+
+  @override
+  String get onboardingSetupLater => 'Doe ik later';
+
+  @override
+  String get onboardingAllSet => 'Je bent klaar!';
+
+  @override
+  String get onboardingAllSetDescription =>
+      'Permissies zijn ingesteld. Je ritten worden nu automatisch bijgehouden wanneer je verbinding maakt met je auto.';
+
+  @override
+  String get onboardingGetStarted => 'Aan de slag';
+
+  @override
+  String get tutorialDialogTitle => 'Stel je auto in';
+
+  @override
+  String get tutorialDialogContent =>
+      'Voeg je auto toe om het meeste uit Zero Click te halen. We koppelen je ritten aan het juiste voertuig en lezen je kilometerstand automatisch.';
+
+  @override
+  String get tutorialDialogSetup => 'Auto toevoegen';
+
+  @override
+  String get tutorialDialogLater => 'Later';
+
+  @override
+  String get tutorialMyCarsTitle => 'Mijn Auto\'s';
+
+  @override
+  String get tutorialMyCarsDesc => 'Tik hier om je auto\'s te beheren';
+
+  @override
+  String get tutorialAddCarTitle => 'Auto toevoegen';
+
+  @override
+  String get tutorialAddCarDesc => 'Tik hier om je eerste auto toe te voegen';
 }

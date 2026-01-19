@@ -1,7 +1,7 @@
 import Foundation
 
 @objc class SettingsSync: NSObject {
-    static let appGroupID = "group.nl.borism.mileageTracker"
+    static let appGroupID = "group.com.zeroclick.app"
 
     @objc static func syncSettingsToAppGroup() {
         // Read from Flutter's SharedPreferences (stored in standard UserDefaults with flutter. prefix)

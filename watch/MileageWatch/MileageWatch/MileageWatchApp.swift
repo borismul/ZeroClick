@@ -1,8 +1,8 @@
 import SwiftUI
 
 @main
-struct MileageWatchApp: App {
-    @StateObject private var viewModel = MileageViewModel()
+struct ZeroClickWatchApp: App {
+    @StateObject private var viewModel = ZeroClickViewModel()
 
     var body: some Scene {
         WindowGroup {

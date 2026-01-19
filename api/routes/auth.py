@@ -108,3 +108,70 @@ def logout(user: str = Depends(get_current_user)):
     """
     count = token_service.revoke_all_user_tokens(user)
     return {"message": f"Logged out. Revoked {count} session(s)."}
+
+
+@router.delete("/account")
+def delete_account(user: str = Depends(get_current_user)):
+    """
+    Delete user account and all associated data.
+
+    This permanently deletes:
+    - All trips
+    - All cars and their credentials
+    - All cache data
+    - All refresh tokens
+
+    Required for Apple App Store compliance (account deletion requirement).
+    """
+    from database import get_db
+
+    db = get_db()
+    deleted_counts = {
+        "trips": 0,
+        "cars": 0,
+        "cache": 0,
+        "tokens": 0,
+    }
+
+    try:
+        # Delete all trips for this user
+        trips_ref = db.collection("trips").where("user_id", "==", user)
+        for doc in trips_ref.stream():
+            doc.reference.delete()
+            deleted_counts["trips"] += 1
+
+        # Delete all cars (subcollection under user)
+        user_ref = db.collection("users").document(user)
+        cars_ref = user_ref.collection("cars")
+        for car_doc in cars_ref.stream():
+            # Delete car credentials subcollection first
+            creds_ref = car_doc.reference.collection("credentials")
+            for cred_doc in creds_ref.stream():
+                cred_doc.reference.delete()
+            car_doc.reference.delete()
+            deleted_counts["cars"] += 1
+
+        # Delete cache subcollection
+        cache_ref = user_ref.collection("cache")
+        for cache_doc in cache_ref.stream():
+            cache_doc.reference.delete()
+            deleted_counts["cache"] += 1
+
+        # Delete user document itself
+        if user_ref.get().exists:
+            user_ref.delete()
+
+        # Revoke all tokens
+        deleted_counts["tokens"] = token_service.revoke_all_user_tokens(user)
+
+        logger.info(f"Account deleted: {user}, deleted: {deleted_counts}")
+
+        return {
+            "status": "deleted",
+            "message": "Account and all data permanently deleted",
+            "deleted": deleted_counts,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to delete account {user}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {e}")

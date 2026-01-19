@@ -157,6 +157,18 @@ class ApiService {
             .toList(),
       );
 
+  Future<Map<String, dynamic>> addLocation({
+    required String name,
+    required double lat,
+    required double lng,
+  }) async {
+    _log.info('Adding location: $name at $lat, $lng');
+    return _client.post<Map<String, dynamic>>(
+      '/locations',
+      body: {'name': name, 'lat': lat, 'lng': lng},
+    );
+  }
+
   // ============ Car Management Endpoints ============
 
   Future<List<Car>> getCars() async => _client.get<List<Car>>(
@@ -354,4 +366,13 @@ class ApiService {
         '/cars/$carId/stats',
         fromJson: (json) => CarStats.fromJson(json as Map<String, dynamic>),
       );
+
+  // ============ Account Management ============
+
+  /// Delete the current user's account and all associated data.
+  /// This is permanent and cannot be undone.
+  Future<void> deleteAccount() async {
+    _log.info('Deleting account');
+    await _client.delete<Map<String, dynamic>>('/account');
+  }
 }

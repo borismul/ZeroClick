@@ -11,7 +11,7 @@ class BluetoothService {
     _setupMethodCallHandler();
   }
 
-  static const _channel = MethodChannel('nl.borism.mileage/bluetooth');
+  static const _channel = MethodChannel('com.zeroclick/bluetooth');
   static const _log = AppLogger('BluetoothService');
 
   BluetoothCallback? _onConnectionChanged;

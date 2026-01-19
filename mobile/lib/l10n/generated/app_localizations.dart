@@ -153,7 +153,7 @@ abstract class AppLocalizations {
   /// App title shown in app bar
   ///
   /// In en, this message translates to:
-  /// **'Mileage Tracker'**
+  /// **'Zero Click'**
   String get appTitle;
 
   /// Dashboard tab label
@@ -639,7 +639,7 @@ abstract class AppLocalizations {
   /// App description
   ///
   /// In en, this message translates to:
-  /// **'This app replaces the iPhone Shortcuts automation for mileage tracking. It automatically detects when you get in the car via Bluetooth/CarPlay and tracks trips.'**
+  /// **'Zero Click automatically detects when you get in the car via Bluetooth/CarPlay and tracks trips. No manual entry required.'**
   String get aboutDescription;
 
   /// Logged in confirmation
@@ -1355,6 +1355,384 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Distance estimated'**
   String get distanceEstimated;
+
+  /// Save location dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Save location'**
+  String get saveLocation;
+
+  /// Location name field label
+  ///
+  /// In en, this message translates to:
+  /// **'Name for this location'**
+  String get locationName;
+
+  /// Location name field hint
+  ///
+  /// In en, this message translates to:
+  /// **'E.g. Customer ABC'**
+  String get locationNameHint;
+
+  /// Delete account button
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get deleteAccount;
+
+  /// Delete account subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account and all data'**
+  String get deleteAccountSubtitle;
+
+  /// Delete account dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get deleteAccountTitle;
+
+  /// Delete account confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes all your trips and data. This action cannot be undone.'**
+  String get deleteAccountConfirmation;
+
+  /// Account deleted success message
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get accountDeleted;
+
+  /// Delete account error message
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting account: {error}'**
+  String deleteAccountError(String error);
+
+  /// No description provided for @onboardingWelcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Zero Click'**
+  String get onboardingWelcome;
+
+  /// No description provided for @onboardingWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'We need a few permissions to automatically track your trips. Let\'s set them up one by one.'**
+  String get onboardingWelcomeSubtitle;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get onboardingDone;
+
+  /// No description provided for @onboardingOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get onboardingOpenSettings;
+
+  /// No description provided for @onboardingLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get onboardingLoginTitle;
+
+  /// No description provided for @onboardingLoginDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your Google account to sync your trips across devices and access the web dashboard.'**
+  String get onboardingLoginDescription;
+
+  /// No description provided for @onboardingLoginButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Google'**
+  String get onboardingLoginButton;
+
+  /// No description provided for @onboardingLoggingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in...'**
+  String get onboardingLoggingIn;
+
+  /// No description provided for @onboardingNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get onboardingNotificationsTitle;
+
+  /// No description provided for @onboardingNotificationsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll notify you when a trip starts or ends, so you know everything is being tracked.'**
+  String get onboardingNotificationsDescription;
+
+  /// No description provided for @onboardingNotificationsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Notifications'**
+  String get onboardingNotificationsButton;
+
+  /// No description provided for @onboardingLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Location Access'**
+  String get onboardingLocationTitle;
+
+  /// No description provided for @onboardingLocationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'We need your location to track where your trips start and end. This is essential for mileage registration.'**
+  String get onboardingLocationDescription;
+
+  /// No description provided for @onboardingLocationButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Location'**
+  String get onboardingLocationButton;
+
+  /// No description provided for @onboardingLocationAlwaysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Location'**
+  String get onboardingLocationAlwaysTitle;
+
+  /// No description provided for @onboardingLocationAlwaysDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'For automatic trip detection, we need \'Always\' access. This lets us track trips even when the app is in the background.'**
+  String get onboardingLocationAlwaysDescription;
+
+  /// No description provided for @onboardingLocationAlwaysInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap \'Open Settings\', then go to Location and select \'Always\'.'**
+  String get onboardingLocationAlwaysInstructions;
+
+  /// No description provided for @onboardingLocationAlwaysGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Background location enabled!'**
+  String get onboardingLocationAlwaysGranted;
+
+  /// No description provided for @onboardingMotionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion & Fitness'**
+  String get onboardingMotionTitle;
+
+  /// No description provided for @onboardingMotionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'We use motion sensors to detect when you\'re driving. This helps start trips automatically without draining your battery.'**
+  String get onboardingMotionDescription;
+
+  /// No description provided for @onboardingMotionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Motion Access'**
+  String get onboardingMotionButton;
+
+  /// No description provided for @onboardingHowItWorksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How it works'**
+  String get onboardingHowItWorksTitle;
+
+  /// No description provided for @onboardingHowItWorksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Zero Click uses motion sensors to detect when you\'re driving. Fully automatic!'**
+  String get onboardingHowItWorksDescription;
+
+  /// No description provided for @onboardingFeatureMotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion Detection'**
+  String get onboardingFeatureMotion;
+
+  /// No description provided for @onboardingFeatureMotionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your phone detects driving motion and automatically starts tracking. Works fully in the background.'**
+  String get onboardingFeatureMotionDesc;
+
+  /// No description provided for @onboardingFeatureBluetooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Recognition'**
+  String get onboardingFeatureBluetooth;
+
+  /// No description provided for @onboardingFeatureBluetoothDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect via Bluetooth to identify which car you\'re driving. Trips are linked to the right vehicle.'**
+  String get onboardingFeatureBluetoothDesc;
+
+  /// No description provided for @onboardingFeatureCarApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Car Account'**
+  String get onboardingFeatureCarApi;
+
+  /// No description provided for @onboardingFeatureCarApiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Link your car\'s app (myAudi, Tesla, etc.) for automatic odometer readings at trip start and end.'**
+  String get onboardingFeatureCarApiDesc;
+
+  /// No description provided for @onboardingSetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your car'**
+  String get onboardingSetupTitle;
+
+  /// No description provided for @onboardingSetupDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow these steps to get the best experience.'**
+  String get onboardingSetupDescription;
+
+  /// No description provided for @onboardingSetupStep1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your car'**
+  String get onboardingSetupStep1Title;
+
+  /// No description provided for @onboardingSetupStep1Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Give your car a name and choose a color. This helps you recognize trips later.'**
+  String get onboardingSetupStep1Desc;
+
+  /// No description provided for @onboardingSetupStep1Button.
+  ///
+  /// In en, this message translates to:
+  /// **'Add car now'**
+  String get onboardingSetupStep1Button;
+
+  /// No description provided for @onboardingSetupStep2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to your car'**
+  String get onboardingSetupStep2Title;
+
+  /// No description provided for @onboardingSetupStep2Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk to your car and turn it on. Make sure Bluetooth is enabled on your phone.'**
+  String get onboardingSetupStep2Desc;
+
+  /// No description provided for @onboardingSetupStep3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Bluetooth'**
+  String get onboardingSetupStep3Title;
+
+  /// No description provided for @onboardingSetupStep3Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair your phone with your car\'s Bluetooth. A notification will appear to link it to your car in the app.'**
+  String get onboardingSetupStep3Desc;
+
+  /// No description provided for @onboardingSetupStep4Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Link car account'**
+  String get onboardingSetupStep4Title;
+
+  /// No description provided for @onboardingSetupStep4Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your car\'s app (myAudi, Tesla, etc.) for automatic odometer readings. You can do this later in Settings.'**
+  String get onboardingSetupStep4Desc;
+
+  /// No description provided for @onboardingSetupLater.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'ll do this later'**
+  String get onboardingSetupLater;
+
+  /// No description provided for @onboardingAllSet.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all set!'**
+  String get onboardingAllSet;
+
+  /// No description provided for @onboardingAllSetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions are configured. Your trips will now be tracked automatically when you connect to your car.'**
+  String get onboardingAllSetDescription;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @tutorialDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your car'**
+  String get tutorialDialogTitle;
+
+  /// No description provided for @tutorialDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your car to get the most out of Zero Click. We\'ll link your trips to the right vehicle and read your odometer automatically.'**
+  String get tutorialDialogContent;
+
+  /// No description provided for @tutorialDialogSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add car now'**
+  String get tutorialDialogSetup;
+
+  /// No description provided for @tutorialDialogLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get tutorialDialogLater;
+
+  /// No description provided for @tutorialMyCarsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My Cars'**
+  String get tutorialMyCarsTitle;
+
+  /// No description provided for @tutorialMyCarsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap here to add and manage your cars'**
+  String get tutorialMyCarsDesc;
+
+  /// No description provided for @tutorialAddCarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a car'**
+  String get tutorialAddCarTitle;
+
+  /// No description provided for @tutorialAddCarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap here to add your first car'**
+  String get tutorialAddCarDesc;
 }
 
 class _AppLocalizationsDelegate

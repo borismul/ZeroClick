@@ -2,10 +2,69 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../l10n/generated/app_localizations.dart';
-import '../providers/app_provider.dart';
 import '../models/trip.dart';
+import '../providers/app_provider.dart';
 import 'trip_detail_screen.dart';
+
+/// Show dialog to save a location with a name
+Future<void> _showSaveLocationDialog(
+  BuildContext context, {
+  required String currentAddress,
+  required double lat,
+  required double lng,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final controller = TextEditingController();
+
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(l10n.saveLocation),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            currentAddress,
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.locationName,
+              hintText: l10n.locationNameHint,
+              border: const OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () {
+            if (controller.text.trim().isNotEmpty) {
+              Navigator.pop(context, controller.text.trim());
+            }
+          },
+          child: Text(l10n.save),
+        ),
+      ],
+    ),
+  );
+
+  if (name != null && context.mounted) {
+    final provider = context.read<AppProvider>();
+    await provider.addLocation(name: name, lat: lat, lng: lng);
+  }
+}
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -136,17 +195,9 @@ class _TripCard extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Route
-            Row(
-              children: [
-                const Icon(Icons.trip_origin, size: 16, color: Colors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    trip.fromAddress,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
+            _AddressRow(
+              trip: trip,
+              isFrom: true,
             ),
             Padding(
               padding: const EdgeInsets.only(left: 7),
@@ -156,17 +207,9 @@ class _TripCard extends StatelessWidget {
                 color: Colors.grey.withValues(alpha: 0.3),
               ),
             ),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    trip.toAddress,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
+            _AddressRow(
+              trip: trip,
+              isFrom: false,
             ),
 
             const SizedBox(height: 12),
@@ -228,5 +271,60 @@ class _TripCard extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+}
+
+/// Address row with optional save location button
+class _AddressRow extends StatelessWidget {
+  final Trip trip;
+  final bool isFrom;
+
+  const _AddressRow({
+    required this.trip,
+    required this.isFrom,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<AppProvider>();
+    final address = isFrom ? trip.fromAddress : trip.toAddress;
+    final lat = isFrom ? trip.fromLat : trip.toLat;
+    final lon = isFrom ? trip.fromLon : trip.toLon;
+    final isKnown = provider.isKnownLocation(address);
+    final canSave = !isKnown && lat != null && lon != null;
+
+    return Row(
+      children: [
+        Icon(
+          isFrom ? Icons.trip_origin : Icons.location_on,
+          size: 16,
+          color: isFrom ? Colors.green : Colors.red,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            address,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+        if (canSave)
+          GestureDetector(
+            onTap: () => _showSaveLocationDialog(
+              context,
+              currentAddress: address,
+              lat: lat,
+              lng: lon,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: const Icon(
+                Icons.add_circle_outline,
+                size: 20,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
