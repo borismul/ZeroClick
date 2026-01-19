@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2025-01-19)
 ## Current Position
 
 Phase: 5 of 8 (Flutter UI Refactoring)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-01-19 — Phase 4 complete (Flutter Provider Split)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-01-19 — Completed Phase 5 (parallel execution)
 
-Progress: ████████░░ 80%
+Progress: █████████░ 85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
-- Average duration: ~10 min
-- Total execution time: ~3h
+- Total plans completed: 20
+- Average duration: ~9 min
+- Total execution time: ~3h 10min
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: ████████░░ 80%
 | 2. iOS Native Architecture | 5/5 | ~45min | ~9min |
 | 3. Motion Detection Hardening | 2/2 | ~20min | ~10min |
 | 4. Flutter Provider Split | 4/4 | ~30min | ~8min |
+| 5. Flutter UI Refactoring | 3/3 | ~10min | ~3min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01, 03-02, 04-01, 04-02, 04-03, 04-04
-- Trend: Fast (sequential execution)
+- Last 5 plans: 04-03, 04-04, 05-01, 05-02, 05-03
+- Trend: Very fast (parallel execution)
 
 ## Accumulated Context
 
@@ -66,26 +67,23 @@ Last session: 2026-01-19
 Stopped at: Phase 4 complete
 Resume file: None
 
-## Phase 4 Flutter Provider Split Summary
+## Phase 5 Flutter UI Refactoring Summary
 
-AppProvider (954 lines) split into 4 focused providers + thin orchestrator:
+Extracted widgets from oversized screen files via parallel execution:
 
-**New Providers:**
-- `SettingsProvider` (~100 lines) - app settings, persistence, API config
-- `CarProvider` (~350 lines) - car CRUD, OAuth flows, credentials
-- `ConnectivityProvider` (~185 lines) - Bluetooth, CarPlay, offline queue
-- `TripProvider` (~450 lines) - trip lifecycle, webhooks, stats
+**05-01: OAuth WebView Screens** (Wave 1)
+- Extracted 4 OAuth screens to `mobile/lib/screens/oauth/`
+- cars_screen.dart: 2009 → 1639 lines (-370)
 
-**AppProvider** reduced to thin orchestrator (~250 lines):
-- Navigation management
-- Auto-start trip coordination
-- Cross-provider callback setup
-- Backward compatibility delegation
+**05-02: Car Widgets** (Wave 2, depends on 05-01)
+- Extracted CarCard, StatChip, OAuthLoginCard, RenaultLoginForm to `car_widgets.dart`
+- cars_screen.dart: 1639 → 1193 lines (-446)
 
-**Provider tree order:**
-```
-SettingsProvider → ApiService → CarProvider → ConnectivityProvider → TripProvider → AppProvider
-```
+**05-03: Onboarding Widgets** (Wave 1, parallel with 05-01)
+- Extracted SetupStepCard, FeatureItem to `onboarding_widgets.dart`
+- permission_onboarding_screen.dart: 969 → 816 lines (-153)
 
-All providers follow established patterns (ChangeNotifier, AppLogger, camelCase).
-App builds and runs with full trip tracking functionality.
+**Total reduction:** cars_screen.dart 2009 → 1193 lines (41% smaller)
+**New widget files:** 3 (oauth screens + car_widgets + onboarding_widgets)
+
+Parallel execution: Wave 1 (05-01, 05-03) ran simultaneously, Wave 2 (05-02) after dependency.

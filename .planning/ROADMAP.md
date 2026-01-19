@@ -19,7 +19,7 @@ None (standard Flutter/Swift development patterns)
 - [x] **Phase 2.1: iOS Testing Infrastructure** - iOS XCTests with mock services (INSERTED) ✓
 - [x] **Phase 3: Motion Detection Hardening** - Fix hysteresis, debouncing, state machine reliability ✓
 - [x] **Phase 4: Flutter Provider Split** - Break AppProvider into focused providers ✓
-- [ ] **Phase 5: Flutter UI Refactoring** - Split oversized screen files
+- [x] **Phase 5: Flutter UI Refactoring** - Split oversized screen files ✓
 - [ ] **Phase 6: Error Handling & Logging** - Crash reporting, structured logging, user feedback
 - [ ] **Phase 7: Compliance Foundation** - Privacy policy, terms of service, PrivacyInfo.xcprivacy
 - [ ] **Phase 8: App Store Preparation** - Screenshots, metadata, final verification
@@ -240,7 +240,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2.1. iOS Testing Infrastructure | 1/1 | Complete | 2026-01-19 |
 | 3. Motion Detection Hardening | 2/2 | Complete | 2026-01-19 |
 | 4. Flutter Provider Split | 4/4 | Complete | 2026-01-19 |
-| 5. Flutter UI Refactoring | 0/TBD | Not started | - |
+| 5. Flutter UI Refactoring | 3/3 | Complete | 2026-01-19 |
 | 6. Error Handling & Logging | 0/TBD | Not started | - |
 | 7. Compliance Foundation | 0/TBD | Not started | - |
 | 8. App Store Preparation | 0/TBD | Not started | - |
