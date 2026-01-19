@@ -255,7 +255,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Motion Detection Hardening | 2/2 | Complete | 2026-01-19 |
 | 4. Flutter Provider Split | 4/4 | Complete | 2026-01-19 |
 | 5. Flutter UI Refactoring | 3/3 | Complete | 2026-01-19 |
-| 6.1. Firestore Optimization | 0/1 | **URGENT** | - |
+| 6.1. Firestore Optimization | 1/1 | Complete | 2026-01-19 |
 | 6. Error Handling & Logging | 0/4 | Planned | - |
 | 7. Compliance Foundation | 0/TBD | Not started | - |
 | 8. App Store Preparation | 0/TBD | Not started | - |
