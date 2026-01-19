@@ -9,6 +9,7 @@ import 'providers/app_provider.dart';
 import 'providers/car_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/trip_provider.dart';
 import 'services/api_service.dart';
 import 'screens/cars_screen.dart';
 import 'screens/charging_map_screen.dart';
@@ -73,16 +74,28 @@ class ZeroClickApp extends StatelessWidget {
             update: (context, api, carProvider, previous) =>
                 previous ?? (ConnectivityProvider(api, carProvider)..init()),
           ),
-          // AppProvider depends on SettingsProvider, CarProvider, ConnectivityProvider, and ApiService
-          ChangeNotifierProxyProvider4<SettingsProvider, CarProvider, ConnectivityProvider, ApiService, AppProvider>(
+          // TripProvider depends on ApiService, CarProvider, ConnectivityProvider
+          ChangeNotifierProxyProvider3<ApiService, CarProvider, ConnectivityProvider, TripProvider>(
+            create: (context) => TripProvider(
+              context.read<ApiService>(),
+              context.read<CarProvider>(),
+              context.read<ConnectivityProvider>(),
+            ),
+            update: (context, api, carProvider, connectivityProvider, previous) =>
+                previous ?? TripProvider(api, carProvider, connectivityProvider),
+          ),
+          // AppProvider depends on SettingsProvider, CarProvider, ConnectivityProvider, TripProvider, and ApiService
+          ChangeNotifierProxyProvider5<SettingsProvider, CarProvider, ConnectivityProvider, TripProvider, ApiService,
+              AppProvider>(
             create: (context) => AppProvider(
               context.read<SettingsProvider>(),
               context.read<CarProvider>(),
               context.read<ConnectivityProvider>(),
+              context.read<TripProvider>(),
               context.read<ApiService>(),
             ),
-            update: (context, settings, carProvider, connectivityProvider, api, previous) =>
-                previous ?? AppProvider(settings, carProvider, connectivityProvider, api),
+            update: (context, settings, carProvider, connectivityProvider, tripProvider, api, previous) =>
+                previous ?? AppProvider(settings, carProvider, connectivityProvider, tripProvider, api),
           ),
         ],
         child: Consumer<AppProvider>(
