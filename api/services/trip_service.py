@@ -28,35 +28,82 @@ class TripService:
         year: int | None = None,
         month: int | None = None,
         car_id: str | None = None,
-        page: int = 1,
+        cursor: str | None = None,
         limit: int = 50,
-    ) -> Sequence[Trip]:
-        """Get trips with optional filtering, sorted by date/time descending."""
+    ) -> tuple[Sequence[Trip], str | None]:
+        """
+        Get trips with cursor-based pagination.
+
+        Args:
+            user_id: User ID
+            year: Optional year filter
+            month: Optional month filter (requires year)
+            car_id: Optional car ID filter (uses Firestore query, not client-side)
+            cursor: Document ID to start after (for pagination)
+            limit: Number of trips to return
+
+        Returns:
+            Tuple of (trips, next_cursor) where next_cursor is None if no more results
+        """
         db = get_db()
-        # Sort by document ID descending - IDs are YYYYMMDD-HHMM-XXX format
+
+        # Build query with user_id filter
         query = db.collection("trips").where(
             filter=firestore.FieldFilter("user_id", "==", user_id)
-        ).order_by(
-            "__name__", direction=firestore.Query.DESCENDING
         )
 
+        # Add car_id filter directly to query (eliminates client-side filtering)
+        # Note: Requires composite index (user_id, car_id, __name__)
+        if car_id:
+            query = query.where(
+                filter=firestore.FieldFilter("car_id", "==", car_id)
+            )
+
+        # Add date filters
         if year and month:
             start = f"{month:02d}-{year}"
             end = f"{month:02d}-{year}"
             query = query.where(filter=firestore.FieldFilter("date", ">=", f"01-{start}"))
             query = query.where(filter=firestore.FieldFilter("date", "<=", f"31-{end}"))
 
-        # Pagination: skip (page-1)*limit items
-        offset = (page - 1) * limit
+        # Sort by document ID descending - IDs are YYYYMMDD-HHMM-XXX format
+        query = query.order_by("__name__", direction=firestore.Query.DESCENDING)
 
-        # If car_id filter is specified, filter trips by exact match
-        if car_id:
-            docs = list(query.limit((offset + limit) * 3).stream())
-            filtered_docs = [doc for doc in docs if doc.to_dict().get("car_id") == car_id]
-            return [self._doc_to_trip(doc) for doc in filtered_docs[offset:offset + limit]]
-        else:
-            docs = list(query.limit(offset + limit).stream())
-            return [self._doc_to_trip(doc) for doc in docs[offset:]]
+        # Apply cursor if provided (cursor is document ID)
+        if cursor:
+            cursor_doc = db.collection("trips").document(cursor).get()
+            if cursor_doc.exists:
+                query = query.start_after(cursor_doc)
+
+        # Fetch limit + 1 to detect if there are more results
+        docs = list(query.limit(limit + 1).stream())
+
+        # Determine if there are more results
+        has_more = len(docs) > limit
+        if has_more:
+            docs = docs[:limit]
+
+        trips = [self._doc_to_trip(doc) for doc in docs]
+        next_cursor = docs[-1].id if has_more and docs else None
+
+        return trips, next_cursor
+
+    def get_trips_legacy(
+        self,
+        user_id: str,
+        year: int | None = None,
+        month: int | None = None,
+        car_id: str | None = None,
+        page: int = 1,
+        limit: int = 50,
+    ) -> Sequence[Trip]:
+        """
+        Legacy offset-based pagination (for backwards compatibility).
+        NOTE: Inefficient - use get_trips() with cursor instead.
+        """
+        trips, _ = self.get_trips(user_id, year, month, car_id, cursor=None, limit=page * limit)
+        offset = (page - 1) * limit
+        return trips[offset:offset + limit]
 
     def get_trip(self, trip_id: str) -> Trip | None:
         """Get single trip by ID."""

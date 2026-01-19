@@ -3,8 +3,10 @@ Trip routes.
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Depends
+from pydantic import BaseModel
 
 from models.trip import Trip, TripUpdate, ManualTrip, FullTrip
 from auth.dependencies import get_current_user
@@ -13,17 +15,38 @@ from services.trip_service import trip_service
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
-@router.get("", response_model=Sequence[Trip])
+class TripsResponse(BaseModel):
+    """Response for trips list with cursor pagination."""
+    trips: list[Trip]
+    next_cursor: str | None = None
+
+
+@router.get("")
 def get_trips(
     year: int | None = None,
     month: int | None = None,
     car_id: str | None = None,
-    page: int = Query(default=1, ge=1),
+    cursor: str | None = None,
+    page: int | None = Query(default=None, ge=1),
     limit: int = Query(default=50, le=100),
     user_id: str = Depends(get_current_user),
-):
-    """Get trips with optional filtering, sorted by date/time descending."""
-    return trip_service.get_trips(user_id, year, month, car_id, page, limit)
+) -> TripsResponse | Sequence[Trip]:
+    """
+    Get trips with optional filtering, sorted by date/time descending.
+
+    Supports two pagination modes:
+    - Cursor-based (preferred): Use `cursor` parameter for efficient pagination
+    - Legacy page-based: Use `page` parameter (deprecated, less efficient)
+
+    Returns TripsResponse with next_cursor for cursor-based, or list of trips for legacy.
+    """
+    if page is not None:
+        # Legacy mode: page-based pagination (for backwards compatibility)
+        return trip_service.get_trips_legacy(user_id, year, month, car_id, page, limit)
+
+    # Cursor-based pagination (efficient)
+    trips, next_cursor = trip_service.get_trips(user_id, year, month, car_id, cursor, limit)
+    return TripsResponse(trips=list(trips), next_cursor=next_cursor)
 
 
 @router.post("", response_model=Trip)
