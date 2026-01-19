@@ -20,6 +20,7 @@ None (standard Flutter/Swift development patterns)
 - [x] **Phase 3: Motion Detection Hardening** - Fix hysteresis, debouncing, state machine reliability ✓
 - [x] **Phase 4: Flutter Provider Split** - Break AppProvider into focused providers ✓
 - [x] **Phase 5: Flutter UI Refactoring** - Split oversized screen files ✓
+- [ ] **Phase 6.1: Firestore Optimization** - Fix 590K reads/day via smart polling, denormalization (INSERTED/URGENT)
 - [ ] **Phase 6: Error Handling & Logging** - Crash reporting, structured logging, user feedback
 - [ ] **Phase 7: Compliance Foundation** - Privacy policy, terms of service, PrivacyInfo.xcprivacy
 - [ ] **Phase 8: App Store Preparation** - Screenshots, metadata, final verification
@@ -185,6 +186,19 @@ Key deliverables:
   - AuthFlowPage widget
 - **Widget tests for new components**
 
+### Phase 6.1: Firestore Optimization (INSERTED/URGENT)
+**Goal**: Fix critical Firestore read inefficiencies causing ~590,000 reads/day for single user
+**Depends on**: Phase 5 (no code dependencies, inserted for cost urgency)
+**Research**: Complete (polling vs listeners, denormalization, cursor pagination)
+**Plans**: 1
+
+Key issues fixed:
+- Watch app polls every 30s with full refresh → 5-min idle, 30s lightweight during trips
+- N+1 car stats query (reads ALL trips per car) → Denormalize stats into car document
+- Trip pagination uses offset×3 → Cursor-based pagination
+
+Expected impact: ~95% reduction in Firestore reads (~590K → ~5K/day)
+
 ### Phase 6: Error Handling & Logging
 **Goal**: Production-grade error handling and crash reporting
 **Depends on**: Phase 5
@@ -241,6 +255,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Motion Detection Hardening | 2/2 | Complete | 2026-01-19 |
 | 4. Flutter Provider Split | 4/4 | Complete | 2026-01-19 |
 | 5. Flutter UI Refactoring | 3/3 | Complete | 2026-01-19 |
-| 6. Error Handling & Logging | 0/TBD | Not started | - |
+| 6.1. Firestore Optimization | 0/1 | **URGENT** | - |
+| 6. Error Handling & Logging | 0/4 | Planned | - |
 | 7. Compliance Foundation | 0/TBD | Not started | - |
 | 8. App Store Preparation | 0/TBD | Not started | - |
