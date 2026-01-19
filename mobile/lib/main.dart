@@ -6,7 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'models/settings.dart';
 import 'providers/app_provider.dart';
+import 'providers/car_provider.dart';
 import 'providers/settings_provider.dart';
+import 'services/api_service.dart';
 import 'screens/cars_screen.dart';
 import 'screens/charging_map_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -43,10 +45,33 @@ class ZeroClickApp extends StatelessWidget {
   Widget build(BuildContext context) => MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => SettingsProvider()),
-          ChangeNotifierProxyProvider<SettingsProvider, AppProvider>(
-            create: (context) => AppProvider(context.read<SettingsProvider>()),
-            update: (context, settings, previous) =>
-                previous ?? AppProvider(settings),
+          // ApiService depends on SettingsProvider for URL and email
+          ProxyProvider<SettingsProvider, ApiService>(
+            update: (context, settings, previous) {
+              if (previous != null) {
+                previous.updateConfig(settings.apiUrl, settings.userEmail);
+                return previous;
+              }
+              return ApiService(
+                baseUrl: settings.apiUrl,
+                userEmail: settings.userEmail,
+              );
+            },
+          ),
+          // CarProvider depends on ApiService
+          ChangeNotifierProxyProvider<ApiService, CarProvider>(
+            create: (context) => CarProvider(context.read<ApiService>()),
+            update: (context, api, previous) => previous ?? CarProvider(api),
+          ),
+          // AppProvider depends on SettingsProvider, CarProvider, and ApiService
+          ChangeNotifierProxyProvider3<SettingsProvider, CarProvider, ApiService, AppProvider>(
+            create: (context) => AppProvider(
+              context.read<SettingsProvider>(),
+              context.read<CarProvider>(),
+              context.read<ApiService>(),
+            ),
+            update: (context, settings, carProvider, api, previous) =>
+                previous ?? AppProvider(settings, carProvider, api),
           ),
         ],
         child: Consumer<AppProvider>(

@@ -25,11 +25,7 @@ import 'settings_provider.dart';
 typedef UnknownDeviceCallback = void Function(String deviceName);
 
 class AppProvider extends ChangeNotifier {
-  AppProvider(this._settingsProvider, this._carProvider) {
-    _api = ApiService(
-      baseUrl: _settingsProvider.apiUrl,
-      userEmail: _settingsProvider.userEmail,
-    );
+  AppProvider(this._settingsProvider, this._carProvider, this._api) {
     _location = LocationService();
     _offlineQueue = OfflineQueue(_api);
     _carPlay = CarPlayService();
@@ -46,8 +42,8 @@ class AppProvider extends ChangeNotifier {
   final SettingsProvider _settingsProvider;
   final CarProvider _carProvider;
 
-  // Services
-  late ApiService _api;
+  // Services (shared ApiService from provider tree)
+  final ApiService _api;
   late LocationService _location;
   late OfflineQueue _offlineQueue;
   late CarPlayService _carPlay;
@@ -106,6 +102,11 @@ class AppProvider extends ChangeNotifier {
   CarData? get carData => _carProvider.carData;
   bool get isLoadingCars => _carProvider.isLoadingCars;
   bool get isLoadingCarData => _carProvider.isLoadingCarData;
+
+  // Delegate car methods for backward compatibility
+  void selectCar(Car car) => _carProvider.selectCar(car);
+  Future<void> refreshCars() => _carProvider.refreshCars();
+  Future<void> refreshCarData() => _carProvider.refreshCarData();
 
   // Navigation getter
   int get navigationIndex => _navigationIndex;

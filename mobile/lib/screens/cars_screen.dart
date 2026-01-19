@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../l10n/generated/app_localizations.dart';
-import '../providers/app_provider.dart';
 import '../models/car.dart';
+import '../providers/app_provider.dart';
+import '../providers/car_provider.dart';
 import '../utils/color_utils.dart';
 
 class CarsScreen extends StatefulWidget {
@@ -75,7 +76,7 @@ class _CarsScreenState extends State<CarsScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () => provider.refreshCars(),
+            onRefresh: () => context.read<CarProvider>().refreshCars(),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: provider.cars.length,
@@ -307,9 +308,9 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
   }
 
   Future<void> _checkExistingCredentials() async {
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
     try {
-      final creds = await provider.getCarCredentials(widget.car!.id);
+      final creds = await carProvider.getCarCredentials(widget.car!.id);
       if (creds != null && mounted) {
         // Has credentials - show connected state
         setState(() => _apiTestResult = 'success');
@@ -320,9 +321,9 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
   }
 
   Future<void> _logout() async {
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
     try {
-      await provider.deleteCarCredentials(widget.car!.id);
+      await carProvider.deleteCarCredentials(widget.car!.id);
       if (mounted) {
         setState(() => _apiTestResult = null);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -812,11 +813,11 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
     setState(() => _isSaving = true);
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
       if (isEditing) {
-        await provider.updateCar(
+        await carProvider.updateCar(
           widget.car!.id,
           name: _nameController.text.trim(),
           brand: _brand,
@@ -826,7 +827,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
           carplayDeviceId: _deviceIdController.text.trim().isEmpty ? null : _deviceIdController.text.trim(),
         );
       } else {
-        await provider.createCar(
+        await carProvider.createCar(
           name: _nameController.text.trim(),
           brand: _brand,
           color: _color,
@@ -880,10 +881,10 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
     if (confirmed != true) return;
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
-      await provider.deleteCar(widget.car!.id);
+      await carProvider.deleteCar(widget.car!.id);
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -922,10 +923,10 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       _apiTestResult = null;
     });
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
-      final result = await provider.testCarCredentials(
+      final result = await carProvider.testCarCredentials(
         widget.car!.id,
         CarCredentials(
           brand: _brand,
@@ -979,10 +980,10 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
       return;
     }
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
-      await provider.saveCarCredentials(
+      await carProvider.saveCarCredentials(
         widget.car!.id,
         CarCredentials(
           brand: _brand,
@@ -1013,11 +1014,11 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
     final l10n = AppLocalizations.of(context);
     setState(() => _isTestingApi = true);
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
       // Get Tesla auth URL from API
-      final authUrl = await provider.getTeslaAuthUrl(widget.car!.id);
+      final authUrl = await carProvider.getTeslaAuthUrl(widget.car!.id);
 
       if (authUrl == null) {
         if (mounted) {
@@ -1042,7 +1043,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
         if (callbackUrl != null && callbackUrl.isNotEmpty) {
           // Complete the OAuth flow
-          final success = await provider.completeTeslaAuth(
+          final success = await carProvider.completeTeslaAuth(
             widget.car!.id,
             callbackUrl,
           );
@@ -1052,7 +1053,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
               // Set success state to show green connected card
               setState(() => _apiTestResult = 'success');
               // Refresh car data so dashboard shows updated info
-              provider.refreshCarData();
+              carProvider.refreshCarData();
             }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1082,11 +1083,11 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
   Future<void> _loginWithAudi() async {
     setState(() => _isTestingApi = true);
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
       // Get Audi auth URL from API
-      final authUrl = await provider.getAudiAuthUrl(widget.car!.id);
+      final authUrl = await carProvider.getAudiAuthUrl(widget.car!.id);
 
       if (authUrl == null) {
         if (mounted) {
@@ -1111,7 +1112,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
         if (redirectUrl != null && redirectUrl.isNotEmpty) {
           // Complete the OAuth flow
-          final result = await provider.completeAudiAuth(
+          final result = await carProvider.completeAudiAuth(
             widget.car!.id,
             redirectUrl,
           );
@@ -1124,7 +1125,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
               // Set success state to show green connected card
               setState(() => _apiTestResult = 'success');
               // Refresh car data so dashboard shows updated info
-              provider.refreshCarData();
+              carProvider.refreshCarData();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Audi gekoppeld${vin != null ? ' (VIN: $vin)' : ''}'),
@@ -1159,7 +1160,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
   Future<void> _loginWithVWGroup(String brand) async {
     setState(() => _isTestingApi = true);
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     // Brand display names for UI
     final brandNames = {
@@ -1172,7 +1173,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
     try {
       // Get VW Group auth URL from API
-      final authData = await provider.getVWGroupAuthUrl(widget.car!.id, brand);
+      final authData = await carProvider.getVWGroupAuthUrl(widget.car!.id, brand);
       final authUrl = authData['auth_url'] as String?;
       final redirectUri = authData['redirect_uri'] as String?;
 
@@ -1204,7 +1205,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
         if (redirectUrl != null && redirectUrl.isNotEmpty) {
           // Complete the OAuth flow
-          final result = await provider.completeVWGroupAuth(
+          final result = await carProvider.completeVWGroupAuth(
             widget.car!.id,
             brand,
             redirectUrl,
@@ -1217,7 +1218,7 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
               // Set success state to show green connected card
               setState(() => _apiTestResult = 'success');
               // Refresh car data so dashboard shows updated info
-              provider.refreshCarData();
+              carProvider.refreshCarData();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('$displayName gekoppeld'),
@@ -1263,11 +1264,11 @@ class _AddEditCarScreenState extends State<AddEditCarScreen> {
 
     setState(() => _isTestingApi = true);
 
-    final provider = context.read<AppProvider>();
+    final carProvider = context.read<CarProvider>();
 
     try {
       // Direct login via Gigya API
-      final result = await provider.renaultDirectLogin(
+      final result = await carProvider.renaultDirectLogin(
         widget.car!.id,
         _usernameController.text.trim(),
         _passwordController.text,
