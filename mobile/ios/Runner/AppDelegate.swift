@@ -1,27 +1,31 @@
 import Flutter
 import UIKit
 import CoreLocation
-import CoreMotion
-import WatchConnectivity
-import ActivityKit
 import UserNotifications
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, CLLocationManagerDelegate, WCSessionDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
 
-    // MARK: - Properties
+    // MARK: - Services
+
+    private var locationService: LocationTrackingServiceProtocol!
+    private var motionHandler: MotionActivityHandlerProtocol!
+    private var liveActivityManager: LiveActivityManagerProtocol!
+    private var watchService: WatchConnectivityServiceProtocol!
+
+    // MARK: - Flutter Channels
+
     private var backgroundChannel: FlutterMethodChannel?
     private var debugChannel: FlutterMethodChannel?
-    private var locationManager: CLLocationManager!
-    private var motionManager: CMMotionActivityManager!
-    private var wcSession: WCSession?
 
-    // API config
+    // MARK: - API Config
+
     private var apiBaseUrl: String?
     private var userEmail: String?
     private var activeCarId: String?  // Set by Flutter when Bluetooth identifies car
 
-    // Drive state
+    // MARK: - Drive State
+
     private var isDriving = false
     private var isActivelyTracking = false
     private var lastLocation: CLLocation?
@@ -29,11 +33,13 @@ import UserNotifications
     private var pingTimer: Timer?
     private var totalDistanceMeters: Double = 0
 
-    // Debounce
+    // MARK: - Debounce
+
     private var lastApiCallTime: Date?
     private var lastPingTime: Date?
 
     // MARK: - Debug Logging
+
     private func debugLog(_ tag: String, _ message: String) {
         print("[\(tag)] \(message)")
         DispatchQueue.main.async { [weak self] in
@@ -62,227 +68,158 @@ import UserNotifications
 
         // Setup Flutter channels
         if let controller = window?.rootViewController as? FlutterViewController {
-            // Debug channel for sending logs to Flutter
-            debugChannel = FlutterMethodChannel(
-                name: "com.zeroclick/debug",
-                binaryMessenger: controller.binaryMessenger
-            )
-
-            backgroundChannel = FlutterMethodChannel(
-                name: "com.zeroclick/background",
-                binaryMessenger: controller.binaryMessenger
-            )
-
-            backgroundChannel?.setMethodCallHandler { [weak self] (call, result) in
-                switch call.method {
-                case "setApiConfig":
-                    if let args = call.arguments as? [String: Any],
-                       let baseUrl = args["baseUrl"] as? String,
-                       let email = args["userEmail"] as? String {
-                        self?.apiBaseUrl = baseUrl
-                        self?.userEmail = email
-                        UserDefaults.standard.set(baseUrl, forKey: "api_base_url")
-                        UserDefaults.standard.set(email, forKey: "user_email")
-                        // Save email to iCloud Keychain (syncs to Watch)
-                        KeychainHelper.shared.saveEmail(email)
-                        // Sync to Watch via WatchConnectivity (token will be sent separately)
-                        self?.syncToWatch(email: email, apiUrl: baseUrl, token: nil)
-                        print("[Config] API: \(baseUrl), User: \(email)")
-                        result(true)
-                    } else {
-                        result(false)
-                    }
-                case "setAuthToken":
-                    if let args = call.arguments as? [String: Any],
-                       let token = args["token"] as? String {
-                        // Save access token to iCloud Keychain (syncs to Watch automatically)
-                        if token.isEmpty {
-                            KeychainHelper.shared.deleteToken()
-                        } else {
-                            KeychainHelper.shared.saveToken(token)
-                        }
-                        // Save refresh token if provided
-                        if let refreshToken = args["refreshToken"] as? String {
-                            if refreshToken.isEmpty {
-                                KeychainHelper.shared.deleteRefreshToken()
-                            } else {
-                                KeychainHelper.shared.saveRefreshToken(refreshToken)
-                            }
-                            print("[Config] Access + refresh tokens saved to iCloud Keychain")
-                        } else {
-                            print("[Config] Access token saved to iCloud Keychain")
-                        }
-                        result(true)
-                    } else {
-                        result(false)
-                    }
-                case "startBackgroundMonitoring":
-                    // Setup managers if not already done (after onboarding)
-                    if self?.locationManager == nil {
-                        self?.setupLocationManager()
-                        self?.setupMotionManager()
-                    }
-                    self?.startMonitoring()
-                    result(true)
-                case "stopBackgroundMonitoring":
-                    self?.stopMonitoring()
-                    result(true)
-                case "isMonitoring":
-                    result(self?.locationManager != nil)
-                case "isActivelyTracking":
-                    result(self?.isActivelyTracking ?? false)
-                case "setActiveCarId":
-                    if let args = call.arguments as? [String: Any] {
-                        self?.activeCarId = args["carId"] as? String
-                        print("[Config] Active car ID: \(self?.activeCarId ?? "nil")")
-                        result(true)
-                    } else {
-                        result(false)
-                    }
-                case "notifyWatchTripStarted":
-                    self?.notifyWatchTripStarted()
-                    result(true)
-                case "startTrip":
-                    // Flutter already shows notification, skip native one
-                    self?.startDriveTracking(showNotification: false)
-                    result(true)
-                case "endTrip":
-                    self?.stopDriveTracking()
-                    result(true)
-                default:
-                    result(FlutterMethodNotImplemented)
-                }
-            }
+            setupFlutterChannels(controller: controller)
         }
 
         // Load saved config
         apiBaseUrl = UserDefaults.standard.string(forKey: "api_base_url")
         userEmail = UserDefaults.standard.string(forKey: "user_email")
 
-        // Setup WatchConnectivity
-        setupWatchConnectivity()
+        // Setup services
+        setupServices()
 
-        // Only setup and start monitoring if onboarding already complete
+        // Only start monitoring if onboarding already complete
         let onboardingComplete = UserDefaults.standard.bool(forKey: "flutter.onboarding_complete")
         if onboardingComplete {
-            setupLocationManager()
-            setupMotionManager()
-            startMonitoring()
+            startServices()
         } else {
             print("[Monitor] Waiting for onboarding to complete")
         }
 
-
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
-    // MARK: - Location Manager Setup
+    // MARK: - Flutter Channel Setup
 
-    private func setupLocationManager() {
-        locationManager = CLLocationManager()
-        locationManager.delegate = self
-        locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.activityType = .automotiveNavigation
+    private func setupFlutterChannels(controller: FlutterViewController) {
+        // Debug channel for sending logs to Flutter
+        debugChannel = FlutterMethodChannel(
+            name: "com.zeroclick/debug",
+            binaryMessenger: controller.binaryMessenger
+        )
 
-        // Start with low accuracy to save battery
-        setLowAccuracy()
-    }
+        backgroundChannel = FlutterMethodChannel(
+            name: "com.zeroclick/background",
+            binaryMessenger: controller.binaryMessenger
+        )
 
-    private func setHighAccuracy() {
-        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-        locationManager.distanceFilter = kCLDistanceFilterNone
-        if #available(iOS 11.0, *) {
-            locationManager.showsBackgroundLocationIndicator = true
-        }
-        print("[Location] High accuracy mode")
-    }
-
-    private func setLowAccuracy() {
-        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
-        locationManager.distanceFilter = 500
-        if #available(iOS 11.0, *) {
-            locationManager.showsBackgroundLocationIndicator = false
-        }
-        print("[Location] Low accuracy mode (battery saver)")
-    }
-
-    // MARK: - Motion Manager Setup
-
-    private func setupMotionManager() {
-        motionManager = CMMotionActivityManager()
-    }
-
-    // MARK: - Monitoring
-
-    private func startMonitoring() {
-        print("[Monitor] Starting...")
-
-        // Request location permission
-        let status: CLAuthorizationStatus
-        if #available(iOS 14.0, *) {
-            status = locationManager.authorizationStatus
-        } else {
-            status = CLLocationManager.authorizationStatus()
-        }
-
-        if status == .notDetermined {
-            locationManager.requestAlwaysAuthorization()
-        } else if status == .authorizedAlways || status == .authorizedWhenInUse {
-            locationManager.startUpdatingLocation()
-            locationManager.startMonitoringSignificantLocationChanges()
-            startMotionUpdates()
-            print("[Monitor] Location updates started")
+        backgroundChannel?.setMethodCallHandler { [weak self] (call, result) in
+            switch call.method {
+            case "setApiConfig":
+                self?.handleSetApiConfig(call: call, result: result)
+            case "setAuthToken":
+                self?.handleSetAuthToken(call: call, result: result)
+            case "startBackgroundMonitoring":
+                self?.startServices()
+                result(true)
+            case "stopBackgroundMonitoring":
+                self?.stopServices()
+                result(true)
+            case "isMonitoring":
+                result(self?.locationService?.isMonitoring ?? false)
+            case "isActivelyTracking":
+                result(self?.isActivelyTracking ?? false)
+            case "setActiveCarId":
+                if let args = call.arguments as? [String: Any] {
+                    self?.activeCarId = args["carId"] as? String
+                    print("[Config] Active car ID: \(self?.activeCarId ?? "nil")")
+                    result(true)
+                } else {
+                    result(false)
+                }
+            case "notifyWatchTripStarted":
+                self?.watchService.notifyTripStarted()
+                result(true)
+            case "startTrip":
+                // Flutter already shows notification, skip native one
+                self?.startDriveTracking(showNotification: false)
+                result(true)
+            case "endTrip":
+                self?.stopDriveTracking()
+                result(true)
+            default:
+                result(FlutterMethodNotImplemented)
+            }
         }
     }
 
-    private func stopMonitoring() {
-        print("[Monitor] Stopping...")
-        locationManager.stopUpdatingLocation()
-        locationManager.stopMonitoringSignificantLocationChanges()
-        motionManager.stopActivityUpdates()
-        stopDriveTracking()
-    }
-
-    private func startMotionUpdates() {
-        guard CMMotionActivityManager.isActivityAvailable() else {
-            print("[Motion] Activity not available on this device")
+    private func handleSetApiConfig(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let baseUrl = args["baseUrl"] as? String,
+              let email = args["userEmail"] as? String else {
+            result(false)
             return
         }
 
-        motionManager.startActivityUpdates(to: .main) { [weak self] activity in
-            guard let activity = activity else { return }
-            self?.handleMotionActivity(activity)
-        }
-        print("[Motion] Activity updates started")
+        apiBaseUrl = baseUrl
+        userEmail = email
+        UserDefaults.standard.set(baseUrl, forKey: "api_base_url")
+        UserDefaults.standard.set(email, forKey: "user_email")
+        // Save email to iCloud Keychain (syncs to Watch)
+        KeychainHelper.shared.saveEmail(email)
+        // Sync to Watch via WatchConnectivity (token will be sent separately)
+        watchService.syncConfig(email: email, apiUrl: baseUrl, token: nil)
+        print("[Config] API: \(baseUrl), User: \(email)")
+        result(true)
     }
 
-    // MARK: - Motion Activity Handling
-
-    private func handleMotionActivity(_ activity: CMMotionActivity) {
-        let wasdriving = isDriving
-
-        if activity.automotive && activity.confidence != .low {
-            isDriving = true
-            if !wasdriving {
-                let appState = UIApplication.shared.applicationState.rawValue
-                debugLog("Motion", "Started DRIVING - triggering startDriveTracking()")
-                debugLog("Motion", "App state: \(appState) (0=active, 1=inactive, 2=background)")
-                startDriveTracking()
-            }
-        } else if activity.stationary && activity.confidence != .low {
-            if isDriving {
-                debugLog("Motion", "Stopped driving (stationary)")
-                // Don't immediately stop - wait for a few stationary readings
-                // The backend handles this via parked_count
-            }
-        } else if (activity.walking || activity.running) && activity.confidence != .low {
-            if isDriving {
-                debugLog("Motion", "Stopped driving (walking/running)")
-                isDriving = false
-                stopDriveTracking()
-            }
+    private func handleSetAuthToken(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let token = args["token"] as? String else {
+            result(false)
+            return
         }
+
+        // Save access token to iCloud Keychain (syncs to Watch automatically)
+        if token.isEmpty {
+            KeychainHelper.shared.deleteToken()
+        } else {
+            KeychainHelper.shared.saveToken(token)
+        }
+        // Save refresh token if provided
+        if let refreshToken = args["refreshToken"] as? String {
+            if refreshToken.isEmpty {
+                KeychainHelper.shared.deleteRefreshToken()
+            } else {
+                KeychainHelper.shared.saveRefreshToken(refreshToken)
+            }
+            print("[Config] Access + refresh tokens saved to iCloud Keychain")
+        } else {
+            print("[Config] Access token saved to iCloud Keychain")
+        }
+        result(true)
+    }
+
+    // MARK: - Service Setup
+
+    private func setupServices() {
+        // Create services
+        locationService = LocationTrackingService()
+        locationService.delegate = self
+
+        motionHandler = MotionActivityHandler()
+        motionHandler.delegate = self
+
+        liveActivityManager = createLiveActivityManager()
+
+        watchService = WatchConnectivityService()
+        watchService.delegate = self
+        watchService.setup()
+    }
+
+    private func startServices() {
+        locationService.setupLocationManager()
+        motionHandler.setupMotionManager()
+        locationService.startMonitoring()
+        motionHandler.startActivityUpdates()
+        print("[Monitor] Services started")
+    }
+
+    private func stopServices() {
+        locationService.stopMonitoring()
+        motionHandler.stopActivityUpdates()
+        stopDriveTracking()
+        print("[Monitor] Services stopped")
     }
 
     // MARK: - Notifications
@@ -323,7 +260,7 @@ import UserNotifications
         totalDistanceMeters = 0
 
         // Switch to high accuracy FIRST
-        setHighAccuracy()
+        locationService.setHighAccuracy()
 
         // Show push notification for trip tracking (skip if Flutter already showed one)
         if showNotification {
@@ -332,12 +269,12 @@ import UserNotifications
 
         debugLog("Drive", "Starting Live Activity...")
         // Start Live Activity (shows on Lock Screen + Dynamic Island + Watch Smart Stack)
-        startLiveActivity()
+        liveActivityManager.startActivity(carName: activeCarId ?? "Auto", startTime: driveStartTime ?? Date())
 
         // Wait 2 sec for fresh GPS before first ping
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard let self = self, self.isActivelyTracking else { return }
-            if let location = self.locationManager.location {
+            if let location = self.locationService.lastLocation {
                 self.callStartTripAPI(lat: location.coordinate.latitude, lng: location.coordinate.longitude)
             }
         }
@@ -366,13 +303,13 @@ import UserNotifications
         isActivelyTracking = false
         pingTimer?.invalidate()
         pingTimer = nil
-        setLowAccuracy()
+        locationService.setLowAccuracy()
 
         // End Live Activity
-        endLiveActivity()
+        liveActivityManager.endActivity()
 
         // Send end event
-        if let location = lastLocation ?? locationManager.location {
+        if let location = lastLocation ?? locationService.lastLocation {
             callEndTripAPI(lat: location.coordinate.latitude, lng: location.coordinate.longitude)
         }
 
@@ -384,7 +321,7 @@ import UserNotifications
 
     private func sendPing() {
         guard isActivelyTracking else { return }
-        guard let location = locationManager.location else {
+        guard let location = locationService.lastLocation else {
             print("[Ping] No location available")
             return
         }
@@ -402,53 +339,6 @@ import UserNotifications
             "latitude": location.coordinate.latitude,
             "longitude": location.coordinate.longitude
         ])
-    }
-
-    // MARK: - CLLocationManagerDelegate
-
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-
-        // During active tracking, accumulate distance and update Live Activity
-        if isActivelyTracking {
-            if let previous = lastLocation {
-                let distance = location.distance(from: previous)
-                // Only count if reasonable (< 1km between updates, good accuracy)
-                if distance < 1000 && location.horizontalAccuracy < 50 {
-                    totalDistanceMeters += distance
-                }
-            }
-
-            // Update Live Activity with current stats
-            let distanceKm = totalDistanceMeters / 1000.0
-            let durationMinutes = Int(Date().timeIntervalSince(driveStartTime ?? Date()) / 60)
-            let avgSpeed = durationMinutes > 0 ? (distanceKm / (Double(durationMinutes) / 60.0)) : 0
-            updateLiveActivity(distanceKm: distanceKm, durationMinutes: durationMinutes, avgSpeed: avgSpeed)
-
-            sendPing()
-        }
-
-        lastLocation = location
-    }
-
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("[Location] Error: \(error.localizedDescription)")
-    }
-
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status: CLAuthorizationStatus
-        if #available(iOS 14.0, *) {
-            status = manager.authorizationStatus
-        } else {
-            status = CLLocationManager.authorizationStatus()
-        }
-        print("[Location] Authorization: \(status.rawValue)")
-
-        if status == .authorizedAlways || status == .authorizedWhenInUse {
-            manager.startUpdatingLocation()
-            manager.startMonitoringSignificantLocationChanges()
-            startMotionUpdates()
-        }
     }
 
     // MARK: - API Calls
@@ -489,7 +379,7 @@ import UserNotifications
                 print("[API] Response: \(httpResponse.statusCode)")
                 if httpResponse.statusCode == 200 {
                     // Notify watch that trip started
-                    self?.notifyWatchTripStarted()
+                    self?.watchService.notifyTripStarted()
                 }
             }
         }.resume()
@@ -558,271 +448,89 @@ import UserNotifications
             }
         }.resume()
     }
+}
 
-    // MARK: - WatchConnectivity
+// MARK: - LocationTrackingServiceDelegate
 
-    private func setupWatchConnectivity() {
-        guard WCSession.isSupported() else {
-            print("[Watch] WatchConnectivity not supported")
-            return
-        }
-        wcSession = WCSession.default
-        wcSession?.delegate = self
-        wcSession?.activate()
-        print("[Watch] WatchConnectivity activated")
-    }
-
-    private func syncToWatch(email: String, apiUrl: String, token: String?) {
-        guard let session = wcSession, session.isPaired, session.isWatchAppInstalled else {
-            print("[Watch] Watch not paired or app not installed")
-            return
-        }
-
-        var context: [String: Any] = [
-            "userEmail": email,
-            "apiUrl": apiUrl
-        ]
-        if let token = token {
-            context["authToken"] = token
-        }
-
-        do {
-            try session.updateApplicationContext(context)
-            print("[Watch] Synced context to watch: \(email)")
-        } catch {
-            print("[Watch] Failed to sync: \(error.localizedDescription)")
-        }
-    }
-
-    private func syncTokenToWatch(token: String) {
-        guard let session = wcSession, session.isPaired, session.isWatchAppInstalled else {
-            print("[Watch] Watch not paired or app not installed")
-            return
-        }
-
-        // Use transferUserInfo for token updates (guaranteed delivery)
-        session.transferUserInfo(["authToken": token])
-        print("[Watch] Token transferred to watch")
-    }
-
-    private func notifyWatchTripStarted() {
-        print("[Watch] notifyWatchTripStarted() called")
-        print("[Watch] wcSession: \(wcSession != nil ? "exists" : "nil")")
-
-        guard let session = wcSession else {
-            print("[Watch] WCSession is nil!")
-            return
-        }
-
-        print("[Watch] isPaired: \(session.isPaired), isWatchAppInstalled: \(session.isWatchAppInstalled)")
-
-        guard session.isPaired, session.isWatchAppInstalled else {
-            print("[Watch] Watch not paired or app not installed")
-            return
-        }
-
-        print("[Watch] Notifying watch - reachable: \(session.isReachable)")
-
-        // Always queue transferUserInfo for reliable background delivery
-        session.transferUserInfo(["tripStarted": true, "timestamp": Date().timeIntervalSince1970])
-        print("[Watch] Queued trip start via transferUserInfo")
-
-        // Also try sendMessage if reachable for immediate delivery
-        if session.isReachable {
-            session.sendMessage(["tripStarted": true], replyHandler: nil, errorHandler: { error in
-                print("[Watch] Error sending trip start: \(error.localizedDescription)")
-            })
-            print("[Watch] Sent trip start via sendMessage")
-        }
-
-        // Also update applicationContext so watch gets it on next activation
-        var context = session.applicationContext
-        context["tripActive"] = true
-        context["tripStartedAt"] = Date().timeIntervalSince1970
-        try? session.updateApplicationContext(context)
-        print("[Watch] Updated applicationContext")
-    }
-
-    // MARK: - WCSessionDelegate
-
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        print("[Watch] Activation complete: \(activationState.rawValue)")
-        if let error = error {
-            print("[Watch] Activation error: \(error.localizedDescription)")
-        }
-
-        // Sync current config to watch on activation
-        if activationState == .activated, let email = userEmail, let apiUrl = apiBaseUrl, !email.isEmpty {
-            syncToWatch(email: email, apiUrl: apiUrl, token: nil)
-        }
-    }
-
-    func sessionDidBecomeInactive(_ session: WCSession) {
-        print("[Watch] Session inactive")
-    }
-
-    func sessionDidDeactivate(_ session: WCSession) {
-        print("[Watch] Session deactivated")
-        // Reactivate for switching watches
-        session.activate()
-    }
-
-    // Handle messages from Watch (token requests)
-    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
-        print("[Watch] Received message: \(message)")
-
-        if message["request"] as? String == "authToken" {
-            // Get fresh token from Flutter via method channel
-            DispatchQueue.main.async {
-                self.backgroundChannel?.invokeMethod("getAuthToken", arguments: nil) { result in
-                    if let token = result as? String, !token.isEmpty {
-                        print("[Watch] Sending token to watch")
-                        replyHandler(["authToken": token])
-                    } else {
-                        print("[Watch] No token available")
-                        replyHandler([:])
-                    }
+extension AppDelegate: LocationTrackingServiceDelegate {
+    func locationService(_ service: LocationTrackingServiceProtocol, didUpdateLocation location: CLLocation) {
+        // During active tracking, accumulate distance and update Live Activity
+        if isActivelyTracking {
+            if let previous = lastLocation {
+                let distance = location.distance(from: previous)
+                // Only count if reasonable (< 1km between updates, good accuracy)
+                if distance < 1000 && location.horizontalAccuracy < 50 {
+                    totalDistanceMeters += distance
                 }
             }
-        } else {
-            replyHandler([:])
-        }
-    }
 
-    // MARK: - Live Activity
+            // Update Live Activity with current stats
+            let distanceKm = totalDistanceMeters / 1000.0
+            let durationMinutes = Int(Date().timeIntervalSince(driveStartTime ?? Date()) / 60)
+            let avgSpeed = durationMinutes > 0 ? (distanceKm / (Double(durationMinutes) / 60.0)) : 0
 
-    private var currentActivityStorage: Any?
-
-    private func startLiveActivity() {
-        guard #available(iOS 16.2, *) else {
-            debugLog("LiveActivity", "iOS 16.2+ required")
-            return
-        }
-
-        debugLog("LiveActivity", "startLiveActivity() called, isMainThread: \(Thread.isMainThread)")
-
-        // Request background time to ensure we can complete the Live Activity setup
-        var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
-        backgroundTaskId = UIApplication.shared.beginBackgroundTask(withName: "StartLiveActivity") {
-            self.debugLog("LiveActivity", "Background task expired")
-            UIApplication.shared.endBackgroundTask(backgroundTaskId)
-            backgroundTaskId = .invalid
-        }
-
-        debugLog("LiveActivity", "Background task started: \(backgroundTaskId.rawValue)")
-
-        // Ensure we're on main thread for Live Activity operations
-        let startActivity = { [weak self] in
-            Task {
-                await self?.startLiveActivityAsync()
-                // End background task when done
-                if backgroundTaskId != .invalid {
-                    self?.debugLog("LiveActivity", "Ending background task")
-                    UIApplication.shared.endBackgroundTask(backgroundTaskId)
-                }
-            }
-        }
-
-        if Thread.isMainThread {
-            startActivity()
-        } else {
-            DispatchQueue.main.async {
-                startActivity()
-            }
-        }
-    }
-
-    @available(iOS 16.2, *)
-    private func startLiveActivityAsync() async {
-        debugLog("LiveActivity", "startLiveActivityAsync() starting")
-
-        // Check availability
-        let authInfo = ActivityAuthorizationInfo()
-        debugLog("LiveActivity", "areActivitiesEnabled: \(authInfo.areActivitiesEnabled)")
-
-        guard authInfo.areActivitiesEnabled else {
-            debugLog("LiveActivity", "Not enabled in Settings")
-            return
-        }
-
-        // End existing activities (don't await - fire and forget)
-        let existingActivities = Activity<TripActivityAttributes>.activities
-        if !existingActivities.isEmpty {
-            debugLog("LiveActivity", "Ending \(existingActivities.count) existing activities")
-            for activity in existingActivities {
-                Task { await activity.end(nil, dismissalPolicy: .immediate) }
-            }
-        }
-        currentActivityStorage = nil
-
-        // Create new activity immediately - no delays
-        let attributes = TripActivityAttributes(
-            tripId: UUID().uuidString,
-            carName: activeCarId ?? "Auto"
-        )
-
-        let state = TripActivityAttributes.ContentState(
-            distanceKm: 0,
-            durationMinutes: 0,
-            avgSpeed: 0,
-            startTime: driveStartTime ?? Date(),
-            isActive: true
-        )
-
-        debugLog("LiveActivity", "Requesting new activity...")
-
-        do {
-            let activity = try Activity.request(
-                attributes: attributes,
-                content: .init(state: state, staleDate: nil),
-                pushType: nil
-            )
-            currentActivityStorage = activity
-            debugLog("LiveActivity", "Started successfully: \(activity.id)")
-        } catch {
-            debugLog("LiveActivity", "Failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func updateLiveActivity(distanceKm: Double, durationMinutes: Int, avgSpeed: Double) {
-        guard #available(iOS 16.2, *),
-              let activity = currentActivityStorage as? Activity<TripActivityAttributes> else { return }
-
-        Task {
-            let state = TripActivityAttributes.ContentState(
+            liveActivityManager.updateActivity(state: TripActivityState(
                 distanceKm: distanceKm,
                 durationMinutes: durationMinutes,
                 avgSpeed: avgSpeed,
-                startTime: activity.content.state.startTime,
+                startTime: driveStartTime ?? Date(),
                 isActive: true
-            )
-            await activity.update(ActivityContent(state: state, staleDate: nil))
+            ))
+
+            sendPing()
+        }
+        lastLocation = location
+    }
+
+    func locationService(_ service: LocationTrackingServiceProtocol, didFailWithError error: Error) {
+        print("[Location] Error: \(error.localizedDescription)")
+    }
+
+    func locationService(_ service: LocationTrackingServiceProtocol, didChangeAuthorization status: CLAuthorizationStatus) {
+        print("[Location] Authorization: \(status.rawValue)")
+        if status == .authorizedAlways || status == .authorizedWhenInUse {
+            locationService.startMonitoring()
+            motionHandler.startActivityUpdates()
+        }
+    }
+}
+
+// MARK: - MotionActivityHandlerDelegate
+
+extension AppDelegate: MotionActivityHandlerDelegate {
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didDetectAutomotive isAutomotive: Bool) {
+        if isAutomotive && !isDriving {
+            isDriving = true
+            let appState = UIApplication.shared.applicationState.rawValue
+            debugLog("Motion", "Started DRIVING - triggering startDriveTracking()")
+            debugLog("Motion", "App state: \(appState) (0=active, 1=inactive, 2=background)")
+            startDriveTracking()
+        } else if !isAutomotive && isDriving {
+            debugLog("Motion", "Stopped driving")
+            isDriving = false
+            stopDriveTracking()
         }
     }
 
-    private func endLiveActivity() {
-        debugLog("LiveActivity", "endLiveActivity() called")
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didChangeState state: MotionState) {
+        // Could log state changes here if needed
+    }
+}
 
-        guard #available(iOS 16.2, *),
-              let activity = currentActivityStorage as? Activity<TripActivityAttributes> else {
-            debugLog("LiveActivity", "No active activity to end")
-            return
-        }
+// MARK: - WatchConnectivityServiceDelegate
 
-        Task { [weak self] in
-            let state = TripActivityAttributes.ContentState(
-                distanceKm: activity.content.state.distanceKm,
-                durationMinutes: activity.content.state.durationMinutes,
-                avgSpeed: activity.content.state.avgSpeed,
-                startTime: activity.content.state.startTime,
-                isActive: false
-            )
-            await activity.end(
-                ActivityContent(state: state, staleDate: nil),
-                dismissalPolicy: .after(.now + 300)
-            )
-            self?.debugLog("LiveActivity", "Ended successfully")
+extension AppDelegate: WatchConnectivityServiceDelegate {
+    func watchConnectivityService(_ service: WatchConnectivityServiceProtocol, requestsAuthToken completion: @escaping (String?) -> Void) {
+        DispatchQueue.main.async {
+            self.backgroundChannel?.invokeMethod("getAuthToken", arguments: nil) { result in
+                completion(result as? String)
+            }
         }
-        currentActivityStorage = nil
+    }
+
+    func watchConnectivityServiceDidActivate(_ service: WatchConnectivityServiceProtocol) {
+        if let email = userEmail, let apiUrl = apiBaseUrl, !email.isEmpty {
+            watchService.syncConfig(email: email, apiUrl: apiUrl, token: nil)
+        }
     }
 }
