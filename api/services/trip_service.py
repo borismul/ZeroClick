@@ -363,6 +363,9 @@ class TripService:
         if effective_car_id and effective_car_id != "unknown":
             car_service.save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"], end_odo)
 
+        # Update denormalized car stats
+        car_service.update_car_stats(user_id, effective_car_id, distance_km)
+
         return trip_data
 
     def finalize_trip_from_gps(
@@ -436,6 +439,9 @@ class TripService:
         # Save end GPS as last_parked for next trip start
         if effective_car_id and effective_car_id != "unknown":
             car_service.save_last_parked_gps(user_id, effective_car_id, end_gps["lat"], end_gps["lng"], end_gps["timestamp"])
+
+        # Update denormalized car stats
+        car_service.update_car_stats(user_id, effective_car_id, gps_distance_km)
 
         return trip_data
 

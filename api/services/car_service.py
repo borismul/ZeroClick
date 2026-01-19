@@ -18,14 +18,17 @@ class CarService:
     """Service for car-related operations."""
 
     def get_cars(self, user_id: str) -> list[Car]:
-        """Get all cars for a user with stats."""
+        """Get all cars for a user with stats (denormalized in car document)."""
         db = get_db()
         cars_ref = db.collection("users").document(user_id).collection("cars")
         cars = []
 
         for doc in cars_ref.order_by("created_at").stream():
             data = doc.to_dict()
-            total_trips, total_km = self.get_car_stats(user_id, doc.id)
+            # Read stats directly from car document (denormalized)
+            # No longer queries trips collection (was N+1 query)
+            total_trips = data.get("total_trips", 0)
+            total_km = data.get("total_km", 0.0)
             cars.append(Car(
                 id=doc.id,
                 name=data.get("name", ""),
@@ -52,7 +55,9 @@ class CarService:
             return None
 
         data = doc.to_dict()
-        total_trips, total_km = self.get_car_stats(user_id, car_id)
+        # Read stats directly from car document (denormalized)
+        total_trips = data.get("total_trips", 0)
+        total_km = data.get("total_km", 0.0)
 
         return Car(
             id=doc.id,
@@ -176,7 +181,13 @@ class CarService:
         return {"status": "deleted"}
 
     def get_car_stats(self, user_id: str, car_id: str) -> tuple[int, float]:
-        """Get trip count and total km for a car."""
+        """
+        Get trip count and total km for a car by querying trips collection.
+
+        NOTE: This is now only used for migration/backfill purposes.
+        Normal reads use denormalized stats from car document.
+        TODO: Run migration to backfill total_trips/total_km for existing cars
+        """
         db = get_db()
         trips = db.collection("trips").where(
             filter=firestore.FieldFilter("user_id", "==", user_id)
@@ -192,6 +203,31 @@ class CarService:
             total_km += data.get("distance_km", 0)
 
         return total_trips, total_km
+
+    def update_car_stats(self, user_id: str, car_id: str, km_delta: float, trip_delta: int = 1) -> None:
+        """
+        Increment car stats after trip completion. Uses atomic increment.
+
+        Args:
+            user_id: User ID
+            car_id: Car ID
+            km_delta: Distance to add (can be negative for corrections)
+            trip_delta: Number of trips to add (default 1)
+        """
+        if not car_id or car_id == "unknown":
+            return
+
+        db = get_db()
+        car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
+
+        try:
+            car_ref.update({
+                "total_trips": firestore.Increment(trip_delta),
+                "total_km": firestore.Increment(km_delta),
+            })
+            logger.info(f"Updated car stats for {car_id}: +{trip_delta} trips, +{km_delta:.1f} km")
+        except Exception as e:
+            logger.error(f"Failed to update car stats for {car_id}: {e}")
 
     def get_default_car_id(self, user_id: str) -> str | None:
         """Get the default car ID for a user."""
