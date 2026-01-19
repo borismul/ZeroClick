@@ -59,16 +59,51 @@ Key deliverables:
 - DriveSimulator class that orchestrates a complete trip:
   1. Inject motion state (automotive)
   2. Feed GPS coordinates over time
-  3. Simulate car API responses
+  3. Simulate car API responses (with controllable failures)
   4. Verify webhook calls
-  5. Check final trip state
+  5. Check final trip state in Firestore
 - Pre-built drive scenarios (home→office, short trip, long trip, traffic)
+
+**Stress Test Scenarios (from plan.md issues):**
+
+*API Failure Scenarios:*
+- API returns 502/503 mid-trip → counters preserved, GPS-only fallback
+- API returns is_parked=True but odometer increases → override to driving
+- API returns state=unknown → don't reset parked_count
+- All car APIs fail for 2+ pings → switch to GPS-only mode
+- API error then recovery → counters correct
+
+*Skip Location Scenarios:*
+- Park at skip location for 10+ pings → stays paused forever
+- Drive away from skip location → trip resumes
+- Skip location with API errors → still pauses correctly
+
+*Car Detection Scenarios:*
+- Bluetooth identifies car but API says "parked" → Bluetooth wins
+- No Bluetooth, API finds driving car → normal flow
+- Bluetooth car + API odometer data → combined correctly
+- No Bluetooth, no driving car found for 3 pings → trip cancelled
+
+*Edge Cases:*
+- Odometer goes backwards (bad data) → ignore, use last good value
+- False trip start (motion → immediately stationary) → cancel quickly
+- Stale trip (no activity 2+ hours) → safety net finalizes
+- GPS coordinate format mix (lng vs lon) → handle both
+- OSRM unavailable → haversine fallback with 15% correction
+
+*Counter Threshold Tests:*
+- no_driving_count hits 3 → trip cancelled
+- api_error_count hits 2 → GPS-only mode triggered
+- parked_count hits 3 → trip finalized
+- Each counter resets correctly when condition clears
 
 **Baseline Tests:**
 - Unit tests for existing AuthService
 - Unit tests for existing ApiService
-- Unit tests for trip state machine
+- Unit tests for trip state machine (all thresholds)
+- Unit tests for GPS distance calculation (OSRM + haversine)
 - Integration test: complete drive simulation
+- Integration test: each stress scenario above
 
 ### Phase 2: iOS Native Architecture
 **Goal**: Extract focused services from monolithic AppDelegate.swift (828 lines)
