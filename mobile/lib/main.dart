@@ -7,6 +7,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'models/settings.dart';
 import 'providers/app_provider.dart';
 import 'providers/car_provider.dart';
+import 'providers/connectivity_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/api_service.dart';
 import 'screens/cars_screen.dart';
@@ -63,15 +64,25 @@ class ZeroClickApp extends StatelessWidget {
             create: (context) => CarProvider(context.read<ApiService>()),
             update: (context, api, previous) => previous ?? CarProvider(api),
           ),
-          // AppProvider depends on SettingsProvider, CarProvider, and ApiService
-          ChangeNotifierProxyProvider3<SettingsProvider, CarProvider, ApiService, AppProvider>(
+          // ConnectivityProvider depends on ApiService and CarProvider
+          ChangeNotifierProxyProvider2<ApiService, CarProvider, ConnectivityProvider>(
+            create: (context) => ConnectivityProvider(
+              context.read<ApiService>(),
+              context.read<CarProvider>(),
+            )..init(),
+            update: (context, api, carProvider, previous) =>
+                previous ?? (ConnectivityProvider(api, carProvider)..init()),
+          ),
+          // AppProvider depends on SettingsProvider, CarProvider, ConnectivityProvider, and ApiService
+          ChangeNotifierProxyProvider4<SettingsProvider, CarProvider, ConnectivityProvider, ApiService, AppProvider>(
             create: (context) => AppProvider(
               context.read<SettingsProvider>(),
               context.read<CarProvider>(),
+              context.read<ConnectivityProvider>(),
               context.read<ApiService>(),
             ),
-            update: (context, settings, carProvider, api, previous) =>
-                previous ?? AppProvider(settings, carProvider, api),
+            update: (context, settings, carProvider, connectivityProvider, api, previous) =>
+                previous ?? AppProvider(settings, carProvider, connectivityProvider, api),
           ),
         ],
         child: Consumer<AppProvider>(
