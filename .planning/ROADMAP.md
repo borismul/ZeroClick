@@ -14,8 +14,8 @@ None (standard Flutter/Swift development patterns)
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Testing Infrastructure & Mocks** - Mock services, drive simulation, test foundation
-- [ ] **Phase 2: iOS Native Architecture** - Extract services from AppDelegate monolith
+- [x] **Phase 1: Testing Infrastructure & Mocks** - Mock services, drive simulation, test foundation ✓
+- [ ] **Phase 2: iOS Native Architecture** - Extract services from AppDelegate monolith (In progress)
 - [ ] **Phase 3: Motion Detection Hardening** - Fix hysteresis, debouncing, state machine reliability
 - [ ] **Phase 4: Flutter Provider Split** - Break AppProvider into focused providers
 - [ ] **Phase 5: Flutter UI Refactoring** - Split oversized screen files
@@ -219,8 +219,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Testing Infrastructure & Mocks | 5/6 | In progress | - |
-| 2. iOS Native Architecture | 0/TBD | Not started | - |
+| 1. Testing Infrastructure & Mocks | 6/6 | Complete | 2026-01-19 |
+| 2. iOS Native Architecture | 5/5 | Pending human verification | - |
 | 3. Motion Detection Hardening | 0/TBD | Not started | - |
 | 4. Flutter Provider Split | 0/TBD | Not started | - |
 | 5. Flutter UI Refactoring | 0/TBD | Not started | - |
