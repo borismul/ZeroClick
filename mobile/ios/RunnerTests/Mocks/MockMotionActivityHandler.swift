@@ -1,7 +1,8 @@
+import CoreMotion
 @testable import Runner
 
 /// Mock motion handler for testing
-/// Allows injecting motion states (automotive, stationary, walking)
+/// Allows injecting motion states (automotive, stationary, walking) with confidence levels
 class MockMotionActivityHandler: MotionActivityHandlerProtocol {
     weak var delegate: MotionActivityHandlerDelegate?
 
@@ -10,14 +11,26 @@ class MockMotionActivityHandler: MotionActivityHandlerProtocol {
     var currentState: MotionState = .unknown
     var isAutomotive: Bool = false
 
+    // MARK: - Confidence and Debounce Configuration (Protocol)
+
+    var minimumConfidence: CMMotionActivityConfidence = .medium
+    var automotiveDebounceSeconds: TimeInterval = 2.0
+    var nonAutomotiveDebounceSeconds: TimeInterval = 3.0
+
     // MARK: - Test Control Properties
 
     var setupCalled = false
     var startActivityCalled = false
     var stopActivityCalled = false
+    var cancelDebounceCalled = false
 
     // Track all state changes
     var stateHistory: [MotionState] = []
+
+    // Track delegate calls for verification
+    var didDetectAutomotiveCalls: [Bool] = []
+    var didConfirmAutomotiveCalls: [Bool] = []
+    var didChangeStateCalls: [MotionState] = []
 
     // MARK: - Protocol Methods
 
@@ -33,42 +46,60 @@ class MockMotionActivityHandler: MotionActivityHandlerProtocol {
         stopActivityCalled = true
     }
 
+    func cancelPendingDebounce() {
+        cancelDebounceCalled = true
+    }
+
     // MARK: - Test Injection Methods
 
     /// Simulate starting to drive (automotive motion detected)
     func simulateStartDriving() {
-        currentState = .automotive
-        isAutomotive = true
-        stateHistory.append(.automotive)
-        delegate?.motionHandler(self, didDetectAutomotive: true)
-        delegate?.motionHandler(self, didChangeState: .automotive)
+        simulateWithConfidence(.automotive, confidence: .high)
     }
 
     /// Simulate stopping (stationary)
     func simulateStopDriving() {
-        currentState = .stationary
-        isAutomotive = false
-        stateHistory.append(.stationary)
-        delegate?.motionHandler(self, didDetectAutomotive: false)
-        delegate?.motionHandler(self, didChangeState: .stationary)
+        simulateWithConfidence(.stationary, confidence: .high)
     }
 
     /// Simulate walking
     func simulateWalking() {
-        currentState = .walking
-        isAutomotive = false
-        stateHistory.append(.walking)
-        delegate?.motionHandler(self, didDetectAutomotive: false)
-        delegate?.motionHandler(self, didChangeState: .walking)
+        simulateWithConfidence(.walking, confidence: .high)
     }
 
     /// Inject any motion state
     func injectState(_ state: MotionState) {
+        simulateWithConfidence(state, confidence: .high)
+    }
+
+    /// Simulate state change with specific confidence level
+    /// - Parameters:
+    ///   - state: The motion state to simulate
+    ///   - confidence: The confidence level (low/medium/high)
+    func simulateWithConfidence(_ state: MotionState, confidence: CMMotionActivityConfidence) {
+        // Check if confidence meets threshold (same logic as real handler)
+        guard confidence.rawValue >= minimumConfidence.rawValue else {
+            // Below threshold - ignored
+            return
+        }
+
         currentState = state
         isAutomotive = (state == .automotive)
         stateHistory.append(state)
+
+        // Notify delegate
         delegate?.motionHandler(self, didDetectAutomotive: isAutomotive)
+        didDetectAutomotiveCalls.append(isAutomotive)
+
         delegate?.motionHandler(self, didChangeState: state)
+        didChangeStateCalls.append(state)
+    }
+
+    /// Simulate debounce confirmation (call after debounce period)
+    /// - Parameter isAutomotive: Whether automotive state is confirmed
+    func simulateConfirmAutomotive(_ isAutomotive: Bool) {
+        delegate?.motionHandler(self, didConfirmAutomotive: isAutomotive)
+        didConfirmAutomotiveCalls.append(isAutomotive)
     }
 
     /// Reset for next test
@@ -78,6 +109,13 @@ class MockMotionActivityHandler: MotionActivityHandlerProtocol {
         setupCalled = false
         startActivityCalled = false
         stopActivityCalled = false
+        cancelDebounceCalled = false
         stateHistory.removeAll()
+        didDetectAutomotiveCalls.removeAll()
+        didConfirmAutomotiveCalls.removeAll()
+        didChangeStateCalls.removeAll()
+        minimumConfidence = .medium
+        automotiveDebounceSeconds = 2.0
+        nonAutomotiveDebounceSeconds = 3.0
     }
 }

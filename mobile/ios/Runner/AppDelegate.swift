@@ -512,6 +512,13 @@ extension AppDelegate: MotionActivityHandlerDelegate {
         }
     }
 
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool) {
+        // Debounced confirmation of automotive state
+        // Currently the immediate detection handles trip start/stop
+        // Future: could migrate trip logic here for more robust debouncing
+        debugLog("Motion", "Confirmed automotive: \(isAutomotive) (after debounce)")
+    }
+
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didChangeState state: MotionState) {
         // Could log state changes here if needed
     }

@@ -164,6 +164,11 @@ extension TestableAppDelegate: MotionActivityHandlerDelegate {
         }
     }
 
+    func motionHandler(_ handler: MotionActivityHandlerProtocol, didConfirmAutomotive isAutomotive: Bool) {
+        // Debounced confirmation of automotive state
+        // Tests can override behavior if needed
+    }
+
     func motionHandler(_ handler: MotionActivityHandlerProtocol, didChangeState state: MotionState) {
         // Could track state changes
     }
