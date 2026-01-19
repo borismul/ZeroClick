@@ -1,0 +1,36 @@
+{
+  "version": "1.2",
+  "max_entries": 50,
+  "entries": [
+    {
+      "agent_id": "aa7a9c4",
+      "task_description": "Parallel: Execute 01-01-PLAN.md (Flutter test foundation)",
+      "phase": "01",
+      "plan": "01",
+      "parallel_group": "pg-phase1-wave1",
+      "granularity": "plan",
+      "wave": 1,
+      "depends_on": [],
+      "timestamp": "2026-01-19T12:00:00Z",
+      "status": "spawned",
+      "files_modified": [],
+      "completion_timestamp": null,
+      "deviations": []
+    },
+    {
+      "agent_id": "a070700",
+      "task_description": "Parallel: Execute 01-03-PLAN.md (Python pytest setup)",
+      "phase": "01",
+      "plan": "03",
+      "parallel_group": "pg-phase1-wave1",
+      "granularity": "plan",
+      "wave": 1,
+      "depends_on": [],
+      "timestamp": "2026-01-19T12:00:00Z",
+      "status": "spawned",
+      "files_modified": [],
+      "completion_timestamp": null,
+      "deviations": []
+    }
+  ]
+}
