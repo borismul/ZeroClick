@@ -1,11 +1,9 @@
 // App state provider
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/logging/app_logger.dart';
 import '../models/car.dart';
@@ -20,15 +18,16 @@ import '../services/carplay_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue.dart';
+import 'settings_provider.dart';
 
 // Callback for unknown device - used to trigger car linking flow
 typedef UnknownDeviceCallback = void Function(String deviceName);
 
 class AppProvider extends ChangeNotifier {
-  AppProvider() {
+  AppProvider(this._settingsProvider) {
     _api = ApiService(
-      baseUrl: _settings.apiUrl,
-      userEmail: _settings.userEmail,
+      baseUrl: _settingsProvider.apiUrl,
+      userEmail: _settingsProvider.userEmail,
     );
     _location = LocationService();
     _offlineQueue = OfflineQueue(_api);
@@ -40,8 +39,10 @@ class AppProvider extends ChangeNotifier {
     Future.microtask(_init);
   }
 
-  static const String _settingsKey = 'app_settings';
   static const _log = AppLogger('AppProvider');
+
+  // Settings provider dependency
+  final SettingsProvider _settingsProvider;
 
   // Services
   late ApiService _api;
@@ -53,7 +54,6 @@ class AppProvider extends ChangeNotifier {
   late NotificationService _notifications;
 
   // State
-  AppSettings _settings = AppSettings.defaults();
   ActiveTrip? _activeTrip;
   List<Trip> _trips = [];
   Stats? _stats;
@@ -85,9 +85,9 @@ class AppProvider extends ChangeNotifier {
   // Callback for unknown device
   UnknownDeviceCallback? onUnknownDevice;
 
-  // Getters
-  AppSettings get settings => _settings;
-  bool get isConfigured => _settings.isConfigured;
+  // Getters - delegate to SettingsProvider
+  AppSettings get settings => _settingsProvider.settings;
+  bool get isConfigured => _settingsProvider.isConfigured;
   ActiveTrip? get activeTrip => _activeTrip;
   List<Trip> get trips => _trips;
   Stats? get stats => _stats;
@@ -123,8 +123,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    // Load settings (local, should be fast)
-    await _loadSettings();
+    // Settings already loaded by SettingsProvider
+    // Update API config in case settings loaded after constructor
+    _api.updateConfig(_settingsProvider.apiUrl, _settingsProvider.userEmail);
 
     // Initialize notifications (permissions handled by onboarding)
     await _notifications.init();
@@ -141,8 +142,8 @@ class AppProvider extends ChangeNotifier {
     await auth.init();
 
     // Sync Google auth email to settings and App Group
-    if (auth.isSignedIn && auth.userEmail != null && auth.userEmail != _settings.userEmail) {
-      await saveSettings(_settings.copyWith(userEmail: auth.userEmail));
+    if (auth.isSignedIn && auth.userEmail != null && auth.userEmail != settings.userEmail) {
+      await saveSettings(settings.copyWith(userEmail: auth.userEmail));
     }
 
     // CRITICAL: Set auth token on API service
@@ -296,7 +297,7 @@ class AppProvider extends ChangeNotifier {
   /// Try to auto-start trip when CarPlay or Bluetooth connects
   /// For cars with API support, motion detection handles this automatically
   Future<void> _tryAutoStartTrip() async {
-    if (!_settings.autoDetectCar || !isConfigured) {
+    if (!settings.autoDetectCar || !isConfigured) {
       _log.info('AutoStart disabled or not configured');
       return;
     }
@@ -372,34 +373,10 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_settingsKey);
-      if (data != null) {
-        _settings = AppSettings.fromJson(jsonDecode(data) as Map<String, dynamic>);
-        _api.updateConfig(_settings.apiUrl, _settings.userEmail);
-        // Send config to native for direct API calls
-        unawaited(_background.setApiConfig(_settings.apiUrl, _settings.userEmail));
-      }
-    } on Exception catch (e) {
-      _log.error('Error loading settings', e);
-    }
-    notifyListeners();
-  }
-
+  /// Save settings via SettingsProvider and update API config
   Future<void> saveSettings(AppSettings newSettings) async {
-    _settings = newSettings;
-    _api.updateConfig(_settings.apiUrl, _settings.userEmail);
-    // Send config to native for direct API calls
-    unawaited(_background.setApiConfig(_settings.apiUrl, _settings.userEmail));
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_settingsKey, jsonEncode(_settings.toJson()));
-    } on Exception catch (e) {
-      _log.error('Error saving settings', e);
-    }
+    await _settingsProvider.saveSettings(newSettings);
+    _api.updateConfig(_settingsProvider.apiUrl, _settingsProvider.userEmail);
     notifyListeners();
   }
 
