@@ -1,4 +1,5 @@
 import CoreMotion
+import OSLog
 
 /// Concrete implementation of MotionActivityHandlerProtocol.
 /// Handles all CMMotionActivityManager interactions including setup,
@@ -41,19 +42,19 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
 
     func setupMotionManager() {
         motionManager = CMMotionActivityManager()
-        print("[MotionHandler] Motion manager initialized")
+        Logger.motion.info("Motion manager initialized")
     }
 
     // MARK: - Activity Updates
 
     func startActivityUpdates() {
         guard motionManager != nil else {
-            print("[MotionHandler] Cannot start - setupMotionManager() not called")
+            Logger.motion.error("Cannot start - setupMotionManager() not called")
             return
         }
 
         guard CMMotionActivityManager.isActivityAvailable() else {
-            print("[MotionHandler] Activity not available on this device")
+            Logger.motion.warning("Motion activity not available on this device")
             return
         }
 
@@ -61,7 +62,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
             guard let activity = activity else { return }
             self?.processActivity(activity)
         }
-        print("[MotionHandler] Activity updates started")
+        Logger.motion.info("Activity updates started")
     }
 
     func stopActivityUpdates() {
@@ -69,7 +70,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
 
         motionManager.stopActivityUpdates()
         cancelPendingDebounce()
-        print("[MotionHandler] Activity updates stopped")
+        Logger.motion.info("Activity updates stopped")
     }
 
     /// Cancels any pending debounce timer and resets pending state
@@ -77,7 +78,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
         debounceTimer?.invalidate()
         debounceTimer = nil
         pendingAutomotiveChange = nil
-        print("[MotionHandler] Pending debounce cancelled")
+        Logger.motion.debug("Pending debounce cancelled")
     }
 
     // MARK: - Activity Processing
@@ -87,7 +88,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
     func processActivity(_ activity: CMMotionActivity) {
         // Check confidence threshold - ignore activities below minimum confidence
         guard activity.confidence.rawValue >= minimumConfidence.rawValue else {
-            print("[MotionHandler] Ignoring activity with confidence \(activity.confidence.rawValue) < \(minimumConfidence.rawValue)")
+            Logger.motion.debug("Ignoring activity with confidence \(activity.confidence.rawValue) < \(self.minimumConfidence.rawValue)")
             return
         }
 
@@ -108,7 +109,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
         if activity.automotive {
             if !wasAutomotive {
                 isAutomotive = true
-                print("[MotionHandler] Automotive detected (immediate)")
+                Logger.motion.debug("Automotive detected (immediate)")
                 delegate?.motionHandler(self, didDetectAutomotive: true)
 
                 // Start debounce timer for confirmation
@@ -117,13 +118,13 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
                 // Was automotive, had pending non-automotive change, but now automotive again
                 // Cancel the pending non-automotive change
                 cancelPendingDebounce()
-                print("[MotionHandler] Automotive resumed - cancelled pending non-automotive debounce")
+                Logger.motion.debug("Automotive resumed - cancelled pending non-automotive debounce")
             }
         } else if activity.stationary || activity.walking || activity.running {
             // Non-automotive activity detected
             if wasAutomotive {
                 isAutomotive = false
-                print("[MotionHandler] Non-automotive detected: \(newState) (immediate)")
+                Logger.motion.debug("Non-automotive detected: \(String(describing: newState), privacy: .public) (immediate)")
                 delegate?.motionHandler(self, didDetectAutomotive: false)
 
                 // Start debounce timer for confirmation (give time to oscillate back to automotive)
@@ -144,7 +145,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
         // Choose debounce duration based on state
         let debounceInterval = isAutomotive ? automotiveDebounceSeconds : nonAutomotiveDebounceSeconds
 
-        print("[MotionHandler] Starting \(isAutomotive ? "automotive" : "non-automotive") debounce for \(debounceInterval)s")
+        Logger.motion.debug("Starting \(isAutomotive ? "automotive" : "non-automotive") debounce for \(debounceInterval)s")
 
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
             self?.confirmDebounce()
@@ -153,7 +154,7 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
 
     private func confirmDebounce() {
         guard let pending = pendingAutomotiveChange else {
-            print("[MotionHandler] Debounce fired but no pending state")
+            Logger.motion.debug("Debounce fired but no pending state")
             return
         }
 
@@ -163,11 +164,11 @@ class MotionActivityHandler: MotionActivityHandlerProtocol {
         if pending == currentlyAutomotive {
             // State has remained stable through debounce period - confirm it
             confirmedAutomotive = pending
-            print("[MotionHandler] Confirmed \(pending ? "automotive" : "non-automotive") after debounce")
+            Logger.motion.info("Confirmed \(pending ? "automotive" : "non-automotive") after debounce")
             delegate?.motionHandler(self, didConfirmAutomotive: pending)
         } else {
             // State changed during debounce period - don't confirm
-            print("[MotionHandler] State changed during debounce - not confirming (pending: \(pending), current: \(currentlyAutomotive))")
+            Logger.motion.debug("State changed during debounce - not confirming (pending: \(pending), current: \(currentlyAutomotive))")
         }
 
         // Clear pending state

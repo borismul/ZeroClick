@@ -1,4 +1,5 @@
 import CoreLocation
+import OSLog
 
 /// Concrete implementation of LocationTrackingServiceProtocol.
 /// Handles all CLLocationManager interactions including setup, permissions,
@@ -29,11 +30,11 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
 
     func startMonitoring() {
         guard locationManager != nil else {
-            print("[LocationService] Cannot start - setupLocationManager() not called")
+            Logger.location.error("Cannot start - setupLocationManager() not called")
             return
         }
 
-        print("[LocationService] Starting monitoring...")
+        Logger.location.info("Starting location monitoring...")
 
         let status: CLAuthorizationStatus
         if #available(iOS 14.0, *) {
@@ -48,14 +49,14 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
             locationManager.startUpdatingLocation()
             locationManager.startMonitoringSignificantLocationChanges()
             isMonitoring = true
-            print("[LocationService] Location updates started")
+            Logger.location.info("Location updates started")
         }
     }
 
     func stopMonitoring() {
         guard locationManager != nil else { return }
 
-        print("[LocationService] Stopping monitoring...")
+        Logger.location.info("Stopping location monitoring...")
         locationManager.stopUpdatingLocation()
         locationManager.stopMonitoringSignificantLocationChanges()
         isMonitoring = false
@@ -71,7 +72,7 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
         if #available(iOS 11.0, *) {
             locationManager.showsBackgroundLocationIndicator = true
         }
-        print("[LocationService] High accuracy mode")
+        Logger.location.info("Switched to high accuracy mode")
     }
 
     func setLowAccuracy() {
@@ -82,7 +83,7 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
         if #available(iOS 11.0, *) {
             locationManager.showsBackgroundLocationIndicator = false
         }
-        print("[LocationService] Low accuracy mode (battery saver)")
+        Logger.location.info("Switched to low accuracy mode (battery saver)")
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -95,7 +96,7 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("[LocationService] Error: \(error.localizedDescription)")
+        Logger.location.error("Location manager error: \(error.localizedDescription)")
         delegate?.locationService(self, didFailWithError: error)
     }
 
@@ -106,7 +107,7 @@ class LocationTrackingService: NSObject, LocationTrackingServiceProtocol, CLLoca
         } else {
             status = CLLocationManager.authorizationStatus()
         }
-        print("[LocationService] Authorization: \(status.rawValue)")
+        Logger.location.info("Authorization changed: \(status.rawValue)")
 
         if status == .authorizedAlways || status == .authorizedWhenInUse {
             if !isMonitoring {

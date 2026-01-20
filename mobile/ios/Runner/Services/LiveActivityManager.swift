@@ -1,5 +1,6 @@
 import ActivityKit
 import UIKit
+import OSLog
 
 // MARK: - LiveActivityManager (iOS 16.2+)
 
@@ -21,24 +22,24 @@ class LiveActivityManager: LiveActivityManagerProtocol {
     // MARK: - Initialization
 
     init() {
-        print("[LiveActivityManager] Initialized (iOS 16.2+)")
+        Logger.activity.info("LiveActivityManager initialized (iOS 16.2+)")
     }
 
     // MARK: - Activity Control
 
     /// Start a new Live Activity for a trip
     func startActivity(carName: String, startTime: Date) {
-        print("[LiveActivityManager] startActivity() called, isMainThread: \(Thread.isMainThread)")
+        Logger.activity.debug("startActivity() called, isMainThread: \(Thread.isMainThread)")
 
         // Request background time to ensure we can complete the Live Activity setup
         var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
         backgroundTaskId = UIApplication.shared.beginBackgroundTask(withName: "StartLiveActivity") {
-            print("[LiveActivityManager] Background task expired")
+            Logger.activity.warning("Background task expired")
             UIApplication.shared.endBackgroundTask(backgroundTaskId)
             backgroundTaskId = .invalid
         }
 
-        print("[LiveActivityManager] Background task started: \(backgroundTaskId.rawValue)")
+        Logger.activity.debug("Background task started: \(backgroundTaskId.rawValue)")
 
         // Ensure we're on main thread for Live Activity operations
         let startActivityBlock = { [weak self] in
@@ -46,7 +47,7 @@ class LiveActivityManager: LiveActivityManagerProtocol {
                 await self?.startActivityAsync(carName: carName, startTime: startTime)
                 // End background task when done
                 if backgroundTaskId != .invalid {
-                    print("[LiveActivityManager] Ending background task")
+                    Logger.activity.debug("Ending background task")
                     UIApplication.shared.endBackgroundTask(backgroundTaskId)
                 }
             }
@@ -79,10 +80,10 @@ class LiveActivityManager: LiveActivityManagerProtocol {
 
     /// End the Live Activity with specified dismissal delay
     func endActivity(keepVisibleForSeconds: TimeInterval) {
-        print("[LiveActivityManager] endActivity() called")
+        Logger.activity.info("endActivity() called")
 
         guard let activity = currentActivity else {
-            print("[LiveActivityManager] No active activity to end")
+            Logger.activity.debug("No active activity to end")
             return
         }
 
@@ -98,7 +99,7 @@ class LiveActivityManager: LiveActivityManagerProtocol {
                 ActivityContent(state: finalState, staleDate: nil),
                 dismissalPolicy: .after(.now + keepVisibleForSeconds)
             )
-            print("[LiveActivityManager] Ended successfully")
+            Logger.activity.info("Live Activity ended successfully")
         }
         currentActivity = nil
     }
@@ -107,21 +108,21 @@ class LiveActivityManager: LiveActivityManagerProtocol {
 
     /// Async method to start the Live Activity
     private func startActivityAsync(carName: String, startTime: Date) async {
-        print("[LiveActivityManager] startActivityAsync() starting")
+        Logger.activity.debug("startActivityAsync() starting")
 
         // Check availability
         let authInfo = ActivityAuthorizationInfo()
-        print("[LiveActivityManager] areActivitiesEnabled: \(authInfo.areActivitiesEnabled)")
+        Logger.activity.debug("areActivitiesEnabled: \(authInfo.areActivitiesEnabled)")
 
         guard authInfo.areActivitiesEnabled else {
-            print("[LiveActivityManager] Not enabled in Settings")
+            Logger.activity.warning("Live Activities not enabled in Settings")
             return
         }
 
         // End existing activities (don't await - fire and forget)
         let existingActivities = Activity<TripActivityAttributes>.activities
         if !existingActivities.isEmpty {
-            print("[LiveActivityManager] Ending \(existingActivities.count) existing activities")
+            Logger.activity.debug("Ending \(existingActivities.count) existing activities")
             for activity in existingActivities {
                 Task { await activity.end(nil, dismissalPolicy: .immediate) }
             }
@@ -142,7 +143,7 @@ class LiveActivityManager: LiveActivityManagerProtocol {
             isActive: true
         )
 
-        print("[LiveActivityManager] Requesting new activity...")
+        Logger.activity.debug("Requesting new Live Activity...")
 
         do {
             let activity = try Activity.request(
@@ -151,9 +152,9 @@ class LiveActivityManager: LiveActivityManagerProtocol {
                 pushType: nil
             )
             currentActivity = activity
-            print("[LiveActivityManager] Started successfully: \(activity.id)")
+            Logger.activity.info("Live Activity started successfully: \(activity.id)")
         } catch {
-            print("[LiveActivityManager] Failed: \(error.localizedDescription)")
+            Logger.activity.error("Failed to start Live Activity: \(error.localizedDescription)")
         }
     }
 }
@@ -172,13 +173,13 @@ class LiveActivityManagerFallback: LiveActivityManagerProtocol {
     // MARK: - Initialization
 
     init() {
-        print("[LiveActivityManager] Initialized (fallback - iOS 16.2+ required)")
+        Logger.activity.info("LiveActivityManager initialized (fallback - iOS 16.2+ required)")
     }
 
     // MARK: - Activity Control (No-ops)
 
     func startActivity(carName: String, startTime: Date) {
-        print("[LiveActivityManager] iOS 16.2+ required for Live Activities")
+        Logger.activity.debug("iOS 16.2+ required for Live Activities")
     }
 
     func updateActivity(state: TripActivityState) {
