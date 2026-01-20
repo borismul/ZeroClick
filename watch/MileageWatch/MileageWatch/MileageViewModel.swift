@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import OSLog
 
 @MainActor
 class ZeroClickViewModel: ObservableObject {
@@ -27,7 +28,7 @@ class ZeroClickViewModel: ObservableObject {
         NotificationCenter.default.publisher(for: .tripStarted)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                print("[ViewModel] Received tripStarted notification - refreshing")
+                Logger.ui.info("Received tripStarted notification - refreshing")
                 Task { @MainActor in
                     await self?.refreshAll()
                 }
@@ -94,7 +95,7 @@ class ZeroClickViewModel: ObservableObject {
         do {
             self.activeTrip = try await APIClient.shared.getStatus()
         } catch {
-            print("[ViewModel] Status fetch failed: \(error)")
+            Logger.api.error("Status fetch failed: \(error.localizedDescription)")
         }
 
         do {

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 class APIClient {
     static let shared = APIClient()
@@ -30,11 +31,11 @@ class APIClient {
     /// Returns the new access token or nil if refresh failed
     private func refreshAccessToken() async -> String? {
         guard let refreshToken = KeychainHelper.shared.getRefreshToken() else {
-            print("[API] No refresh token available")
+            Logger.api.debug("No refresh token available")
             return nil
         }
 
-        print("[API] Refreshing access token...")
+        Logger.api.info("Refreshing access token...")
 
         guard let url = URL(string: "\(baseURL)/auth/refresh") else {
             return nil
@@ -57,18 +58,18 @@ class APIClient {
             if httpResponse.statusCode == 200 {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let newToken = json["access_token"] as? String {
-                    print("[API] Token refreshed successfully")
+                    Logger.api.info("Token refreshed successfully")
                     cachedToken = newToken
                     // Note: We don't update Keychain here as the Watch can't write to it
                     // The iPhone will update it next time it refreshes
                     return newToken
                 }
             } else if httpResponse.statusCode == 401 {
-                print("[API] Refresh token expired/invalid")
+                Logger.api.warning("Refresh token expired/invalid")
                 cachedToken = nil
             }
         } catch {
-            print("[API] Token refresh error: \(error)")
+            Logger.api.error("Token refresh error: \(error.localizedDescription)")
         }
 
         return nil
@@ -102,24 +103,24 @@ class APIClient {
 
         // Handle 401 - try to refresh token and retry once
         if httpResponse.statusCode == 401 && !isRetry {
-            print("[API] Got 401, attempting token refresh...")
+            Logger.api.info("Got 401, attempting token refresh...")
 
             // Strategy 1: Try direct API refresh (faster, no need to wake iPhone)
             if let newToken = await refreshAccessToken() {
-                print("[API] Refreshed via API, retrying request...")
+                Logger.api.debug("Refreshed via API, retrying request...")
                 cachedToken = newToken
                 return try await makeRequest(endpoint, method: method, isRetry: true)
             }
 
             // Strategy 2: Request fresh token from iPhone (fallback)
-            print("[API] API refresh failed, requesting from iPhone...")
+            Logger.api.debug("API refresh failed, requesting from iPhone...")
             if let token = await WatchConnectivityManager.shared.requestFreshToken(forceFromPhone: true) {
-                print("[API] Got token from iPhone, retrying request...")
+                Logger.api.info("Got token from iPhone, retrying request...")
                 cachedToken = token
                 return try await makeRequest(endpoint, method: method, isRetry: true)
             }
 
-            print("[API] All token refresh attempts failed")
+            Logger.api.error("All token refresh attempts failed")
         }
 
         guard 200...299 ~= httpResponse.statusCode else {

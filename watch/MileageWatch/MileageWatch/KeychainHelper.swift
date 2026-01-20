@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import OSLog
 
 /// Helper for retrieving tokens from iCloud Keychain (synced from iPhone)
 class KeychainHelper {
@@ -47,10 +48,10 @@ class KeychainHelper {
 
         if status == errSecSuccess, let data = dataTypeRef as? Data {
             let value = String(data: data, encoding: .utf8)
-            print("[Keychain] Got \(account) from iCloud Keychain")
+            Logger.keychain.debug("Retrieved \(account) from iCloud Keychain")
             return value
         }
-        print("[Keychain] No \(account) in iCloud Keychain (status: \(status))")
+        Logger.keychain.debug("No \(account) in iCloud Keychain (status: \(status))")
         return nil
     }
 }

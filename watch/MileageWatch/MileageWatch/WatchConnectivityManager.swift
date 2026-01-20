@@ -2,6 +2,7 @@ import Foundation
 import WatchConnectivity
 import UserNotifications
 import WatchKit
+import OSLog
 
 extension Notification.Name {
     static let tripStarted = Notification.Name("tripStarted")
@@ -34,14 +35,14 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
             session = WCSession.default
             session?.delegate = self
             session?.activate()
-            print("[WC] Session activated")
+            Logger.sync.info("WCSession activated")
         }
     }
 
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if granted {
-                print("[WC] Notification permission granted")
+                Logger.sync.debug("Notification permission granted")
             }
         }
     }
@@ -49,7 +50,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     /// Handle trip started signal from iPhone
     /// This triggers the workout session to keep the app in foreground
     func handleTripStarted() {
-        print("[WC] handleTripStarted() called")
+        Logger.sync.info("handleTripStarted() called")
 
         // Show notification (only if app is in background)
         showTripStartedNotification()
@@ -81,9 +82,9 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("[WC] Notification error: \(error.localizedDescription)")
+                Logger.sync.error("Notification error: \(error.localizedDescription)")
             } else {
-                print("[WC] Trip started notification shown")
+                Logger.sync.debug("Trip started notification shown")
             }
         }
     }
@@ -93,7 +94,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         // 1. Try Keychain first (instant, synced via iCloud) unless forcing from phone
         if !forceFromPhone {
             if let keychainToken = KeychainHelper.shared.getToken(), !keychainToken.isEmpty {
-                print("[WC] Got token from Keychain")
+                Logger.sync.debug("Got token from Keychain")
                 authToken = keychainToken
                 return keychainToken
             }
@@ -101,7 +102,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
         // 2. Try sendMessage to wake iPhone
         if let session = session {
-            print("[WC] Requesting token from iPhone (reachable: \(session.isReachable))...")
+            Logger.sync.info("Requesting token from iPhone (reachable: \(session.isReachable))...")
             if let token = await requestTokenFromPhone() {
                 return token
             }
@@ -109,11 +110,11 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
         // 3. Fall back to cached token
         if !authToken.isEmpty {
-            print("[WC] Using cached token")
+            Logger.sync.debug("Using cached token")
             return authToken
         }
 
-        print("[WC] No token available")
+        Logger.sync.warning("No token available")
         return nil
     }
 
@@ -127,14 +128,14 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
                         self.authToken = token
                         UserDefaults.standard.set(token, forKey: "authToken")
                     }
-                    print("[WC] Received fresh token from iPhone")
+                    Logger.sync.info("Received fresh token from iPhone")
                     continuation.resume(returning: token)
                 } else {
-                    print("[WC] No token in response")
+                    Logger.sync.warning("No token in response from iPhone")
                     continuation.resume(returning: nil)
                 }
             }, errorHandler: { error in
-                print("[WC] Error requesting token: \(error.localizedDescription)")
+                Logger.sync.error("Error requesting token: \(error.localizedDescription)")
                 continuation.resume(returning: nil)
             })
         }
@@ -143,9 +144,9 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - WCSessionDelegate
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        print("[WC] Activation complete: \(activationState.rawValue)")
+        Logger.sync.info("Activation complete: \(activationState.rawValue)")
         if let error = error {
-            print("[WC] Error: \(error.localizedDescription)")
+            Logger.sync.error("Activation error: \(error.localizedDescription)")
         }
 
         DispatchQueue.main.async {
@@ -167,39 +168,39 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         DispatchQueue.main.async {
             self.isPhoneReachable = session.isReachable
         }
-        print("[WC] Reachability changed: \(session.isReachable)")
+        Logger.sync.info("Reachability changed: \(session.isReachable)")
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        print("[WC] Received context: \(applicationContext)")
+        Logger.sync.debug("Received context from iPhone")
         DispatchQueue.main.async {
             self.processContext(applicationContext)
         }
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        print("[WC] Received userInfo: \(userInfo)")
+        Logger.sync.debug("Received userInfo from iPhone")
         DispatchQueue.main.async {
             if let token = userInfo["authToken"] as? String {
                 self.authToken = token
                 UserDefaults.standard.set(token, forKey: "authToken")
-                print("[WC] Updated token from userInfo")
+                Logger.sync.info("Updated token from userInfo")
             }
 
             // Handle trip started notification
             if userInfo["tripStarted"] as? Bool == true {
-                print("[WC] Trip started via userInfo")
+                Logger.sync.info("Trip started via userInfo")
                 self.handleTripStarted()
             }
         }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        print("[WC] Received message: \(message)")
+        Logger.sync.debug("Received message from iPhone")
         DispatchQueue.main.async {
             // Handle trip started notification
             if message["tripStarted"] as? Bool == true {
-                print("[WC] Trip started via message")
+                Logger.sync.info("Trip started via message")
                 self.handleTripStarted()
             }
         }
@@ -209,24 +210,24 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         if let email = context["userEmail"] as? String {
             self.userEmail = email
             UserDefaults.standard.set(email, forKey: "userEmail")
-            print("[WC] Saved email: \(email)")
+            Logger.sync.debug("Saved email from context")
         }
 
         if let url = context["apiUrl"] as? String {
             self.apiUrl = url
             UserDefaults.standard.set(url, forKey: "apiUrl")
-            print("[WC] Saved apiUrl: \(url)")
+            Logger.sync.debug("Saved apiUrl from context")
         }
 
         if let token = context["authToken"] as? String {
             self.authToken = token
             UserDefaults.standard.set(token, forKey: "authToken")
-            print("[WC] Saved token from context")
+            Logger.sync.info("Saved token from context")
         }
 
         // Check if there's an active trip from context
         if context["tripActive"] as? Bool == true {
-            print("[WC] Active trip detected from context")
+            Logger.sync.info("Active trip detected from context")
             // This means the watch app was just opened and there's an active trip
             // The ViewModel will pick this up during refresh
         }
