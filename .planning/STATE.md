@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2025-01-19)
 
 **Core value:** Prepare Zero Click for iOS App Store release through code quality improvements and compliance
-**Current focus:** Phase 6 — Error Handling & Logging (next)
+**Current focus:** Phase 7 — Compliance Foundation
 
 ## Current Position
 
-Phase: 6 of 8 (Error Handling & Logging)
-Plan: 1 of 4 in current phase
+Phase: 7 of 8 (Compliance Foundation)
+Plan: 1 of TBD in current phase
 Status: In progress
-Last activity: 2026-01-20 — Completed 06-01-PLAN.md (OSLog logging)
+Last activity: 2026-01-20 — Completed 07-01-PLAN.md (In-App Legal Screens)
 
-Progress: █████████░ 92%
+Progress: ██████████████ 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 25
 - Average duration: ~9 min
-- Total execution time: ~3h 25min
+- Total execution time: ~3h 29min
 
 **By Phase:**
 
@@ -33,11 +33,12 @@ Progress: █████████░ 92%
 | 4. Flutter Provider Split | 4/4 | ~30min | ~8min |
 | 5. Flutter UI Refactoring | 3/3 | ~10min | ~3min |
 | 6.1. Firestore Optimization | 1/1 | ~15min | ~15min |
-| 6. Error Handling & Logging | 1/4 | ~12min | ~12min |
+| 6. Error Handling & Logging | 4/4 | ~25min | ~6min |
+| 7. Compliance Foundation | 1/TBD | ~4min | ~4min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01, 05-02, 05-03, 06.1-01, 06-01
-- Trend: Efficient (OSLog logging infrastructure)
+- Last 5 plans: 06-03, 06-04, 06.1-01, 06.2-01, 07-01
+- Trend: Very efficient via parallel execution
 
 ## Accumulated Context
 
@@ -66,7 +67,7 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 06-01-PLAN.md
+Stopped at: Completed 07-01-PLAN.md (In-App Legal Screens)
 Resume file: None
 
 ## Phase 5 Flutter UI Refactoring Summary
@@ -101,3 +102,20 @@ Fixed critical Firestore read inefficiencies causing ~590,000 reads/day:
 
 **Estimated reduction:** ~590K reads/day → ~5K reads/day (99% reduction)
 **Monthly cost savings:** ~$2.40 → ~$0.02
+
+## Phase 6.2 Firebase Analytics Summary
+
+Added Firebase Analytics for user behavior tracking:
+
+**06.2-01: Firebase Analytics**
+- AnalyticsService wrapper class following CrashlyticsLogger pattern
+- ATT (App Tracking Transparency) description in Info.plist
+- Trip events: started, ended, cancelled (with car info, distance, duration)
+- Screen tracking: dashboard, history, charging, settings, onboarding, cars
+- User properties: car_count, hashed user ID (privacy-safe)
+- Debug mode disables analytics collection
+
+**Privacy features:**
+- User ID is SHA256 hash of email (no raw PII)
+- Dutch ATT description explaining anonymous collection
+- Additional anonymous_id for pre-login event linking

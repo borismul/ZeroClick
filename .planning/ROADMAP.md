@@ -20,8 +20,9 @@ None (standard Flutter/Swift development patterns)
 - [x] **Phase 3: Motion Detection Hardening** - Fix hysteresis, debouncing, state machine reliability ✓
 - [x] **Phase 4: Flutter Provider Split** - Break AppProvider into focused providers ✓
 - [x] **Phase 5: Flutter UI Refactoring** - Split oversized screen files ✓
-- [ ] **Phase 6.1: Firestore Optimization** - Fix 590K reads/day via smart polling, denormalization (INSERTED/URGENT)
-- [ ] **Phase 6: Error Handling & Logging** - Crash reporting, structured logging, user feedback
+- [x] **Phase 6.1: Firestore Optimization** - Fix 590K reads/day via smart polling, denormalization (INSERTED/URGENT) ✓
+- [x] **Phase 6: Error Handling & Logging** - Crash reporting, structured logging, user feedback ✓
+- [x] **Phase 6.2: Firebase Analytics** - User behavior tracking, trip events, feature usage (INSERTED) ✓
 - [ ] **Phase 7: Compliance Foundation** - Privacy policy, terms of service, PrivacyInfo.xcprivacy
 - [ ] **Phase 8: App Store Preparation** - Screenshots, metadata, final verification
 
@@ -214,9 +215,25 @@ Key deliverables:
 - Remove/guard debug print statements
 - **Tests verify error scenarios handled correctly**
 
+### Phase 6.2: Firebase Analytics (INSERTED)
+**Goal**: Add analytics to understand user behavior and app usage patterns
+**Depends on**: Phase 6 (Crashlytics already configured Firebase)
+**Research**: Likely (Firebase Analytics Flutter integration, event design)
+**Research topics**: Firebase Analytics Flutter setup, custom event design, screen tracking, user properties
+**Plans**: 1
+
+Key deliverables:
+- Firebase Analytics Flutter integration (firebase_analytics package)
+- Custom trip events (trip_started, trip_ended, trip_cancelled, trip_classified)
+- Screen tracking (dashboard, history, settings, car management)
+- User properties (car_count, total_trips, app_version)
+- Consent-aware implementation (respect ATT on iOS)
+- Analytics service abstraction for testability
+- **Test mocks for analytics service**
+
 ### Phase 7: Compliance Foundation
 **Goal**: Meet basic App Store compliance requirements
-**Depends on**: Phase 6
+**Depends on**: Phase 6.2
 **Research**: Unlikely (standard iOS/Flutter patterns)
 **Plans**: TBD
 
@@ -256,6 +273,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Flutter Provider Split | 4/4 | Complete | 2026-01-19 |
 | 5. Flutter UI Refactoring | 3/3 | Complete | 2026-01-19 |
 | 6.1. Firestore Optimization | 1/1 | Complete | 2026-01-19 |
-| 6. Error Handling & Logging | 1/4 | In progress | - |
-| 7. Compliance Foundation | 0/TBD | Not started | - |
+| 6. Error Handling & Logging | 4/4 | Complete | 2026-01-20 |
+| 6.2. Firebase Analytics | 1/1 | Complete | 2026-01-20 |
+| 7. Compliance Foundation | 1/TBD | In progress | - |
 | 8. App Store Preparation | 0/TBD | Not started | - |
