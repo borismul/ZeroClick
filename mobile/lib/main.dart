@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -24,10 +30,37 @@ import 'services/debug_log_service.dart';
 import 'widgets/device_link_dialog.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Initialize debug log service to receive native logs
-  DebugLogService.instance.init();
-  runApp(const ZeroClickApp());
+  // Catch Flutter framework errors in a zone
+  await runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Initialize Firebase
+    await Firebase.initializeApp();
+
+    // Pass all uncaught Flutter errors to Crashlytics
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+
+    // Pass uncaught async errors to Crashlytics
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
+    // Disable Crashlytics collection in debug mode
+    if (kDebugMode) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
+    }
+
+    // Initialize debug log service to receive native logs
+    DebugLogService.instance.init();
+
+    runApp(const ZeroClickApp());
+  }, (error, stack) {
+    // Catch any errors not caught by Flutter error handlers
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
 }
 
 /// Convert locale code to Locale object
