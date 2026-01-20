@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../core/analytics/analytics_service.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
@@ -65,6 +66,9 @@ class CarProvider extends ChangeNotifier {
         _selectedCar = car;
         _selectedCarId = car.id;
       }
+
+      // Update analytics user property for car count
+      AnalyticsService.setUserProperty('car_count', '${_cars.length}');
     } on Exception catch (e) {
       _log.error('Error refreshing cars', e);
     }

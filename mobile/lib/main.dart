@@ -28,6 +28,7 @@ import 'services/auth_service.dart';
 import 'services/background_service.dart';
 import 'services/debug_log_service.dart';
 import 'widgets/device_link_dialog.dart';
+import 'core/analytics/analytics_service.dart';
 
 void main() async {
   // Catch Flutter framework errors in a zone
@@ -55,6 +56,9 @@ void main() async {
 
     // Initialize debug log service to receive native logs
     DebugLogService.instance.init();
+
+    // Initialize analytics service
+    await AnalyticsService.init();
 
     runApp(const ZeroClickApp());
   }, (error, stack) {
@@ -215,6 +219,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool? _onboardingComplete;
   bool _shouldStartTutorial = false;
 
+  // Screen names for analytics
+  static const _screenNames = ['dashboard', 'history', 'charging', 'settings'];
+
+  void _trackScreen(int index) {
+    if (index >= 0 && index < _screenNames.length) {
+      AnalyticsService.logScreenView(_screenNames[index]);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -232,6 +245,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // Set up callback for unknown device detection after onboarding
       if (complete) {
         _setupAfterOnboarding();
+        // Track initial screen view (dashboard)
+        _trackScreen(0);
+      } else {
+        // Track onboarding screen
+        AnalyticsService.logScreenView('onboarding');
       }
     }
   }
@@ -326,7 +344,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _startCarSetup() {
     final provider = Provider.of<AppProvider>(context, listen: false);
     provider.navigateTo(3); // Go to Settings tab
+    _trackScreen(3);
     // Navigate to Cars screen
+    AnalyticsService.logScreenView('cars');
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => const CarsScreen(showTutorial: true),
@@ -429,7 +449,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             : null,
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: provider.navigationIndex,
-          onTap: provider.navigateTo,
+          onTap: (index) {
+            provider.navigateTo(index);
+            _trackScreen(index);
+          },
           type: BottomNavigationBarType.fixed,
           items: [
             BottomNavigationBarItem(
