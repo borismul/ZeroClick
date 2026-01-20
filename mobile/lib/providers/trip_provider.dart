@@ -377,8 +377,9 @@ class TripProvider extends ChangeNotifier {
     }
 
     // Capture trip data before ending
-    final tripDistance = _activeTrip?.distance;
-    final tripStart = _activeTrip?.startTime;
+    final tripDistance = _activeTrip?.distanceKm;
+    final tripStartStr = _activeTrip?.startTime;
+    final tripStart = tripStartStr != null ? DateTime.tryParse(tripStartStr) : null;
     final durationMinutes = tripStart != null
         ? DateTime.now().difference(tripStart).inMinutes
         : null;
