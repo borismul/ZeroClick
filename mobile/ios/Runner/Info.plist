@@ -55,6 +55,8 @@
 	<string>We gebruiken Bluetooth om te detecteren wanneer je verbinding maakt met je auto.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>We gebruiken Bluetooth om te detecteren wanneer je verbinding maakt met je auto.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>We gebruiken analytics om de app te verbeteren. Je gegevens worden anoniem verzameld.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
