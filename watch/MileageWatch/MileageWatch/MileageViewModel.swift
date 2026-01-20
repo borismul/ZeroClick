@@ -16,13 +16,11 @@ class ZeroClickViewModel: ObservableObject {
 
     @AppStorage("userEmail") var userEmail: String = ""
 
-    private var refreshTimer: Timer?
     private var activeRefreshTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        // Background refresh every 5 minutes, faster refresh only during active trips
-        startAutoRefresh()
+        // No background polling - refresh only on-demand (app open, pull-to-refresh, notifications)
 
         // Listen for trip started notification from WatchConnectivity
         NotificationCenter.default.publisher(for: .tripStarted)
@@ -36,21 +34,12 @@ class ZeroClickViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func startAutoRefresh() {
-        refreshTimer?.invalidate()
-        activeRefreshTimer?.invalidate()
-
-        // Background refresh every 5 minutes (was 30 seconds)
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.refreshAll()
-            }
-        }
+    /// Called when app becomes active (scenePhase == .active)
+    func refreshOnAppear() async {
+        await refreshAll()
     }
 
     func stopAutoRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
         activeRefreshTimer?.invalidate()
         activeRefreshTimer = nil
     }

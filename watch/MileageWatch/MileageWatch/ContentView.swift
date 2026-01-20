@@ -2,28 +2,35 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: ZeroClickViewModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        if viewModel.userEmail.isEmpty {
-            SettingsView()
-        } else if let trip = viewModel.activeTrip, trip.active {
-            // Show full-screen live trip view during active trip
-            LiveTripView(trip: trip, onEnd: {
-                // End trip via API would go here
-                Task {
-                    await viewModel.refreshAll()
-                }
-            })
-        } else {
-            TabView {
-                DashboardView()
-                TripsListView()
-                CarStatusView()
+        Group {
+            if viewModel.userEmail.isEmpty {
                 SettingsView()
+            } else if let trip = viewModel.activeTrip, trip.active {
+                // Show full-screen live trip view during active trip
+                LiveTripView(trip: trip, onEnd: {
+                    // End trip via API would go here
+                    Task {
+                        await viewModel.refreshAll()
+                    }
+                })
+            } else {
+                TabView {
+                    DashboardView()
+                    TripsListView()
+                    CarStatusView()
+                    SettingsView()
+                }
+                .tabViewStyle(.verticalPage)
             }
-            .tabViewStyle(.verticalPage)
-            .task {
-                await viewModel.refreshAll()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                Task {
+                    await viewModel.refreshOnAppear()
+                }
             }
         }
     }
