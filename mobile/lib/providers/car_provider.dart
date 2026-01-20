@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/logging/app_logger.dart';
+import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
@@ -76,6 +77,8 @@ class CarProvider extends ChangeNotifier {
   void selectCar(Car car) {
     _selectedCar = car;
     _selectedCarId = car.id;
+    // Set Crashlytics context for car debugging
+    CrashlyticsLogger.setCarContext(car.id, car.brand);
     notifyListeners();
     // Refresh car data for selected car
     refreshCarData();

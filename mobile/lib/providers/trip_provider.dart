@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/logging/app_logger.dart';
+import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
 import '../models/location.dart';
 import '../models/trip.dart';
@@ -250,6 +251,10 @@ class TripProvider extends ChangeNotifier {
 
   /// Start trip for a specific car with device ID
   Future<bool> startTripForCar(Car car, String deviceId) async {
+    // Set Crashlytics context for trip debugging
+    CrashlyticsLogger.setCarContext(car.id, car.brand);
+    CrashlyticsLogger.log('Trip starting for car: ${car.name}');
+
     final location = await _location.getCurrentLocation();
     if (location == null) {
       _error = _location.lastError ?? 'Kon locatie niet bepalen';
@@ -267,6 +272,10 @@ class TripProvider extends ChangeNotifier {
     try {
       await _api.startTrip(location.lat, location.lng, deviceId: deviceId);
       await refreshActiveTrip();
+      // Set active trip ID for Crashlytics context
+      if (_activeTrip?.tripId != null) {
+        CrashlyticsLogger.setTripContext(_activeTrip!.tripId);
+      }
       await _background.startTrip();
       await _background.notifyWatchTripStarted();
       // Show trip started notification
@@ -337,6 +346,9 @@ class TripProvider extends ChangeNotifier {
   Future<bool> endTrip() async {
     // Stop native tracking + Live Activity
     await _background.endTrip();
+    // Clear Crashlytics trip context
+    CrashlyticsLogger.clearTripContext();
+    CrashlyticsLogger.log('Trip ended');
 
     final location = await _location.getCurrentLocation();
     if (location == null) {
@@ -390,6 +402,8 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> finalizeTrip() async {
     _location.stopBackgroundTracking();
+    CrashlyticsLogger.clearTripContext();
+    CrashlyticsLogger.log('Trip finalized');
     try {
       await _api.finalize();
       await refreshActiveTrip();
@@ -406,6 +420,8 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> cancelTrip() async {
     _location.stopBackgroundTracking();
+    CrashlyticsLogger.clearTripContext();
+    CrashlyticsLogger.log('Trip cancelled');
     try {
       await _api.cancel();
       await refreshActiveTrip();

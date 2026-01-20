@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/logging/app_logger.dart';
+import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
 import '../models/location.dart';
 import '../models/settings.dart';
@@ -174,6 +175,12 @@ class AppProvider extends ChangeNotifier {
     // Sync Google auth email to settings and App Group
     if (auth.isSignedIn && auth.userEmail != null && auth.userEmail != settings.userEmail) {
       await saveSettings(settings.copyWith(userEmail: auth.userEmail));
+    }
+
+    // Set Crashlytics user identifier for crash debugging
+    if (auth.isSignedIn && auth.userEmail != null) {
+      CrashlyticsLogger.setUserIdentifier(auth.userEmail!);
+      CrashlyticsLogger.log('User signed in');
     }
 
     // CRITICAL: Set auth token on API service
