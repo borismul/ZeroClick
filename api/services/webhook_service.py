@@ -27,11 +27,17 @@ class WebhookService:
         car_id: str | None = None,
         device_id: str | None = None,
     ) -> dict:
-        """Handle GPS ping during trip. Collects coordinates and checks car status."""
+        """Handle GPS ping during trip. Collects coordinates and checks car status.
+
+        IMPORTANT: This method writes to cache exactly ONCE at the end to minimize Firestore writes.
+        All state changes accumulate in memory, then persist in a single write.
+        """
         timestamp = datetime.utcnow().isoformat() + "Z"
         logger.info(f"GPS ping at {lat}, {lng} for user {user_id}, car_id={car_id}, device_id={device_id}")
 
         cache = get_trip_cache(user_id)
+        result = None  # Will hold the return value
+        clear_cache = False  # Set to True to delete cache instead of saving
 
         # If no active trip, start one
         if not cache or not cache.get("active"):
@@ -73,7 +79,7 @@ class WebhookService:
         start_odo = cache.get("start_odo")
         gps_only_mode = cache.get("gps_only_mode", False)
 
-        if start_odo is None and not gps_only_mode:
+        if result is None and start_odo is None and not gps_only_mode:
             # First phase: find which car is driving and get odometer
             bluetooth_car_id = cache.get("car_id")  # Already set from Bluetooth in cache init
 
@@ -107,9 +113,8 @@ class WebhookService:
                             logger.info(f"Trip start (Bluetooth+API): no last parked, odo={car_status['odometer']}")
 
                         cache["last_odo"] = car_status["odometer"]
-                        set_trip_cache(cache, user_id)
                         logger.info(f"Trip assigned to {car_status['name']} (Bluetooth), start_odo={cache['start_odo']}")
-                        return {"status": "trip_started", "car": car_status["name"], "start_odo": cache["start_odo"], "user": user_id, "source": "bluetooth"}
+                        result = {"status": "trip_started", "car": car_status["name"], "start_odo": cache["start_odo"], "user": user_id, "source": "bluetooth"}
                     else:
                         # API unavailable but Bluetooth identified car - use GPS-only mode
                         api_error_count = cache.get("api_error_count", 0) + 1
@@ -119,16 +124,14 @@ class WebhookService:
                             logger.info(f"Bluetooth identified car but API failing - using GPS-only mode")
                             cache["gps_only_mode"] = True
                             cache["api_error_count"] = 0
-                            set_trip_cache(cache, user_id)
-                            return {"status": "gps_only_mode", "reason": "bluetooth_car_api_unavailable", "user": user_id}
-                        set_trip_cache(cache, user_id)
-                        return {"status": "waiting_for_api", "api_error_count": api_error_count, "user": user_id}
+                            result = {"status": "gps_only_mode", "reason": "bluetooth_car_api_unavailable", "user": user_id}
+                        else:
+                            result = {"status": "waiting_for_api", "api_error_count": api_error_count, "user": user_id}
                 else:
                     # Bluetooth car has no credentials - use GPS-only mode
                     logger.info(f"Bluetooth car {bluetooth_car_id} has no API credentials - using GPS-only mode")
                     cache["gps_only_mode"] = True
-                    set_trip_cache(cache, user_id)
-                    return {"status": "gps_only_mode", "reason": "bluetooth_car_no_credentials", "user": user_id}
+                    result = {"status": "gps_only_mode", "reason": "bluetooth_car_no_credentials", "user": user_id}
             else:
                 # No Bluetooth identification - use existing find_driving_car logic
                 driving_car, reason = car_service.find_driving_car(user_id)
@@ -150,217 +153,231 @@ class WebhookService:
                             cache["gps_only_mode"] = True
                             cache["no_driving_count"] = 0
                             cache["api_error_count"] = 0
-                            set_trip_cache(cache, user_id)
-                            return {"status": "gps_only_mode", "reason": "car_api_unavailable", "user": user_id}
+                            result = {"status": "gps_only_mode", "reason": "car_api_unavailable", "user": user_id}
                         else:
                             # Cancel after 3 pings with car confirmed not driving
                             logger.info("No tracked car driving after 3 pings - cancelling trip")
-                            set_trip_cache(None, user_id)
-                            return {"status": "cancelled", "reason": "no_tracked_car_driving", "user": user_id}
+                            clear_cache = True
+                            result = {"status": "cancelled", "reason": "no_tracked_car_driving", "user": user_id}
+                    else:
+                        result = {"status": "waiting_for_car", "no_driving_count": no_driving_count, "user": user_id}
+                else:
+                    # Found a driving car via API - assign it to this trip
+                    cache["car_id"] = driving_car["car_id"]
+                    cache["car_name"] = driving_car["name"]
+                    cache["no_driving_count"] = 0
+                    cache["parked_count"] = 0
+                    cache["api_error_count"] = 0
 
-                    set_trip_cache(cache, user_id)
-                    return {"status": "waiting_for_car", "no_driving_count": no_driving_count, "user": user_id}
-
-                # Found a driving car via API - assign it to this trip
-                cache["car_id"] = driving_car["car_id"]
-                cache["car_name"] = driving_car["name"]
-                cache["no_driving_count"] = 0
-                cache["parked_count"] = 0
-                cache["api_error_count"] = 0
-
-                # Use last parked GPS and odometer as trip start (where car was before driving)
-                last_parked = driving_car.get("last_parked_gps")
-                if last_parked:
-                    cache["gps_trail"] = [{"lat": last_parked["lat"], "lng": last_parked["lng"], "timestamp": last_parked.get("timestamp", timestamp)}]
-                    # Use parked odometer if available (more accurate than current odometer)
-                    if last_parked.get("odometer"):
-                        cache["start_odo"] = last_parked["odometer"]
-                        logger.info(f"Trip start from last parked: GPS={last_parked['lat']}, {last_parked['lng']}, odo={last_parked['odometer']}")
+                    # Use last parked GPS and odometer as trip start (where car was before driving)
+                    last_parked = driving_car.get("last_parked_gps")
+                    if last_parked:
+                        cache["gps_trail"] = [{"lat": last_parked["lat"], "lng": last_parked["lng"], "timestamp": last_parked.get("timestamp", timestamp)}]
+                        # Use parked odometer if available (more accurate than current odometer)
+                        if last_parked.get("odometer"):
+                            cache["start_odo"] = last_parked["odometer"]
+                            logger.info(f"Trip start from last parked: GPS={last_parked['lat']}, {last_parked['lng']}, odo={last_parked['odometer']}")
+                        else:
+                            cache["start_odo"] = driving_car["odometer"]
+                            logger.info(f"Trip start from last parked GPS: {last_parked['lat']}, {last_parked['lng']} (no parked odo, using current)")
                     else:
                         cache["start_odo"] = driving_car["odometer"]
-                        logger.info(f"Trip start from last parked GPS: {last_parked['lat']}, {last_parked['lng']} (no parked odo, using current)")
-                else:
-                    cache["start_odo"] = driving_car["odometer"]
-                    logger.info(f"Trip start (no last parked data)")
+                        logger.info(f"Trip start (no last parked data)")
 
-                cache["last_odo"] = driving_car["odometer"]
-                set_trip_cache(cache, user_id)
-                logger.info(f"Trip assigned to {driving_car['name']}, start_odo={cache['start_odo']}")
-                return {"status": "trip_started", "car": driving_car["name"], "start_odo": cache["start_odo"], "user": user_id}
+                    cache["last_odo"] = driving_car["odometer"]
+                    logger.info(f"Trip assigned to {driving_car['name']}, start_odo={cache['start_odo']}")
+                    result = {"status": "trip_started", "car": driving_car["name"], "start_odo": cache["start_odo"], "user": user_id}
 
         # GPS-only mode: just collect GPS events, no car API checks
-        if gps_only_mode:
-            set_trip_cache(cache, user_id)
+        if result is None and gps_only_mode:
             logger.info(f"GPS-only mode: collected {len(cache.get('gps_events', []))} GPS events")
-            return {"status": "gps_only_ping", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
+            result = {"status": "gps_only_ping", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
 
         # Subsequent pings: check assigned car status
-        assigned_car_id = cache.get("car_id")
-        if not assigned_car_id:
-            logger.warning("No car_id in cache - cancelling")
+        if result is None:
+            assigned_car_id = cache.get("car_id")
+            if not assigned_car_id:
+                logger.warning("No car_id in cache - cancelling")
+                clear_cache = True
+                result = {"status": "cancelled", "reason": "no_car_assigned", "user": user_id}
+
+        if result is None:
+            assigned_car_id = cache.get("car_id")
+            cars = car_service.get_cars_with_credentials(user_id)
+            car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
+
+            if not car_info:
+                # Car exists but credentials are missing - continue in GPS-only mode instead of cancelling
+                logger.warning(f"Car {assigned_car_id} has no credentials - continuing in GPS-only mode")
+                cache["gps_only_mode"] = True
+                result = {"status": "gps_only_ping", "reason": "credentials_missing", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
+
+        if result is None:
+            assigned_car_id = cache.get("car_id")
+            cars = car_service.get_cars_with_credentials(user_id)
+            car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
+            car_status = car_service.check_car_driving_status(car_info)
+
+            if not car_status:
+                # API completely failed - maintain previous state, don't reset counters
+                api_error_count = cache.get("api_error_count", 0) + 1
+                cache["api_error_count"] = api_error_count
+                logger.warning(f"Car API unavailable - maintaining parked_count={cache.get('parked_count', 0)}, skip_pause_count={cache.get('skip_pause_count', 0)}, api_errors={api_error_count}")
+                result = {"status": "ping_recorded", "error": "car_status_unavailable", "user": user_id}
+
+        if result is None:
+            assigned_car_id = cache.get("car_id")
+            cars = car_service.get_cars_with_credentials(user_id)
+            car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
+            car_status = car_service.check_car_driving_status(car_info)
+
+            # API returned data - reset error counter
+            cache["api_error_count"] = 0
+
+            current_odo = car_status["odometer"]
+            is_parked = car_status["is_parked"]
+            vehicle_state = car_status["state"]
+            car_lat = car_status.get("lat")
+            car_lng = car_status.get("lng")
+            last_odo = cache.get("last_odo")
+
+            # Store GPS from car (only if position changed significantly - >50m)
+            if car_lat and car_lng:
+                gps_trail = cache.get("gps_trail", [])
+                should_add = True
+                if gps_trail:
+                    last_car = gps_trail[-1]
+                    last_lng = last_car.get("lng", last_car.get("lon"))
+                    distance = haversine(last_car["lat"], last_lng, car_lat, car_lng)
+                    if distance < 50:  # Less than 50m - skip to avoid duplicates
+                        should_add = False
+                if should_add:
+                    gps_trail.append({"lat": car_lat, "lng": car_lng, "timestamp": timestamp})
+                    cache["gps_trail"] = gps_trail
+                cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
+
+            # Validate odometer (ignore if API returned stale/bad data)
+            if current_odo is not None and last_odo is not None and current_odo < last_odo:
+                logger.warning(f"Odometer went backwards: {current_odo} < {last_odo} - ignoring bad data")
+                current_odo = last_odo
+
+            # ODO increasing = car is moving (override is_parked from API)
+            # If odometer increased by more than 0.5km, car is clearly driving
+            if last_odo is not None and current_odo is not None:
+                odo_delta = current_odo - last_odo
+                if odo_delta > 0.5:  # More than 500m increase
+                    if is_parked:
+                        logger.info(f"ODO increased by {odo_delta:.1f}km - car is driving (overriding is_parked={is_parked})")
+                        is_parked = False  # Override API's wrong "parked" state
+
+            # Track parked count - ONLY when car API confidently says parked
+            # If is_parked is None (unknown state), maintain previous counters
+            if is_parked is None:
+                logger.info(f"Car state unknown - maintaining parked_count={cache.get('parked_count', 0)}")
+            elif is_parked:
+                cache["parked_count"] = cache.get("parked_count", 0) + 1
+            else:
+                cache["parked_count"] = 0
+                cache["skip_pause_count"] = 0
+
+            # Always update last_odo when it increases
+            if current_odo is not None and current_odo > cache.get("last_odo", 0):
+                cache["last_odo"] = current_odo
+                if cache.get("end_triggered"):
+                    logger.info(f"Clearing end_triggered - car is moving, continuing trip")
+                    cache["end_triggered"] = None
+
+            parked_count = cache.get("parked_count", 0)
+            logger.info(f"Car {cache.get('car_name')}: state={vehicle_state}, parked_count={parked_count}, odo={current_odo}")
+
+            # Check if parked 3x in a row - trip is done
+            if parked_count >= 3:
+                total_km = current_odo - start_odo
+                car_gps = cache.get("audi_gps")
+
+                if total_km <= 0:
+                    logger.info(f"Trip had {total_km} km - skipping")
+                    clear_cache = True
+                    result = {"status": "skipped", "reason": "zero_or_negative_km", "user": user_id}
+                elif car_gps and location_service.is_skip_location(car_gps["lat"], car_gps["lng"]):
+                    # Check if parked at skip location - wait indefinitely until car leaves
+                    skip_pause_count = cache.get("skip_pause_count", 0) + 1
+                    cache["skip_pause_count"] = skip_pause_count
+                    # Always wait at skip location - no timeout (safety net at 2h still applies)
+                    logger.info(f"Parked at skip location - waiting indefinitely (ping {skip_pause_count}). Total km: {total_km}")
+                    result = {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
+                else:
+                    # Finalize trip
+                    logger.info(f"Trip complete! {total_km} km driven")
+
+                    if not car_gps:
+                        # Fallback to phone GPS
+                        if gps_events:
+                            car_gps = {"lat": gps_events[-1]["lat"], "lng": gps_events[-1]["lng"], "timestamp": gps_events[-1]["timestamp"]}
+                            logger.info(f"No car GPS - using phone GPS as fallback: {car_gps['lat']}, {car_gps['lng']}")
+                        else:
+                            logger.warning("No end GPS from car or phone")
+                            clear_cache = True
+                            result = {"status": "skipped", "reason": "no_end_gps", "user": user_id}
+
+                    if result is None:
+                        # Build GPS trail - merge ALL car + phone GPS points, sorted and deduplicated
+                        phone_gps_trail = [
+                            {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+                            for e in gps_events if not e.get("is_skip")
+                        ]
+                        audi_trail = cache.get("gps_trail", [])
+
+                        # Merge all points and sort by timestamp
+                        all_points = []
+                        all_points.extend(audi_trail)
+                        all_points.extend(phone_gps_trail)
+                        if car_gps:
+                            all_points.append(car_gps)
+                        all_points.sort(key=lambda p: p.get("timestamp", ""))
+
+                        # Deduplicate by distance (keep points >50m apart)
+                        combined_trail = []
+                        for p in all_points:
+                            if not combined_trail:
+                                combined_trail.append(p)
+                            else:
+                                last = combined_trail[-1]
+                                last_lng = last.get("lng", last.get("lon"))
+                                p_lng = p.get("lng", p.get("lon"))
+                                dist = haversine(last["lat"], last_lng, p["lat"], p_lng)
+                                if dist >= 50:  # Only add if >50m from last point
+                                    combined_trail.append(p)
+
+                        start_gps = audi_trail[0] if audi_trail else (gps_events[0] if gps_events else None)
+                        if not start_gps:
+                            logger.warning("No start GPS")
+                            clear_cache = True
+                            result = {"status": "skipped", "reason": "no_start_gps", "user": user_id}
+                        else:
+                            trip_result = trip_service.finalize_trip_from_audi(
+                                start_gps=start_gps,
+                                end_gps=car_gps,
+                                start_odo=start_odo,
+                                end_odo=current_odo,
+                                start_time=cache.get("start_time"),
+                                gps_trail=combined_trail,
+                                user_id=user_id,
+                                car_id=assigned_car_id,
+                            )
+
+                            clear_cache = True
+                            result = {"status": "finalized", "trip": trip_result, "user": user_id}
+            else:
+                result = {"status": "moving" if current_odo != last_odo else "waiting", "current_odo": current_odo, "parked_count": parked_count, "user": user_id}
+
+        # SINGLE CACHE WRITE at end of all processing
+        if clear_cache:
             set_trip_cache(None, user_id)
-            return {"status": "cancelled", "reason": "no_car_assigned", "user": user_id}
-
-        cars = car_service.get_cars_with_credentials(user_id)
-        car_info = next((c for c in cars if c["car_id"] == assigned_car_id), None)
-
-        if not car_info:
-            # Car exists but credentials are missing - continue in GPS-only mode instead of cancelling
-            logger.warning(f"Car {assigned_car_id} has no credentials - continuing in GPS-only mode")
-            cache["gps_only_mode"] = True
-            set_trip_cache(cache, user_id)
-            return {"status": "gps_only_ping", "reason": "credentials_missing", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
-
-        car_status = car_service.check_car_driving_status(car_info)
-        if not car_status:
-            # API completely failed - maintain previous state, don't reset counters
-            api_error_count = cache.get("api_error_count", 0) + 1
-            cache["api_error_count"] = api_error_count
-            logger.warning(f"Car API unavailable - maintaining parked_count={cache.get('parked_count', 0)}, skip_pause_count={cache.get('skip_pause_count', 0)}, api_errors={api_error_count}")
-            set_trip_cache(cache, user_id)
-            return {"status": "ping_recorded", "error": "car_status_unavailable", "user": user_id}
-
-        # API returned data - reset error counter
-        cache["api_error_count"] = 0
-
-        current_odo = car_status["odometer"]
-        is_parked = car_status["is_parked"]
-        vehicle_state = car_status["state"]
-        car_lat = car_status.get("lat")
-        car_lng = car_status.get("lng")
-        last_odo = cache.get("last_odo")
-
-        # Store GPS from car (only if position changed significantly - >50m)
-        if car_lat and car_lng:
-            gps_trail = cache.get("gps_trail", [])
-            should_add = True
-            if gps_trail:
-                last_car = gps_trail[-1]
-                last_lng = last_car.get("lng", last_car.get("lon"))
-                distance = haversine(last_car["lat"], last_lng, car_lat, car_lng)
-                if distance < 50:  # Less than 50m - skip to avoid duplicates
-                    should_add = False
-            if should_add:
-                gps_trail.append({"lat": car_lat, "lng": car_lng, "timestamp": timestamp})
-                cache["gps_trail"] = gps_trail
-            cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
-
-        # Validate odometer (ignore if API returned stale/bad data)
-        if current_odo is not None and last_odo is not None and current_odo < last_odo:
-            logger.warning(f"Odometer went backwards: {current_odo} < {last_odo} - ignoring bad data")
-            current_odo = last_odo
-
-        # ODO increasing = car is moving (override is_parked from API)
-        # If odometer increased by more than 0.5km, car is clearly driving
-        if last_odo is not None and current_odo is not None:
-            odo_delta = current_odo - last_odo
-            if odo_delta > 0.5:  # More than 500m increase
-                if is_parked:
-                    logger.info(f"ODO increased by {odo_delta:.1f}km - car is driving (overriding is_parked={is_parked})")
-                    is_parked = False  # Override API's wrong "parked" state
-
-        # Track parked count - ONLY when car API confidently says parked
-        # If is_parked is None (unknown state), maintain previous counters
-        if is_parked is None:
-            logger.info(f"Car state unknown - maintaining parked_count={cache.get('parked_count', 0)}")
-        elif is_parked:
-            cache["parked_count"] = cache.get("parked_count", 0) + 1
         else:
-            cache["parked_count"] = 0
-            cache["skip_pause_count"] = 0
+            set_trip_cache(cache, user_id)
 
-        # Always update last_odo when it increases
-        if current_odo is not None and current_odo > cache.get("last_odo", 0):
-            cache["last_odo"] = current_odo
-            if cache.get("end_triggered"):
-                logger.info(f"Clearing end_triggered - car is moving, continuing trip")
-                cache["end_triggered"] = None
-
-        parked_count = cache.get("parked_count", 0)
-        logger.info(f"Car {cache.get('car_name')}: state={vehicle_state}, parked_count={parked_count}, odo={current_odo}")
-
-        # Check if parked 3x in a row - trip is done
-        if parked_count >= 3:
-            total_km = current_odo - start_odo
-            car_gps = cache.get("audi_gps")
-
-            if total_km <= 0:
-                logger.info(f"Trip had {total_km} km - skipping")
-                set_trip_cache(None, user_id)
-                return {"status": "skipped", "reason": "zero_or_negative_km", "user": user_id}
-
-            # Check if parked at skip location - wait indefinitely until car leaves
-            if car_gps and location_service.is_skip_location(car_gps["lat"], car_gps["lng"]):
-                skip_pause_count = cache.get("skip_pause_count", 0) + 1
-                cache["skip_pause_count"] = skip_pause_count
-                # Always wait at skip location - no timeout (safety net at 2h still applies)
-                logger.info(f"Parked at skip location - waiting indefinitely (ping {skip_pause_count}). Total km: {total_km}")
-                set_trip_cache(cache, user_id)
-                return {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
-
-            # Finalize trip
-            logger.info(f"Trip complete! {total_km} km driven")
-
-            if not car_gps:
-                # Fallback to phone GPS
-                if gps_events:
-                    car_gps = {"lat": gps_events[-1]["lat"], "lng": gps_events[-1]["lng"], "timestamp": gps_events[-1]["timestamp"]}
-                    logger.info(f"No car GPS - using phone GPS as fallback: {car_gps['lat']}, {car_gps['lng']}")
-                else:
-                    logger.warning("No end GPS from car or phone")
-                    set_trip_cache(None, user_id)
-                    return {"status": "skipped", "reason": "no_end_gps", "user": user_id}
-
-            # Build GPS trail - merge ALL car + phone GPS points, sorted and deduplicated
-            phone_gps_trail = [
-                {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
-                for e in gps_events if not e.get("is_skip")
-            ]
-            audi_trail = cache.get("gps_trail", [])
-
-            # Merge all points and sort by timestamp
-            all_points = []
-            all_points.extend(audi_trail)
-            all_points.extend(phone_gps_trail)
-            if car_gps:
-                all_points.append(car_gps)
-            all_points.sort(key=lambda p: p.get("timestamp", ""))
-
-            # Deduplicate by distance (keep points >50m apart)
-            combined_trail = []
-            for p in all_points:
-                if not combined_trail:
-                    combined_trail.append(p)
-                else:
-                    last = combined_trail[-1]
-                    last_lng = last.get("lng", last.get("lon"))
-                    p_lng = p.get("lng", p.get("lon"))
-                    dist = haversine(last["lat"], last_lng, p["lat"], p_lng)
-                    if dist >= 50:  # Only add if >50m from last point
-                        combined_trail.append(p)
-
-            start_gps = audi_trail[0] if audi_trail else (gps_events[0] if gps_events else None)
-            if not start_gps:
-                logger.warning("No start GPS")
-                set_trip_cache(None, user_id)
-                return {"status": "skipped", "reason": "no_start_gps", "user": user_id}
-
-            trip_result = trip_service.finalize_trip_from_audi(
-                start_gps=start_gps,
-                end_gps=car_gps,
-                start_odo=start_odo,
-                end_odo=current_odo,
-                start_time=cache.get("start_time"),
-                gps_trail=combined_trail,
-                user_id=user_id,
-                car_id=assigned_car_id,
-            )
-
-            set_trip_cache(None, user_id)
-            return {"status": "finalized", "trip": trip_result, "user": user_id}
-
-        set_trip_cache(cache, user_id)
-        return {"status": "moving" if current_odo != last_odo else "waiting", "current_odo": current_odo, "parked_count": parked_count, "user": user_id}
+        return result
 
     def handle_start(
         self,
