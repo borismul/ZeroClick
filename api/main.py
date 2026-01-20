@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth.middleware import AuthMiddleware
 from auth.dependencies import get_current_user
+from middleware.request_id import RequestIdMiddleware
 from routes import (
     auth_router,
     trips_router,
@@ -53,6 +54,9 @@ app.add_middleware(
 
 # Auth middleware
 app.add_middleware(AuthMiddleware)
+
+# Request ID middleware (for tracing)
+app.add_middleware(RequestIdMiddleware)
 
 # Include routers
 app.include_router(auth_router)
