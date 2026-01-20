@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000170000001700000017 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000170000001700000017 /* Logger.swift */; };
 		A10000010000000100000001 /* MileageWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000100000001 /* MileageWatchApp.swift */; };
 		A10000020000000200000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020000000200000002 /* ContentView.swift */; };
 		A10000030000000300000003 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000030000000300000003 /* Models.swift */; };
@@ -72,6 +73,7 @@
 		A20000140000001400000014 /* ActiveTripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTripView.swift; sourceTree = "<group>"; };
 		A20000150000001500000015 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		A20000160000001600000016 /* TripDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDetailView.swift; sourceTree = "<group>"; };
+		A20000170000001700000017 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		A30000010000000100000001 /* MileageWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MileageWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -136,6 +138,7 @@
 				A20000030000000300000003 /* Models.swift */,
 				A20000040000000400000004 /* APIClient.swift */,
 				A20000050000000500000005 /* MileageViewModel.swift */,
+				A20000170000001700000017 /* Logger.swift */,
 				A20000110000001100000011 /* KeychainHelper.swift */,
 				A20000120000001200000012 /* WatchConnectivityManager.swift */,
 				A50000040000000400000004 /* Views */,
@@ -285,6 +288,7 @@
 				A10000030000000300000003 /* Models.swift in Sources */,
 				A10000040000000400000004 /* APIClient.swift in Sources */,
 				A10000050000000500000005 /* MileageViewModel.swift in Sources */,
+				A10000170000001700000017 /* Logger.swift in Sources */,
 				A10000060000000600000006 /* DashboardView.swift in Sources */,
 				A10000070000000700000007 /* TripsListView.swift in Sources */,
 				A10000080000000800000008 /* CarStatusView.swift in Sources */,
