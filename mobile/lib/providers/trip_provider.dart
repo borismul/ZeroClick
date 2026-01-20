@@ -272,9 +272,9 @@ class TripProvider extends ChangeNotifier {
     try {
       await _api.startTrip(location.lat, location.lng, deviceId: deviceId);
       await refreshActiveTrip();
-      // Set active trip ID for Crashlytics context
-      if (_activeTrip?.tripId != null) {
-        CrashlyticsLogger.setTripContext(_activeTrip!.tripId);
+      // Set active trip context for Crashlytics (use startTime as unique identifier)
+      if (_activeTrip?.startTime != null) {
+        CrashlyticsLogger.setTripContext(_activeTrip!.startTime!);
       }
       await _background.startTrip();
       await _background.notifyWatchTripStarted();
