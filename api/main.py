@@ -13,6 +13,7 @@ All business logic has been refactored into:
 """
 
 import logging
+import os
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.middleware import AuthMiddleware
 from auth.dependencies import get_current_user
 from middleware.request_id import RequestIdMiddleware
+from middleware.logging import configure_logging
 from routes import (
     auth_router,
     trips_router,
@@ -36,8 +38,8 @@ from routes.oauth import (
     renault_router,
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging (JSON in production, plain text in dev)
+configure_logging(json_format=os.getenv("ENV", "dev") == "prod")
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
