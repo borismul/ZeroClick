@@ -15,12 +15,13 @@ All business logic has been refactored into:
 import logging
 import os
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from auth.middleware import AuthMiddleware
 from auth.dependencies import get_current_user
-from middleware.request_id import RequestIdMiddleware
+from middleware.request_id import RequestIdMiddleware, get_request_id
 from middleware.logging import configure_logging
 from routes import (
     auth_router,
@@ -78,6 +79,34 @@ app.include_router(renault_router)
 def health():
     """Health check endpoint."""
     return {"status": "ok", "service": "mileage-tracker-api"}
+
+
+# === Exception handlers with request_id ===
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle all unhandled exceptions with request_id."""
+    logger.exception(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "request_id": get_request_id(),
+        },
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Add request_id to HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": get_request_id(),
+        },
+    )
 
 
 # === Legacy endpoints for backwards compatibility ===
