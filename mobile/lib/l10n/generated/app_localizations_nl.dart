@@ -876,4 +876,54 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get tutorialAddCarDesc => 'Tik hier om je eerste auto toe te voegen';
+
+  @override
+  String get permissionsMissingTitle => 'Permissies vereist';
+
+  @override
+  String get permissionsMissingMessage =>
+      'Sommige permissies zijn niet toegestaan. De app werkt mogelijk niet goed zonder deze.';
+
+  @override
+  String get permissionsOpenSettings => 'Open Instellingen';
+
+  @override
+  String get permissionsMissing => 'Ontbrekend';
+
+  @override
+  String get permissionLocation => 'Achtergrondlocatie';
+
+  @override
+  String get permissionMotion => 'Beweging en fitness';
+
+  @override
+  String get permissionNotifications => 'Notificaties';
+
+  @override
+  String get legal => 'Juridisch';
+
+  @override
+  String get privacyPolicyAndTerms => 'Privacybeleid & Voorwaarden';
+
+  @override
+  String get privacyPolicy => 'Privacybeleid';
+
+  @override
+  String get termsOfService => 'Algemene voorwaarden';
+
+  @override
+  String get readFullVersion => 'Lees volledige versie online';
+
+  @override
+  String lastUpdated(String date) {
+    return 'Laatst bijgewerkt: $date';
+  }
+
+  @override
+  String get privacyPolicyContent =>
+      'PRIVACYBELEID\n\nZero Click (\'de app\') is een persoonlijke ritregistratie-app. Je privacy is belangrijk voor ons.\n\nWELKE GEGEVENS WE VERZAMELEN\n\n• Locatiegegevens: GPS-coördinaten tijdens ritten om afstanden en routes te berekenen\n• E-mailadres: Voor accountidentificatie via Google Inloggen\n• Kilometerstanden: Opgehaald van de API van je auto (Audi, Tesla, etc.) indien gekoppeld\n• Apparaatinformatie: Voor crashrapportage en app-verbeteringen\n\nWAAROOM WE DEZE GEGEVENS VERZAMELEN\n\n• Ritregistratie: Om automatisch je zakelijke en privéritten te registreren\n• Kilometerberekening: Via kilometerstanden of GPS-coördinaten\n• Authenticatie: Om je account te beveiligen en te synchroniseren tussen apparaten\n• App-verbetering: Om bugs te repareren en betrouwbaarheid te verbeteren\n\nHOE GEGEVENS WORDEN OPGESLAGEN\n\n• Alle gegevens worden opgeslagen in Firebase (Google Cloud Platform) in de EU-regio (europe-west4)\n• Gegevens worden versleuteld tijdens verzending en in rust\n• Alleen jij hebt toegang tot je ritgegevens\n\nDERDE PARTIJEN\n\n• Google Inloggen: Voor authenticatie\n• Firebase Analytics: Voor anonieme gebruiksstatistieken\n• Auto-API\'s (Audi, Tesla, Renault, etc.): Voor kilometerstanden\n• Google Maps: Voor routevisualisatie\n\nJE RECHTEN\n\n• Export: Je kunt al je ritten exporteren naar Google Sheets via het webdashboard\n• Verwijdering: Je kunt je account en alle gegevens verwijderen in Instellingen\n• Toegang: Je hebt volledige toegang tot al je gegevens in de app\n\nCONTACT\n\nVoor privacyvragen, neem contact op: privacy@zeroclick.app';
+
+  @override
+  String get termsOfServiceContent =>
+      'ALGEMENE VOORWAARDEN\n\nDoor Zero Click (\'de app\') te gebruiken, ga je akkoord met deze voorwaarden.\n\nSERVICEBESCHRIJVING\n\nZero Click is een persoonlijke ritregistratie-app die automatisch detecteert wanneer je rijdt en ritten registreert. De app gebruikt bewegingsdetectie, GPS en optioneel de API van je auto voor kilometergegevens.\n\nGEBRUIKERSVERANTWOORDELIJKHEDEN\n\n• Correcte setup: Je bent verantwoordelijk voor het correct configureren van je auto\'s en accounts\n• Rechtmatig gebruik: Gebruik de app alleen voor legale doeleinden\n• Gegevensnauwkeurigheid: Controleer belangrijke ritgegevens voordat je deze gebruikt voor belasting of zakelijke doeleinden\n\nGEGEVENSNAAUWKEURIGHEID DISCLAIMER\n\n• GPS-gebaseerde afstanden kunnen afwijken van werkelijke afstanden\n• Kilometerstanden zijn afhankelijk van de nauwkeurigheid van de API van je auto\n• Automatische ritdetectie kan af en toe ritten missen of valse positieven creëren\n• Controleer altijd je ritten op nauwkeurigheid\n\nSERVICEBESCHIKBAARHEID\n\n• Zero Click is een persoonlijk project en garandeert geen uptime\n• De service kan onbeschikbaar zijn voor onderhoud of updates\n• Functies kunnen op elk moment veranderen of worden verwijderd\n\nACCOUNTBEËINDIGING\n\n• Je kunt je account op elk moment verwijderen in Instellingen\n• Accountverwijdering verwijdert permanent al je gegevens\n• We kunnen accounts beëindigen die deze voorwaarden schenden\n\nAANSPRAKELIJKHEIDSBEPERKING\n\n• De app wordt geleverd \'zoals het is\' zonder garanties\n• We zijn niet aansprakelijk voor onnauwkeurige ritgegevens of gemiste ritten\n• We zijn niet aansprakelijk voor schade door gebruik van de app\n• Maximale aansprakelijkheid is beperkt tot het bedrag dat je hebt betaald (nul, de app is gratis)\n\nWIJZIGINGEN IN VOORWAARDEN\n\nWe kunnen deze voorwaarden op elk moment bijwerken. Voortgezet gebruik na wijzigingen betekent acceptatie.\n\nCONTACT\n\nVoor vragen over deze voorwaarden, neem contact op: support@zeroclick.app';
 }

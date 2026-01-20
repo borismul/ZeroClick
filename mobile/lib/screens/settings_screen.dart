@@ -9,6 +9,7 @@ import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import 'cars_screen.dart';
 import 'debug_log_screen.dart';
+import 'legal_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -407,6 +408,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
+
+            const SizedBox(height: 16),
+
+            // Legal section
+            const Divider(),
+            const SizedBox(height: 16),
+
+            Text(
+              l10n.legal,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.policy),
+                title: Text(l10n.privacyPolicyAndTerms),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (context) => const LegalScreen()),
+                  );
+                },
+              ),
+            ),
 
             const SizedBox(height: 16),
 

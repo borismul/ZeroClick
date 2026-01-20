@@ -1733,6 +1733,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap here to add your first car'**
   String get tutorialAddCarDesc;
+
+  /// Title for missing permissions banner
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions Required'**
+  String get permissionsMissingTitle;
+
+  /// Message explaining permissions are needed
+  ///
+  /// In en, this message translates to:
+  /// **'Some permissions are not granted. The app may not work properly without them.'**
+  String get permissionsMissingMessage;
+
+  /// Button to open app settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get permissionsOpenSettings;
+
+  /// Label before list of missing permissions
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get permissionsMissing;
+
+  /// Location permission name
+  ///
+  /// In en, this message translates to:
+  /// **'Background Location'**
+  String get permissionLocation;
+
+  /// Motion permission name
+  ///
+  /// In en, this message translates to:
+  /// **'Motion & Fitness'**
+  String get permissionMotion;
+
+  /// Notifications permission name
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get permissionNotifications;
+
+  /// Legal section title
+  ///
+  /// In en, this message translates to:
+  /// **'Legal'**
+  String get legal;
+
+  /// Link to legal screen
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy & Terms'**
+  String get privacyPolicyAndTerms;
+
+  /// Privacy policy tab title
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// Terms of service tab title
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfService;
+
+  /// Button to open full legal document
+  ///
+  /// In en, this message translates to:
+  /// **'Read full version online'**
+  String get readFullVersion;
+
+  /// Last update date for legal documents
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated: {date}'**
+  String lastUpdated(String date);
+
+  /// Full privacy policy text
+  ///
+  /// In en, this message translates to:
+  /// **'PRIVACY POLICY\n\nZero Click (\'the app\') is a personal trip tracking application. Your privacy is important to us.\n\nDATA WE COLLECT\n\n• Location data: GPS coordinates during trips to calculate distances and routes\n• Email address: For account identification via Google Sign-In\n• Car odometer readings: Retrieved from your car\'s API (Audi, Tesla, etc.) when linked\n• Device information: For crash reporting and app improvements\n\nWHY WE COLLECT THIS DATA\n\n• Trip tracking: To automatically register your business and private trips\n• Mileage calculation: Using odometer data or GPS coordinates\n• Authentication: To secure your account and sync across devices\n• App improvement: To fix bugs and improve reliability\n\nHOW DATA IS STORED\n\n• All data is stored in Firebase (Google Cloud Platform) in EU region (europe-west4)\n• Data is encrypted in transit and at rest\n• Only you can access your trip data\n\nTHIRD-PARTY SERVICES\n\n• Google Sign-In: For authentication\n• Firebase Analytics: For anonymous usage statistics\n• Car APIs (Audi, Tesla, Renault, etc.): For odometer readings\n• Google Maps: For route visualization\n\nYOUR RIGHTS\n\n• Export: You can export all your trips to Google Sheets via the web dashboard\n• Deletion: You can delete your account and all data in Settings\n• Access: You have full access to all your data in the app\n\nCONTACT\n\nFor privacy questions, contact: privacy@zeroclick.app'**
+  String get privacyPolicyContent;
+
+  /// Full terms of service text
+  ///
+  /// In en, this message translates to:
+  /// **'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app'**
+  String get termsOfServiceContent;
 }
 
 class _AppLocalizationsDelegate
