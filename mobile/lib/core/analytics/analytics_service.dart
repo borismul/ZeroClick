@@ -54,8 +54,23 @@ class AnalyticsService {
 
   /// Set user ID based on email (hashed for privacy).
   /// Call when user logs in to get consistent ID across reinstalls.
+  ///
+  /// Also stores the previous anonymous ID as a user property so
+  /// pre-login events can be linked to the logged-in user in analytics.
   static Future<void> setLoggedInUser(String email) async {
     if (kDebugMode) return;
+
+    // Store anonymous ID as property to link pre-login events
+    final prefs = await SharedPreferences.getInstance();
+    final anonymousId = prefs.getString(_anonymousIdKey);
+    if (anonymousId != null) {
+      await _instance.setUserProperty(
+        name: 'anonymous_id',
+        value: anonymousId,
+      );
+    }
+
+    // Switch to email-based ID for cross-device/reinstall consistency
     final hashedEmail = sha256.convert(utf8.encode(email)).toString();
     await _instance.setUserId(id: hashedEmail);
   }
