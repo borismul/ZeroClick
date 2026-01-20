@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import CoreLocation
 import UserNotifications
+import OSLog
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -41,7 +42,21 @@ import UserNotifications
     // MARK: - Debug Logging
 
     private func debugLog(_ tag: String, _ message: String) {
-        print("[\(tag)] \(message)")
+        // Use appropriate logger based on tag
+        switch tag {
+        case "Drive", "Trip":
+            Logger.trip.info("\(message)")
+        case "Motion":
+            Logger.motion.debug("\(message)")
+        case "Location":
+            Logger.location.debug("\(message)")
+        case "API":
+            Logger.api.debug("\(message)")
+        case "App", "Monitor", "Config", "Notification":
+            Logger.app.info("\(message)")
+        default:
+            Logger.app.debug("[\(tag)] \(message)")
+        }
         DispatchQueue.main.async { [weak self] in
             self?.debugChannel?.invokeMethod("log", arguments: [
                 "tag": tag,
@@ -63,7 +78,7 @@ import UserNotifications
 
         // Check if launched for location
         if launchOptions?[.location] != nil {
-            print("[App] Launched by iOS for location update")
+            Logger.app.info("Launched by iOS for location update")
         }
 
         // Setup Flutter channels
@@ -83,7 +98,7 @@ import UserNotifications
         if onboardingComplete {
             startServices()
         } else {
-            print("[Monitor] Waiting for onboarding to complete")
+            Logger.app.info("Waiting for onboarding to complete")
         }
 
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -122,7 +137,7 @@ import UserNotifications
             case "setActiveCarId":
                 if let args = call.arguments as? [String: Any] {
                     self?.activeCarId = args["carId"] as? String
-                    print("[Config] Active car ID: \(self?.activeCarId ?? "nil")")
+                    Logger.app.info("Active car ID: \(self?.activeCarId ?? "nil", privacy: .public)")
                     result(true)
                 } else {
                     result(false)
@@ -159,7 +174,7 @@ import UserNotifications
         KeychainHelper.shared.saveEmail(email)
         // Sync to Watch via WatchConnectivity (token will be sent separately)
         watchService.syncConfig(email: email, apiUrl: baseUrl, token: nil)
-        print("[Config] API: \(baseUrl), User: \(email)")
+        Logger.app.info("API config set: \(baseUrl, privacy: .public), User: \(email, privacy: .private)")
         result(true)
     }
 
@@ -183,9 +198,9 @@ import UserNotifications
             } else {
                 KeychainHelper.shared.saveRefreshToken(refreshToken)
             }
-            print("[Config] Access + refresh tokens saved to iCloud Keychain")
+            Logger.api.info("Access + refresh tokens saved to iCloud Keychain")
         } else {
-            print("[Config] Access token saved to iCloud Keychain")
+            Logger.api.info("Access token saved to iCloud Keychain")
         }
         result(true)
     }
@@ -212,14 +227,14 @@ import UserNotifications
         motionHandler.setupMotionManager()
         locationService.startMonitoring()
         motionHandler.startActivityUpdates()
-        print("[Monitor] Services started")
+        Logger.app.info("Background services started")
     }
 
     private func stopServices() {
         locationService.stopMonitoring()
         motionHandler.stopActivityUpdates()
         stopDriveTracking()
-        print("[Monitor] Services stopped")
+        Logger.app.info("Background services stopped")
     }
 
     // MARK: - Notifications
@@ -322,7 +337,7 @@ import UserNotifications
     private func sendPing() {
         guard isActivelyTracking else { return }
         guard let location = locationService.lastLocation else {
-            print("[Ping] No location available")
+            Logger.location.debug("No location available for ping")
             return
         }
 
@@ -345,13 +360,13 @@ import UserNotifications
 
     private func callStartTripAPI(lat: Double, lng: Double) {
         guard let baseUrl = apiBaseUrl, let email = userEmail, !email.isEmpty else {
-            print("[API] No config")
+            Logger.api.warning("No API config available")
             return
         }
 
         // Debounce
         if let lastCall = lastApiCallTime, Date().timeIntervalSince(lastCall) < 30 {
-            print("[API] Debounced")
+            Logger.api.debug("Start trip debounced")
             return
         }
         lastApiCallTime = Date()
@@ -368,15 +383,15 @@ import UserNotifications
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
-        print("[API] Start trip: \(lat), \(lng)")
+        Logger.api.info("Start trip: \(lat, privacy: .public), \(lng, privacy: .public)")
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
-                print("[API] Error: \(error.localizedDescription)")
+                Logger.api.error("Start trip error: \(error.localizedDescription)")
                 return
             }
             if let httpResponse = response as? HTTPURLResponse {
-                print("[API] Response: \(httpResponse.statusCode)")
+                Logger.api.debug("Start trip response: \(httpResponse.statusCode)")
                 if httpResponse.statusCode == 200 {
                     // Notify watch that trip started
                     self?.watchService.notifyTripStarted()
@@ -399,11 +414,11 @@ import UserNotifications
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
-        print("[API] Ping: \(lat), \(lng)")
+        Logger.api.debug("Ping: \(lat, privacy: .public), \(lng, privacy: .public)")
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
-                print("[API] Ping error: \(error.localizedDescription)")
+                Logger.api.error("Ping error: \(error.localizedDescription)")
                 return
             }
 
@@ -412,7 +427,7 @@ import UserNotifications
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let status = json["status"] as? String {
                 if status == "finalized" || status == "cancelled" || status == "skipped" {
-                    print("[API] Trip ended by backend: \(status)")
+                    Logger.api.info("Trip ended by backend: \(status, privacy: .public)")
                     DispatchQueue.main.async {
                         self?.isDriving = false
                         self?.stopDriveTracking()
@@ -436,15 +451,15 @@ import UserNotifications
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
-        print("[API] End trip: \(lat), \(lng)")
+        Logger.api.info("End trip: \(lat, privacy: .public), \(lng, privacy: .public)")
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("[API] End error: \(error.localizedDescription)")
+                Logger.api.error("End trip error: \(error.localizedDescription)")
                 return
             }
             if let httpResponse = response as? HTTPURLResponse {
-                print("[API] End response: \(httpResponse.statusCode)")
+                Logger.api.debug("End trip response: \(httpResponse.statusCode)")
             }
         }.resume()
     }
@@ -483,11 +498,11 @@ extension AppDelegate: LocationTrackingServiceDelegate {
     }
 
     func locationService(_ service: LocationTrackingServiceProtocol, didFailWithError error: Error) {
-        print("[Location] Error: \(error.localizedDescription)")
+        Logger.location.error("Location error: \(error.localizedDescription)")
     }
 
     func locationService(_ service: LocationTrackingServiceProtocol, didChangeAuthorization status: CLAuthorizationStatus) {
-        print("[Location] Authorization: \(status.rawValue)")
+        Logger.location.info("Authorization status: \(status.rawValue)")
         if status == .authorizedAlways || status == .authorizedWhenInUse {
             locationService.startMonitoring()
             motionHandler.startActivityUpdates()
