@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'error_handler.dart';
 
 class ErrorDialog extends StatelessWidget {
-  final ErrorInfo errorInfo;
-  final VoidCallback? onDismiss;
-
   const ErrorDialog({
-    super.key,
     required this.errorInfo,
+    super.key,
     this.onDismiss,
   });
+
+  final ErrorInfo errorInfo;
+  final VoidCallback? onDismiss;
 
   static Future<void> show(
     BuildContext context,
