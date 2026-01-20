@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/analytics/analytics_service.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
@@ -280,6 +281,12 @@ class TripProvider extends ChangeNotifier {
       await _background.notifyWatchTripStarted();
       // Show trip started notification
       unawaited(_notifications.showTripStartedNotification(car.name));
+      // Log analytics event
+      unawaited(AnalyticsService.logTripStarted(
+        carId: car.id,
+        carBrand: car.brand,
+        method: 'bluetooth',
+      ));
       onTripStarted?.call();
       return true;
     } on Exception {
@@ -287,6 +294,12 @@ class TripProvider extends ChangeNotifier {
       await _background.startTrip();
       // Show trip started notification even in offline mode
       unawaited(_notifications.showTripStartedNotification(car.name));
+      // Log analytics event (even in offline mode)
+      unawaited(AnalyticsService.logTripStarted(
+        carId: car.id,
+        carBrand: car.brand,
+        method: 'bluetooth',
+      ));
       onTripStarted?.call();
       return true;
     }
@@ -363,14 +376,31 @@ class TripProvider extends ChangeNotifier {
       return true;
     }
 
+    // Capture trip data before ending
+    final tripDistance = _activeTrip?.distance;
+    final tripStart = _activeTrip?.startTime;
+    final durationMinutes = tripStart != null
+        ? DateTime.now().difference(tripStart).inMinutes
+        : null;
+
     try {
       await _api.endTrip(location.lat, location.lng);
       await refreshActiveTrip();
+      // Log analytics event
+      unawaited(AnalyticsService.logTripEnded(
+        distanceKm: tripDistance,
+        durationMinutes: durationMinutes,
+      ));
       onTripEnded?.call();
       return true;
     } on Exception catch (e) {
       _log.error('Error ending trip', e);
       await _connectivityProvider.addToQueue('end', location.lat, location.lng);
+      // Log analytics event (even in offline mode)
+      unawaited(AnalyticsService.logTripEnded(
+        distanceKm: tripDistance,
+        durationMinutes: durationMinutes,
+      ));
       onTripEnded?.call();
       return true;
     }
@@ -425,6 +455,8 @@ class TripProvider extends ChangeNotifier {
     try {
       await _api.cancel();
       await refreshActiveTrip();
+      // Log analytics event
+      unawaited(AnalyticsService.logTripCancelled(reason: 'user_cancelled'));
       onTripEnded?.call();
       return true;
     } on Exception catch (e) {
