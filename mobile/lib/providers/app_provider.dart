@@ -1,9 +1,7 @@
 // App orchestration provider - coordinates other providers
 
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/analytics/analytics_service.dart';
@@ -184,9 +182,8 @@ class AppProvider extends ChangeNotifier {
     if (auth.isSignedIn && auth.userEmail != null) {
       CrashlyticsLogger.setUserIdentifier(auth.userEmail!);
       CrashlyticsLogger.log('User signed in');
-      // Set Analytics user ID (hashed for privacy)
-      final emailHash = sha256.convert(utf8.encode(auth.userEmail!)).toString();
-      AnalyticsService.setUserId(emailHash);
+      // Set Analytics user ID (hashed email for consistent ID across reinstalls)
+      AnalyticsService.setLoggedInUser(auth.userEmail!);
     }
 
     // CRITICAL: Set auth token on API service

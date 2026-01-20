@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// Wrapper for Firebase Analytics with static methods.
 ///
@@ -10,6 +15,10 @@ import 'package:flutter/foundation.dart';
 /// - User identification
 /// - Trip-specific convenience methods
 ///
+/// User ID Strategy:
+/// - Anonymous users: random UUID (persisted locally)
+/// - Logged-in users: SHA256 hash of email (consistent across reinstalls)
+///
 /// Analytics collection is disabled in debug mode to avoid
 /// polluting analytics with development data.
 class AnalyticsService {
@@ -18,8 +27,9 @@ class AnalyticsService {
   static final FirebaseAnalytics _instance = FirebaseAnalytics.instance;
 
   static bool _initialized = false;
+  static const _anonymousIdKey = 'analytics_anonymous_id';
 
-  /// Initialize analytics settings.
+  /// Initialize analytics settings and set anonymous user ID.
   /// Call once at app startup.
   static Future<void> init() async {
     if (_initialized) return;
@@ -27,9 +37,36 @@ class AnalyticsService {
     // Disable analytics collection in debug mode
     if (kDebugMode) {
       await _instance.setAnalyticsCollectionEnabled(false);
+    } else {
+      // Generate or retrieve anonymous user ID
+      final prefs = await SharedPreferences.getInstance();
+      var anonymousId = prefs.getString(_anonymousIdKey);
+      if (anonymousId == null) {
+        anonymousId = const Uuid().v4();
+        await prefs.setString(_anonymousIdKey, anonymousId);
+      }
+      // Set anonymous ID until user logs in
+      await _instance.setUserId(id: anonymousId);
     }
 
     _initialized = true;
+  }
+
+  /// Set user ID based on email (hashed for privacy).
+  /// Call when user logs in to get consistent ID across reinstalls.
+  static Future<void> setLoggedInUser(String email) async {
+    if (kDebugMode) return;
+    final hashedEmail = sha256.convert(utf8.encode(email)).toString();
+    await _instance.setUserId(id: hashedEmail);
+  }
+
+  /// Clear user ID (revert to anonymous).
+  /// Call when user logs out.
+  static Future<void> clearUser() async {
+    if (kDebugMode) return;
+    final prefs = await SharedPreferences.getInstance();
+    final anonymousId = prefs.getString(_anonymousIdKey);
+    await _instance.setUserId(id: anonymousId);
   }
 
   // ============ Core Methods ============
@@ -53,12 +90,6 @@ class AnalyticsService {
   static Future<void> setUserProperty(String name, String? value) async {
     if (kDebugMode) return;
     await _instance.setUserProperty(name: name, value: value);
-  }
-
-  /// Set the user ID (should be hashed, not raw PII).
-  static Future<void> setUserId(String? id) async {
-    if (kDebugMode) return;
-    await _instance.setUserId(id: id);
   }
 
   // ============ Trip Event Methods ============
