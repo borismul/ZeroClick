@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -29,42 +28,50 @@ import 'services/background_service.dart';
 import 'services/debug_log_service.dart';
 import 'widgets/device_link_dialog.dart';
 import 'core/analytics/analytics_service.dart';
+import 'core/logging/app_logger.dart';
+
+const _log = AppLogger('main');
 
 void main() async {
-  // Catch Flutter framework errors in a zone
-  await runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
 
-    // Initialize Firebase
+  // Initialize debug log service FIRST to capture all logs
+  DebugLogService.instance.init();
+
+  // Start app immediately, init Firebase in background after delay
+  runApp(const ZeroClickApp());
+
+  // Delay Firebase init by 500ms to let app render first (iOS 26 workaround)
+  await Future.delayed(const Duration(milliseconds: 500));
+
+  // Initialize Firebase with try-catch for iOS 26
+  try {
+    _log.info('Initializing Firebase...');
     await Firebase.initializeApp();
+    _log.info('Firebase initialized successfully');
 
-    // Pass all uncaught Flutter errors to Crashlytics
+    // Setup Crashlytics error handlers
     FlutterError.onError = (errorDetails) {
       FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
     };
-
-    // Pass uncaught async errors to Crashlytics
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
 
-    // Disable Crashlytics collection in debug mode
+    // Disable Crashlytics in debug mode
     if (kDebugMode) {
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
     }
-
-    // Initialize debug log service to receive native logs
-    DebugLogService.instance.init();
+    _log.info('Crashlytics initialized successfully');
 
     // Initialize analytics service
     await AnalyticsService.init();
-
-    runApp(const ZeroClickApp());
-  }, (error, stack) {
-    // Catch any errors not caught by Flutter error handlers
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-  });
+    _log.info('Analytics initialized successfully');
+  } catch (e, stack) {
+    _log.error('FIREBASE INIT FAILED', e, stack);
+    // App continues without Firebase
+  }
 }
 
 /// Convert locale code to Locale object

@@ -13,6 +13,7 @@ import '../models/settings.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/debug_log_service.dart';
 import 'car_provider.dart';
 import 'connectivity_provider.dart';
 import 'settings_provider.dart';
@@ -36,11 +37,24 @@ class AppProvider extends ChangeNotifier {
     this._tripProvider,
     this._api,
   ) {
+    // Listen for settings changes (e.g., when SharedPreferences loads)
+    _settingsProvider.addListener(_onSettingsChanged);
+    // Forward notifications from sub-providers so UI rebuilds on their changes
+    _carProvider.addListener(notifyListeners);
+    _tripProvider.addListener(notifyListeners);
+    _connectivityProvider.addListener(notifyListeners);
     // Fire and forget - don't block constructor
     Future.microtask(_init);
   }
 
   static const _log = AppLogger('AppProvider');
+
+  void _debug(String msg) => DebugLogService.instance.addLog('App', msg);
+
+  // Track if we've already triggered initial data load
+  bool _hasLoadedInitialData = false;
+  // Track if auth initialization is complete (token set)
+  bool _isAuthReady = false;
 
   // Provider dependencies
   final SettingsProvider _settingsProvider;
@@ -149,12 +163,20 @@ class AppProvider extends ChangeNotifier {
   // ============ Initialization ============
 
   Future<void> _init() async {
-    // Settings already loaded by SettingsProvider
-    // Update API config in case settings loaded after constructor
+    _debug('_init: STARTING');
+
+    // Wait for settings to load from SharedPreferences first
+    _debug('_init: waiting for settings...');
+    await _settingsProvider.settingsLoaded;
+    _debug('_init: settings loaded. configured=${_settingsProvider.isConfigured}');
+
+    // Update API config now that settings are loaded
     _api.updateConfig(_settingsProvider.apiUrl, _settingsProvider.userEmail);
+    _debug('_init: API config updated');
 
     // Initialize TripProvider (notifications, etc.)
     await _tripProvider.init();
+    _debug('_init: TripProvider init done');
 
     // Set up cross-provider callbacks for connectivity events
     _connectivityProvider.onCarPlayConnected = _tryAutoStartTrip;
@@ -170,19 +192,21 @@ class AppProvider extends ChangeNotifier {
     _setupBackgroundListener();
 
     // Wait for auth to initialize before loading data
+    _debug('_init: AuthService init...');
     final auth = AuthService();
     await auth.init();
+    _debug('_init: Auth done. signedIn=${auth.isSignedIn}, email=${auth.userEmail}');
 
     // Sync Google auth email to settings and App Group
     if (auth.isSignedIn && auth.userEmail != null && auth.userEmail != settings.userEmail) {
+      _debug('_init: syncing auth email');
       await saveSettings(settings.copyWith(userEmail: auth.userEmail));
     }
 
-    // Set Crashlytics user identifier for crash debugging
+    // Set Crashlytics user identifier and Analytics user ID
     if (auth.isSignedIn && auth.userEmail != null) {
       CrashlyticsLogger.setUserIdentifier(auth.userEmail!);
       CrashlyticsLogger.log('User signed in');
-      // Set Analytics user ID (hashed email for consistent ID across reinstalls)
       AnalyticsService.setLoggedInUser(auth.userEmail!);
     }
 
@@ -207,10 +231,32 @@ class AppProvider extends ChangeNotifier {
       await auth.syncTokenToWatch();
     }
 
+    // Mark auth as ready - API calls can now proceed
+    _isAuthReady = true;
+
     // Load data in background
-    if (isConfigured) {
+    _debug('_init: DONE. configured=$isConfigured, loaded=$_hasLoadedInitialData');
+    if (isConfigured && !_hasLoadedInitialData) {
+      _debug('_init: CALLING refreshAll()');
+      _hasLoadedInitialData = true;
       unawaited(refreshAll());
       // Resume tracking if there was an active trip
+      unawaited(_tripProvider.checkAndResumeTracking());
+    } else {
+      _debug('_init: NOT calling refreshAll (configured=$isConfigured, loaded=$_hasLoadedInitialData)');
+    }
+  }
+
+  /// Called when SettingsProvider notifies listeners (e.g., after loading from SharedPreferences)
+  void _onSettingsChanged() {
+    // Update API config when settings change
+    _api.updateConfig(_settingsProvider.apiUrl, _settingsProvider.userEmail);
+
+    // If settings just became configured, auth is ready, and we haven't loaded data yet, load now
+    if (isConfigured && _isAuthReady && !_hasLoadedInitialData) {
+      _log.info('Settings now configured, triggering initial data load');
+      _hasLoadedInitialData = true;
+      unawaited(refreshAll());
       unawaited(_tripProvider.checkAndResumeTracking());
     }
   }
@@ -337,11 +383,24 @@ class AppProvider extends ChangeNotifier {
 
   /// Refresh all data from all providers
   Future<void> refreshAll() async {
-    // First load cars to set selectedCarId
-    await _carProvider.refreshCars();
-    // Then load trips, stats, and locations in parallel
-    await _tripProvider.refreshAll();
-    // Car data last - needs cars loaded and is slow (Audi API)
-    await _carProvider.refreshCarData();
+    _debug('refreshAll: START');
+    try {
+      // First load cars to set selectedCarId
+      _debug('refreshAll: cars...');
+      await _carProvider.refreshCars();
+      _debug('refreshAll: cars=${_carProvider.cars.length}');
+      // Then load trips, stats, and locations in parallel
+      _debug('refreshAll: trips...');
+      await _tripProvider.refreshAll();
+      _debug('refreshAll: trips=${_tripProvider.trips.length}');
+      // Car data last - needs cars loaded and is slow (Audi API)
+      _debug('refreshAll: carData...');
+      await _carProvider.refreshCarData();
+      _debug('refreshAll: DONE, notifying');
+      // CRITICAL: Notify listeners so UI rebuilds
+      notifyListeners();
+    } catch (e) {
+      _debug('refreshAll: ERROR $e');
+    }
   }
 }

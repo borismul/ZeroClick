@@ -2,29 +2,26 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 /// Wrapper for Firebase Analytics with static methods.
-///
-/// Provides static methods for:
-/// - Event logging (custom events)
-/// - Screen tracking
-/// - User properties
-/// - User identification
-/// - Trip-specific convenience methods
-///
-/// User ID Strategy:
-/// - Anonymous users: random UUID (persisted locally)
-/// - Logged-in users: SHA256 hash of email (consistent across reinstalls)
-///
-/// Analytics collection is disabled in debug mode to avoid
-/// polluting analytics with development data.
+/// Safe to call before Firebase is initialized - calls are no-ops until ready.
 class AnalyticsService {
   AnalyticsService._();
 
-  static final FirebaseAnalytics _instance = FirebaseAnalytics.instance;
+  static FirebaseAnalytics? _instance;
+  static FirebaseAnalytics? get _analytics {
+    if (_instance != null) return _instance;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        _instance = FirebaseAnalytics.instance;
+      }
+    } catch (_) {}
+    return _instance;
+  }
 
   static bool _initialized = false;
   static const _anonymousIdKey = 'analytics_anonymous_id';
@@ -33,10 +30,12 @@ class AnalyticsService {
   /// Call once at app startup.
   static Future<void> init() async {
     if (_initialized) return;
+    final analytics = _analytics;
+    if (analytics == null) return;
 
     // Disable analytics collection in debug mode
     if (kDebugMode) {
-      await _instance.setAnalyticsCollectionEnabled(false);
+      await analytics.setAnalyticsCollectionEnabled(false);
     } else {
       // Generate or retrieve anonymous user ID
       final prefs = await SharedPreferences.getInstance();
@@ -46,7 +45,7 @@ class AnalyticsService {
         await prefs.setString(_anonymousIdKey, anonymousId);
       }
       // Set anonymous ID until user logs in
-      await _instance.setUserId(id: anonymousId);
+      await analytics.setUserId(id: anonymousId);
     }
 
     _initialized = true;
@@ -54,34 +53,31 @@ class AnalyticsService {
 
   /// Set user ID based on email (hashed for privacy).
   /// Call when user logs in to get consistent ID across reinstalls.
-  ///
-  /// Also stores the previous anonymous ID as a user property so
-  /// pre-login events can be linked to the logged-in user in analytics.
   static Future<void> setLoggedInUser(String email) async {
     if (kDebugMode) return;
+    final analytics = _analytics;
+    if (analytics == null) return;
 
     // Store anonymous ID as property to link pre-login events
     final prefs = await SharedPreferences.getInstance();
     final anonymousId = prefs.getString(_anonymousIdKey);
     if (anonymousId != null) {
-      await _instance.setUserProperty(
-        name: 'anonymous_id',
-        value: anonymousId,
-      );
+      await analytics.setUserProperty(name: 'anonymous_id', value: anonymousId);
     }
 
     // Switch to email-based ID for cross-device/reinstall consistency
     final hashedEmail = sha256.convert(utf8.encode(email)).toString();
-    await _instance.setUserId(id: hashedEmail);
+    await analytics.setUserId(id: hashedEmail);
   }
 
   /// Clear user ID (revert to anonymous).
-  /// Call when user logs out.
   static Future<void> clearUser() async {
     if (kDebugMode) return;
+    final analytics = _analytics;
+    if (analytics == null) return;
     final prefs = await SharedPreferences.getInstance();
     final anonymousId = prefs.getString(_anonymousIdKey);
-    await _instance.setUserId(id: anonymousId);
+    await analytics.setUserId(id: anonymousId);
   }
 
   // ============ Core Methods ============
@@ -92,19 +88,25 @@ class AnalyticsService {
     Map<String, Object>? parameters,
   }) async {
     if (kDebugMode) return;
-    await _instance.logEvent(name: name, parameters: parameters);
+    final analytics = _analytics;
+    if (analytics == null) return;
+    await analytics.logEvent(name: name, parameters: parameters);
   }
 
   /// Log a screen view.
   static Future<void> logScreenView(String screenName) async {
     if (kDebugMode) return;
-    await _instance.logScreenView(screenName: screenName);
+    final analytics = _analytics;
+    if (analytics == null) return;
+    await analytics.logScreenView(screenName: screenName);
   }
 
   /// Set a user property.
   static Future<void> setUserProperty(String name, String? value) async {
     if (kDebugMode) return;
-    await _instance.setUserProperty(name: name, value: value);
+    final analytics = _analytics;
+    if (analytics == null) return;
+    await analytics.setUserProperty(name: name, value: value);
   }
 
   // ============ Trip Event Methods ============

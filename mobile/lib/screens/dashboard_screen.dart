@@ -18,17 +18,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Refresh once on start
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AppProvider>();
-      if (provider.isConfigured) {
-        provider.refreshAll();
-      }
-    });
-  }
+  // Note: Initial data load is handled by AppProvider._init()
+  // No need to call refreshAll() here - it causes duplicate API calls
 
   @override
   Widget build(BuildContext context) {

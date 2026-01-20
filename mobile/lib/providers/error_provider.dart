@@ -23,7 +23,7 @@ class ErrorProvider extends ChangeNotifier {
     bool showDialog = true,
     bool fatal = false,
   }) async {
-    // Log to Crashlytics
+    // Log error
     ErrorHandler.logError(error, stack, fatal: fatal);
 
     // Show in UI if requested

@@ -1,6 +1,10 @@
 # Uncomment this line to define a global platform for your project
 platform :ios, '26.0'
 
+# Force Firebase iOS SDK 12.8.0+ for iOS 26 compatibility fix
+# See: https://github.com/firebase/firebase-ios-sdk/issues/15020
+$FirebaseSDKVersion = '12.8.0'
+
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 

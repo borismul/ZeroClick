@@ -10,8 +10,8 @@ resource "google_firestore_database" "main" {
   depends_on = [google_project_service.apis]
 }
 
-# Composite index for trips sorted by date and start_time (per user)
-resource "google_firestore_index" "trips_by_user_and_timestamp" {
+# Composite index for trips sorted by sort_date and start_time (per user)
+resource "google_firestore_index" "trips_by_user_and_sort_date" {
   database   = google_firestore_database.main.name
   collection = "trips"
 
@@ -21,7 +21,7 @@ resource "google_firestore_index" "trips_by_user_and_timestamp" {
   }
 
   fields {
-    field_path = "date"
+    field_path = "sort_date"
     order      = "DESCENDING"
   }
 
@@ -48,7 +48,7 @@ resource "google_firestore_index" "trips_by_user_and_created_at" {
 }
 
 # Composite index for trips filtered by car_id
-resource "google_firestore_index" "trips_by_car_user_and_timestamp" {
+resource "google_firestore_index" "trips_by_car_user_and_sort_date" {
   database   = google_firestore_database.main.name
   collection = "trips"
 
@@ -63,7 +63,7 @@ resource "google_firestore_index" "trips_by_car_user_and_timestamp" {
   }
 
   fields {
-    field_path = "date"
+    field_path = "sort_date"
     order      = "DESCENDING"
   }
 

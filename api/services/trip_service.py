@@ -59,15 +59,16 @@ class TripService:
                 filter=firestore.FieldFilter("car_id", "==", car_id)
             )
 
-        # Add date filters
+        # Add date filters using sort_date (YYYY-MM-DD format)
         if year and month:
-            start = f"{month:02d}-{year}"
-            end = f"{month:02d}-{year}"
-            query = query.where(filter=firestore.FieldFilter("date", ">=", f"01-{start}"))
-            query = query.where(filter=firestore.FieldFilter("date", "<=", f"31-{end}"))
+            start = f"{year}-{month:02d}-01"
+            end = f"{year}-{month:02d}-31"
+            query = query.where(filter=firestore.FieldFilter("sort_date", ">=", start))
+            query = query.where(filter=firestore.FieldFilter("sort_date", "<=", end))
 
-        # Sort by document ID descending - IDs are YYYYMMDD-HHMM-XXX format
-        query = query.order_by("__name__", direction=firestore.Query.DESCENDING)
+        # Sort by sort_date and start_time descending for correct chronological order
+        query = query.order_by("sort_date", direction=firestore.Query.DESCENDING)
+        query = query.order_by("start_time", direction=firestore.Query.DESCENDING)
 
         # Apply cursor if provided (cursor is document ID)
         if cursor:
@@ -153,9 +154,14 @@ class TripService:
         # Use provided car_id, fall back to default car
         effective_car_id = car_id or car_service.get_default_car_id(user_id)
 
+        # Convert date (DD-MM-YYYY) to sort_date (YYYY-MM-DD)
+        date_parts = date.split("-")
+        sort_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}" if len(date_parts) == 3 else date
+
         trip_data = {
             "id": trip_id,
             "date": date,
+            "sort_date": sort_date,
             "start_time": start_time,
             "end_time": end_time,
             "from_address": from_address,
@@ -208,9 +214,14 @@ class TripService:
         google_maps_km = get_google_maps_route_distance(from_lat, from_lon, to_lat, to_lon)
         route_info = calculate_route_deviation(distance_km, google_maps_km)
 
+        # Convert date (DD-MM-YYYY) to sort_date (YYYY-MM-DD)
+        date_parts = date.split("-")
+        sort_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}" if len(date_parts) == 3 else date
+
         trip_data = {
             "id": trip_id,
             "date": date,
+            "sort_date": sort_date,
             "start_time": start_time,
             "end_time": end_time,
             "from_address": start_loc["label"] or start_loc["address"],
@@ -378,6 +389,7 @@ class TripService:
             "id": trip_id,
             "user_id": user_id,
             "date": start_dt.strftime("%d-%m-%Y"),
+            "sort_date": start_dt.strftime("%Y-%m-%d"),
             "start_time": start_dt.strftime("%H:%M"),
             "end_time": end_dt.strftime("%H:%M"),
             "from_address": start_loc["label"] or start_loc["address"],
@@ -455,6 +467,7 @@ class TripService:
             "id": trip_id,
             "user_id": user_id,
             "date": start_dt.strftime("%d-%m-%Y"),
+            "sort_date": start_dt.strftime("%Y-%m-%d"),
             "start_time": start_dt.strftime("%H:%M"),
             "end_time": end_dt.strftime("%H:%M"),
             "from_address": start_loc["label"] or start_loc["address"],

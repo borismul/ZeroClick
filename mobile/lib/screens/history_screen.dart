@@ -74,16 +74,8 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AppProvider>();
-      if (provider.isConfigured) {
-        provider.refreshTrips();
-      }
-    });
-  }
+  // Note: Initial data load is handled by AppProvider._init()
+  // No need to call refreshTrips() here - it causes duplicate API calls
 
   @override
   Widget build(BuildContext context) {

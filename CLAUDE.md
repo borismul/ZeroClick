@@ -224,6 +224,65 @@ Backend finalizes: captures end odometer, calculates distance, creates Trip in F
 - `GPS_STATIONARY_RADIUS_METERS = 50` - Distance threshold for "stationary"
 - `autoDetectCar` setting in mobile app enables/disables auto-detection
 
+## iOS Testing Strategy
+
+**IMPORTANT: Use Swift Package tests (fast), NOT xcodebuild tests (slow).**
+
+### Test Infrastructure
+```
+mobile/ios/ZeroClickLogicTests/           # Swift Package - FAST (~0.03s)
+├── Package.swift                         # Swift 6.0, macOS target
+├── Sources/ZeroClickLogic/               # Testable logic (no iOS dependencies)
+│   ├── DistanceCalculator.swift          # GPS distance, filtering, haversine
+│   └── DebounceStateMachine.swift        # Motion detection state machine
+└── Tests/ZeroClickLogicTests/
+    ├── DistanceCalculatorTests.swift     # 30 tests
+    └── DebounceStateMachineTests.swift   # 26 tests
+
+mobile/ios/RunnerTests/                   # XCTest - SLOW (minutes, needs Simulator)
+└── *.swift                               # Legacy integration tests
+```
+
+### When to Run Which Tests
+
+| Changed File | Run Fast Tests | Run Slow Tests |
+|--------------|----------------|----------------|
+| `DebounceStateMachine.swift` | ✅ Always | ❌ No |
+| `DistanceCalculator.swift` | ✅ Always | ❌ No |
+| `MotionActivityHandler.swift` | ✅ Always | ⚠️ Only if changing iOS-specific code |
+| `LocationTrackingService.swift` | ✅ If distance logic | ⚠️ Only if changing CLLocationManager |
+| `AppDelegate.swift` | ❌ No | ⚠️ Only for trip lifecycle changes |
+| Other iOS files | ❌ No | ❌ No |
+| **Before release** | ✅ Always | ✅ Full regression |
+
+### Running Tests
+```bash
+# FAST - Swift Package tests (use this for daily development!)
+cd mobile/ios/ZeroClickLogicTests && swift test
+
+# SLOW - XCTest via Simulator (only when truly needed)
+cd mobile/ios && xcodebuild test -scheme Runner -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:RunnerTests
+```
+
+### What Each Test Suite Covers
+
+**Fast Tests (ZeroClickLogicTests):**
+- Motion detection debounce: confidence thresholds, oscillation filtering, traffic lights
+- GPS distance: haversine formula, accuracy filtering, jump detection
+- State machines: automotive detection, trip start/stop logic
+
+**Slow Tests (RunnerTests):**
+- Real `CMMotionActivity` with actual iOS timers
+- Full trip lifecycle with mocked services
+- Drive simulation scenarios
+
+### Writing New iOS Tests
+1. **Extract pure logic** to `ZeroClickLogic` package (no iOS imports)
+2. **Write fast tests** using Swift Testing (`@Test`, `#expect`)
+3. **Keep iOS wrappers thin** - just convert types and manage timers
+4. **Only add RunnerTests** for behavior that truly needs iOS APIs
+
 ## Notes
 
 - **Always ask before deploying** - Don't run `./deploy.sh` without user confirmation

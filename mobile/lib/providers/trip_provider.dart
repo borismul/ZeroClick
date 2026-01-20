@@ -52,7 +52,7 @@ class TripProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  // Loading states for each section (start true so spinners show on boot)
+  // Loading states for each section (start true, cleared when data loads)
   bool _isLoadingStats = true;
   bool _isLoadingTrips = true;
 
@@ -255,6 +255,7 @@ class TripProvider extends ChangeNotifier {
     // Set Crashlytics context for trip debugging
     CrashlyticsLogger.setCarContext(car.id, car.brand);
     CrashlyticsLogger.log('Trip starting for car: ${car.name}');
+    _log.info('Trip starting for car: ${car.name}');
 
     final location = await _location.getCurrentLocation();
     if (location == null) {
@@ -362,6 +363,7 @@ class TripProvider extends ChangeNotifier {
     // Clear Crashlytics trip context
     CrashlyticsLogger.clearTripContext();
     CrashlyticsLogger.log('Trip ended');
+    _log.info('Trip ended');
 
     final location = await _location.getCurrentLocation();
     if (location == null) {
@@ -433,8 +435,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> finalizeTrip() async {
     _location.stopBackgroundTracking();
-    CrashlyticsLogger.clearTripContext();
-    CrashlyticsLogger.log('Trip finalized');
+    _log.info('Trip finalized');
     try {
       await _api.finalize();
       await refreshActiveTrip();
@@ -451,8 +452,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> cancelTrip() async {
     _location.stopBackgroundTracking();
-    CrashlyticsLogger.clearTripContext();
-    CrashlyticsLogger.log('Trip cancelled');
+    _log.info('Trip cancelled');
     try {
       await _api.cancel();
       await refreshActiveTrip();

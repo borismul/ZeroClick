@@ -6,6 +6,7 @@ import '../core/analytics/analytics_service.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/crashlytics_logger.dart';
 import '../models/car.dart';
+import '../services/debug_log_service.dart';
 import '../models/trip.dart';
 import '../services/api_service.dart';
 
@@ -20,6 +21,7 @@ class CarProvider extends ChangeNotifier {
   CarProvider(this._api);
 
   static const _log = AppLogger('CarProvider');
+  void _debug(String msg) => DebugLogService.instance.addLog('Car', msg);
 
   // API service (shared with AppProvider)
   final ApiService _api;
@@ -51,11 +53,14 @@ class CarProvider extends ChangeNotifier {
   /// Refresh the cars list from the API.
   /// Auto-selects the default car if none is selected.
   Future<void> refreshCars() async {
+    _debug('refreshCars: START');
     _isLoadingCars = true;
     notifyListeners();
 
     try {
+      _debug('refreshCars: API call...');
       _cars = await _api.getCars();
+      _debug('refreshCars: got ${_cars.length} cars');
 
       // Auto-select default car if none selected
       if (_selectedCarId == null && _cars.isNotEmpty) {
@@ -65,15 +70,18 @@ class CarProvider extends ChangeNotifier {
         );
         _selectedCar = car;
         _selectedCarId = car.id;
+        _debug('refreshCars: selected ${car.name}');
       }
 
       // Update analytics user property for car count
       AnalyticsService.setUserProperty('car_count', '${_cars.length}');
     } on Exception catch (e) {
-      _log.error('Error refreshing cars', e);
+      _debug('refreshCars: ERROR $e');
+      _log.error('refreshCars: ERROR', e);
     }
 
     _isLoadingCars = false;
+    _debug('refreshCars: DONE');
     notifyListeners();
   }
 
