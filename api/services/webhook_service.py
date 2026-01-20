@@ -33,7 +33,10 @@ class WebhookService:
         All state changes accumulate in memory, then persist in a single write.
         """
         timestamp = datetime.utcnow().isoformat() + "Z"
-        logger.info(f"GPS ping at {lat}, {lng} for user {user_id}, car_id={car_id}, device_id={device_id}")
+        logger.info(
+            f"GPS ping at {lat}, {lng}, device_id={device_id}",
+            extra={"user_id": user_id, "car_id": car_id}
+        )
 
         cache = get_trip_cache(user_id)
         result = None  # Will hold the return value
@@ -43,7 +46,10 @@ class WebhookService:
         if not cache or not cache.get("active"):
             # Determine car_id: explicit car_id > device_id lookup > default car
             effective_car_id = car_id or car_service.get_car_id_by_device(user_id, device_id) or car_service.get_default_car_id(user_id)
-            logger.info(f"No active trip for {user_id} - starting new trip for car {effective_car_id}")
+            logger.info(
+                "Starting new trip",
+                extra={"user_id": user_id, "car_id": effective_car_id}
+            )
             cache = {
                 "active": True,
                 "user_id": user_id,
@@ -308,7 +314,10 @@ class WebhookService:
                     result = {"status": "paused_at_skip", "total_km": total_km, "pause_count": skip_pause_count, "user": user_id}
                 else:
                     # Finalize trip
-                    logger.info(f"Trip complete! {total_km} km driven")
+                    logger.info(
+                        f"Trip complete! {total_km} km driven",
+                        extra={"user_id": user_id, "car_id": assigned_car_id}
+                    )
 
                     if not car_gps:
                         # Fallback to phone GPS
@@ -393,7 +402,7 @@ class WebhookService:
     def handle_end(self, user_id: str, lat: float, lng: float) -> dict:
         """Handle trip end (Bluetooth/CarPlay disconnected). Tries to finalize immediately."""
         timestamp = datetime.utcnow().isoformat() + "Z"
-        logger.info(f"End event at {lat}, {lng} for user {user_id}")
+        logger.info(f"End event at {lat}, {lng}", extra={"user_id": user_id})
 
         cache = get_trip_cache(user_id)
         if not cache or not cache.get("active"):
@@ -573,7 +582,7 @@ class WebhookService:
             return {"status": "ignored", "reason": "no_active_trip"}
 
         set_trip_cache(None, user_id)
-        logger.info(f"Trip cancelled by user {user_id}")
+        logger.info("Trip cancelled", extra={"user_id": user_id})
         return {"status": "cancelled"}
 
     def get_status(self, user_id: str) -> dict:
