@@ -203,7 +203,9 @@ def get_car_data_by_id_legacy(car_id: str, user_id: str = Depends(get_current_us
     if not creds_doc.exists:
         raise HTTPException(status_code=400, detail="Car has no API credentials configured")
 
-    creds = creds_doc.to_dict()
+    # Decrypt credentials (handles both encrypted and legacy plaintext)
+    from services.car_service import _decrypt_credentials
+    creds = _decrypt_credentials(creds_doc.to_dict())
     brand = creds.get("brand", car_data.get("brand", "")).lower()
 
     # Tesla and Audi use OAuth
@@ -325,10 +327,15 @@ from config import CONFIG
 from utils.geo import haversine
 from utils.routing import get_google_maps_route_distance, calculate_route_deviation
 
+# Admin users allowed to run backfill operations
+ADMIN_EMAILS = {"borismulder91@gmail.com"}
+
 
 @app.post("/trips/backfill-latlon")
-def backfill_latlon():
+def backfill_latlon(user_id: str = Depends(get_current_user)):
     """Backfill lat/lon for existing trips based on known location names."""
+    if user_id not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Admin access required")
     db = get_db()
     load_custom_locations()
 
@@ -361,8 +368,10 @@ def backfill_latlon():
 
 
 @app.post("/trips/backfill-google-maps")
-def backfill_google_maps():
+def backfill_google_maps(user_id: str = Depends(get_current_user)):
     """Backfill Google Maps route distance for existing trips."""
+    if user_id not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Admin access required")
     db = get_db()
     load_custom_locations()
 

@@ -558,10 +558,10 @@ class AppLocalizationsHu extends AppLocalizations {
   String get invalidDistance => 'Érvénytelen távolság';
 
   @override
-  String get language => 'Language';
+  String get language => 'Nyelv';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Rendszer alapértelmezett';
 
   @override
   String get languageEnglish => 'English';
@@ -920,230 +920,232 @@ class AppLocalizationsHu extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Újra';
 
   @override
   String get ok => 'OK';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => 'Nincs kapcsolat';
 
   @override
   String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+      'Ellenőrizd az internetkapcsolatot és próbáld újra.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => 'Munkamenet lejárt';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => 'A folytatáshoz jelentkezz be újra.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => 'Szerverhiba';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater =>
+      'Valami hiba történt. Kérlek, próbáld újra később.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => 'Érvénytelen bevitel';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => 'Időtúllépés';
 
   @override
   String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+      'A szerver nem válaszol. Kérlek, próbáld újra.';
 
   @override
-  String get error => 'Error';
+  String get error => 'Hiba';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => 'Váratlan hiba történt.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => 'Állítsd be az autódat a legjobb élményért:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => 'Autó API csatlakoztatása';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      'Menj az Autók → válaszd ki az autódat → csatlakoztasd a fiókodat. Ez hozzáférést biztosít a kilométeróra adataihoz és többhöz.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => 'Bluetooth csatlakoztatása';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      'Csatlakoztasd a telefonodat Bluetooth-on keresztül az autóhoz, nyisd meg ezt az alkalmazást és csatlakoztass az értesítésben. Ez biztosítja a megbízható út észlelést.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip =>
+      'Tipp: Állítsd be mindkettőt a legjobb megbízhatóságért!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => 'Fejlesztő';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => 'Hibakeresési naplók';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => 'Natív iOS naplók megtekintése';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => 'Összes napló másolása';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => 'Naplók másolva a vágólapra';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => 'Kijelentkezve';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Bejelentkezés Audi ID-vel';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription => 'Jelentkezz be a myAudi fiókoddal';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Bejelentkezés Volkswagen ID-vel';
 
   @override
   String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+      'Jelentkezz be a Volkswagen ID fiókoddal';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Bejelentkezés Skoda ID-vel';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription => 'Jelentkezz be a Skoda ID fiókoddal';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'Bejelentkezés SEAT ID-vel';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription => 'Jelentkezz be a SEAT ID fiókoddal';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'Bejelentkezés CUPRA ID-vel';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription => 'Jelentkezz be a CUPRA ID fiókoddal';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Bejelentkezés Renault ID-vel';
 
   @override
   String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+      'Jelentkezz be a MY Renault fiókoddal';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault csatlakoztatva';
 
   @override
-  String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+  String get accountLinkedSuccess => 'A fiókod sikeresen csatlakoztatva';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand csatlakoztatva';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return '$brand csatlakoztatása';
   }
 
   @override
-  String get email => 'Email';
+  String get email => 'E-mail';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => 'Hollandia';
 
   @override
   String get countryBelgium => 'Belgium';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => 'Németország';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => 'Franciaország';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => 'Egyesült Királyság';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => 'Spanyolország';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => 'Olaszország';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => 'Portugália';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => 'Add meg az e-mail címed és jelszavad';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl =>
+      'Nem sikerült lekérni a bejelentkezési URL-t';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand csatlakoztatva';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand csatlakoztatva (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return '$brand csatlakoztatás sikertelen';
   }
 
   @override
   String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+      'Név/szín/ikon módosítása? Nyomd meg a vissza gombot és szerkeszd.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => 'Autó észlelés';
 
   @override
   String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+      'Értesítések autó észlelésről és út regisztrációról';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => 'Új autó észlelve';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return 'A \"$deviceName\" egy autó, amit követni szeretnél?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => 'Út elindítva';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => 'Az utad nyomon követése folyamatban';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return 'Az utad $carName autóval nyomon követése folyamatban';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => 'Autó csatlakoztatva';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return 'A \"$deviceName\" most csatlakoztatva van a $carName autóhoz';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return 'Helymeghatározási hiba: $error';
   }
 }

@@ -564,10 +564,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get invalidDistance => 'Neplatná vzdálenost';
 
   @override
-  String get language => 'Language';
+  String get language => 'Jazyk';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Výchozí systém';
 
   @override
   String get languageEnglish => 'English';
@@ -926,230 +926,228 @@ class AppLocalizationsCs extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Zkusit znovu';
 
   @override
   String get ok => 'OK';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => 'Žádné připojení';
 
   @override
   String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+      'Zkontrolujte internetové připojení a zkuste to znovu.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => 'Relace vypršela';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => 'Pro pokračování se znovu přihlaste.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => 'Chyba serveru';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater => 'Něco se pokazilo. Zkuste to prosím později.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => 'Neplatný vstup';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => 'Časový limit';
 
   @override
   String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+      'Server neodpovídá. Zkuste to prosím znovu.';
 
   @override
-  String get error => 'Error';
+  String get error => 'Chyba';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => 'Došlo k neočekávané chybě.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => 'Nastavte své auto pro nejlepší zážitek:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => 'Připojit API auta';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      'Jděte do Auta → vyberte své auto → propojte svůj účet. Získáte přístup k údajům tachometru a dalším.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => 'Připojit Bluetooth';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      'Připojte telefon přes Bluetooth k autu, otevřete tuto aplikaci a propojte v oznámení. Zajistí to spolehlivou detekci jízd.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip => 'Tip: Nastavte obojí pro nejlepší spolehlivost!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => 'Vývojář';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => 'Ladící záznamy';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => 'Zobrazit nativní iOS záznamy';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => 'Kopírovat všechny záznamy';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => 'Záznamy zkopírovány do schránky';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => 'Odhlášen';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Přihlásit se pomocí Audi ID';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription => 'Přihlaste se účtem myAudi';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Přihlásit se pomocí Volkswagen ID';
 
   @override
   String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+      'Přihlaste se účtem Volkswagen ID';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Přihlásit se pomocí Škoda ID';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription => 'Přihlaste se účtem Škoda ID';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'Přihlásit se pomocí SEAT ID';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription => 'Přihlaste se účtem SEAT ID';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'Přihlásit se pomocí CUPRA ID';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription => 'Přihlaste se účtem CUPRA ID';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Přihlásit se pomocí Renault ID';
 
   @override
-  String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+  String get loginWithRenaultDescription => 'Přihlaste se účtem MY Renault';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault připojen';
 
   @override
-  String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+  String get accountLinkedSuccess => 'Váš účet byl úspěšně propojen';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand připojen';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return 'Připojit $brand';
   }
 
   @override
-  String get email => 'Email';
+  String get email => 'E-mail';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => 'Nizozemsko';
 
   @override
-  String get countryBelgium => 'Belgium';
+  String get countryBelgium => 'Belgie';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => 'Německo';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => 'Francie';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => 'Velká Británie';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => 'Španělsko';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => 'Itálie';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => 'Portugalsko';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => 'Zadejte svůj e-mail a heslo';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl => 'Nepodařilo se získat přihlašovací URL';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand propojen';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand propojen (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return 'Propojení $brand se nezdařilo';
   }
 
   @override
   String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+      'Změny názvu/barvy/ikony? Stiskněte zpět a upravte.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => 'Detekce auta';
 
   @override
   String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+      'Oznámení pro detekci auta a registraci jízd';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => 'Detekováno nové auto';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return 'Je \"$deviceName\" auto, které chcete sledovat?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => 'Jízda zahájena';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => 'Vaše jízda je nyní sledována';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return 'Vaše jízda s $carName je nyní sledována';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => 'Auto propojeno';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return '\"$deviceName\" je nyní propojeno s $carName';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return 'Chyba polohy: $error';
   }
 }

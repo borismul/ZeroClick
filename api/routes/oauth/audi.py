@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from models.auth import AudiAuthRequest, AudiCallbackRequest
 from auth.dependencies import get_current_user
 from database import get_db
+from utils.encryption import encrypt_string
 
 router = APIRouter(prefix="/audi/auth", tags=["oauth", "audi"])
 logger = logging.getLogger(__name__)
@@ -98,8 +99,8 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
     oauth_state = state_doc.to_dict()
     code_verifier = oauth_state.get("code_verifier")
 
-    # Validate state (CSRF protection)
-    if params.get("state") and oauth_state.get("state") != params["state"]:
+    # Validate state (CSRF protection) - state parameter MUST be present and match
+    if not params.get("state") or oauth_state.get("state") != params["state"]:
         logger.warning(f"OAuth state mismatch for car {request.car_id} - possible CSRF attack")
         raise HTTPException(
             status_code=400,
@@ -108,6 +109,9 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
 
     # Check if we have a code (PKCE flow) or tokens (legacy hybrid flow)
     code = params.get("code")
+
+    # Keep plaintext tokens for verification before encrypting
+    plaintext_tokens = {}
 
     if code and code_verifier:
         # PKCE flow: exchange code for tokens
@@ -134,28 +138,49 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
         token_data = token_response.json()
         expires_in = int(token_data.get("expires_in", 3600))
 
-        tokens = {
-            "brand": "audi",
+        # Keep plaintext for verification
+        plaintext_tokens = {
             "access_token": token_data["access_token"],
             "id_token": token_data.get("id_token", ""),
+            "refresh_token": token_data.get("refresh_token"),
+            "token_type": token_data.get("token_type", "bearer"),
+            "expires_in": expires_in,
+        }
+
+        # Encrypt sensitive tokens before storage (no plaintext)
+        tokens = {
+            "brand": "audi",
+            "access_token_encrypted": encrypt_string(token_data["access_token"]),
+            "id_token_encrypted": encrypt_string(token_data.get("id_token", "")) if token_data.get("id_token") else None,
+            "refresh_token_encrypted": encrypt_string(token_data.get("refresh_token")) if token_data.get("refresh_token") else None,
             "token_type": token_data.get("token_type", "bearer"),
             "expires_in": expires_in,
             "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
-            "refresh_token": token_data.get("refresh_token"),
             "oauth_completed": True,
+            "encryption_version": "kms-v1",
             "updated_at": datetime.now(tz=timezone.utc).isoformat(),
         }
     elif params.get("access_token"):
         # Legacy hybrid flow fallback
         expires_in = int(params.get("expires_in", 3600))
-        tokens = {
-            "brand": "audi",
+
+        # Keep plaintext for verification
+        plaintext_tokens = {
             "access_token": params["access_token"],
             "id_token": params.get("id_token", ""),
             "token_type": params.get("token_type", "bearer"),
             "expires_in": expires_in,
+        }
+
+        tokens = {
+            "brand": "audi",
+            "access_token_encrypted": encrypt_string(params["access_token"]),
+            "id_token_encrypted": encrypt_string(params.get("id_token", "")) if params.get("id_token") else None,
+            "token_type": params.get("token_type", "bearer"),
+            "expires_in": expires_in,
             "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
             "oauth_completed": True,
+            "encryption_version": "kms-v1",
             "updated_at": datetime.now(tz=timezone.utc).isoformat(),
         }
     else:
@@ -185,12 +210,12 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
         })
 
         api._tokens = AudiTokens(
-            access_token=tokens["access_token"],
-            id_token=tokens.get("id_token", ""),
-            token_type=tokens.get("token_type", "bearer"),
-            expires_in=int(tokens.get("expires_in", 3600)),
-            expires_at=time.time() + int(tokens.get("expires_in", 3600)),
-            refresh_token=tokens.get("refresh_token"),
+            access_token=plaintext_tokens["access_token"],
+            id_token=plaintext_tokens.get("id_token", ""),
+            token_type=plaintext_tokens.get("token_type", "bearer"),
+            expires_in=int(plaintext_tokens.get("expires_in", 3600)),
+            expires_at=time.time() + int(plaintext_tokens.get("expires_in", 3600)),
+            refresh_token=plaintext_tokens.get("refresh_token"),
         )
 
         vehicles = api.get_vehicles()

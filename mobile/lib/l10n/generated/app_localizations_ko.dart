@@ -550,10 +550,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get invalidDistance => '잘못된 거리';
 
   @override
-  String get language => 'Language';
+  String get language => '언어';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => '시스템 기본값';
 
   @override
   String get languageEnglish => 'English';
@@ -912,230 +912,223 @@ class AppLocalizationsKo extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => '다시 시도';
 
   @override
-  String get ok => 'OK';
+  String get ok => '확인';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => '연결 없음';
 
   @override
-  String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+  String get checkInternetConnection => '인터넷 연결을 확인하고 다시 시도하세요.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => '세션 만료됨';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => '계속하려면 다시 로그인하세요.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => '서버 오류';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater => '문제가 발생했습니다. 나중에 다시 시도하세요.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => '잘못된 입력';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => '시간 초과';
 
   @override
-  String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+  String get serverNotResponding => '서버가 응답하지 않습니다. 다시 시도하세요.';
 
   @override
-  String get error => 'Error';
+  String get error => '오류';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => '예상치 못한 오류가 발생했습니다.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => '최상의 경험을 위해 차량을 설정하세요:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => '차량 API 연결';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      '차량 → 차량 선택 → 계정 연결. 주행거리계 등에 접근할 수 있습니다.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => '블루투스 연결';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      '휴대폰을 블루투스로 차량에 연결하고, 이 앱을 열어 알림에서 연결하세요. 이렇게 하면 안정적인 주행 감지가 가능합니다.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip => '팁: 둘 다 설정하면 가장 안정적입니다!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => '개발자';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => '디버그 로그';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => '네이티브 iOS 로그 보기';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => '모든 로그 복사';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => '로그가 클립보드에 복사됨';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => '로그아웃됨';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Audi ID로 로그인';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription => 'myAudi 계정으로 로그인';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Volkswagen ID로 로그인';
 
   @override
-  String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+  String get loginWithVolkswagenDescription => 'Volkswagen ID 계정으로 로그인';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Skoda ID로 로그인';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription => 'Skoda ID 계정으로 로그인';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'SEAT ID로 로그인';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription => 'SEAT ID 계정으로 로그인';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'CUPRA ID로 로그인';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription => 'CUPRA ID 계정으로 로그인';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Renault ID로 로그인';
 
   @override
-  String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+  String get loginWithRenaultDescription => 'MY Renault 계정으로 로그인';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault 연결됨';
 
   @override
-  String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+  String get accountLinkedSuccess => '계정이 성공적으로 연결되었습니다';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand 연결됨';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return '$brand 연결';
   }
 
   @override
-  String get email => 'Email';
+  String get email => '이메일';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => '네덜란드';
 
   @override
-  String get countryBelgium => 'Belgium';
+  String get countryBelgium => '벨기에';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => '독일';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => '프랑스';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => '영국';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => '스페인';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => '이탈리아';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => '포르투갈';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => '이메일과 비밀번호를 입력하세요';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl => '로그인 URL을 가져올 수 없습니다';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand 연결됨';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand 연결됨 (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return '$brand 연결 실패';
   }
 
   @override
-  String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+  String get changesInNameColorIcon => '이름/색상/아이콘 변경? 뒤로 가서 편집하세요.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => '차량 감지';
 
   @override
-  String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+  String get notificationChannelDescription => '차량 감지 및 주행 등록 알림';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => '새 차량 감지됨';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return '\"$deviceName\"은(는) 추적하려는 차량인가요?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => '주행 시작됨';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => '주행이 추적되고 있습니다';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return '$carName(으)로의 주행이 추적되고 있습니다';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => '차량 연결됨';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return '\"$deviceName\"이(가) $carName에 연결되었습니다';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return '위치 오류: $error';
   }
 }

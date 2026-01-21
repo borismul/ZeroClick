@@ -64,7 +64,7 @@ class KeychainHelper {
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
             kSecAttrSynchronizable as String: kCFBooleanTrue!, // iCloud sync
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked // Requires device unlock
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)

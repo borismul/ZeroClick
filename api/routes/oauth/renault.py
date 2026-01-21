@@ -12,9 +12,10 @@ import requests as req
 from fastapi import APIRouter, HTTPException, Depends
 
 from models.auth import RenaultAuthRequest, RenaultCallbackRequest, RenaultLoginRequest
-from config import RENAULT_GIGYA_CONFIG, RENAULT_GIGYA_API_KEYS
+from config import get_renault_gigya_config, get_renault_gigya_api_keys
 from auth.dependencies import get_current_user
 from database import get_db
+from utils.encryption import encrypt_string
 
 router = APIRouter(prefix="/renault/auth", tags=["oauth", "renault"])
 logger = logging.getLogger(__name__)
@@ -29,7 +30,8 @@ def renault_direct_login(request: RenaultLoginRequest, user_id: str = Depends(ge
     if not car_ref.get().exists:
         raise HTTPException(status_code=404, detail="Car not found")
 
-    api_key = RENAULT_GIGYA_API_KEYS.get(request.locale, RENAULT_GIGYA_API_KEYS["nl_NL"])
+    api_keys = get_renault_gigya_api_keys()
+    api_key = api_keys.get(request.locale, api_keys.get("nl_NL", ""))
     gigya_url = "https://accounts.eu1.gigya.com"
 
     try:
@@ -87,14 +89,15 @@ def renault_direct_login(request: RenaultLoginRequest, user_id: str = Depends(ge
 
         gigya_jwt = jwt_data.get("id_token")
 
-        # Store tokens
+        # Store tokens with encryption (no plaintext)
         tokens = {
             "brand": "renault",
-            "gigya_token": login_token,
-            "gigya_jwt": gigya_jwt,
+            "gigya_token_encrypted": encrypt_string(login_token),
+            "gigya_jwt_encrypted": encrypt_string(gigya_jwt) if gigya_jwt else None,
             "gigya_person_id": person_id,
             "locale": request.locale,
             "oauth_completed": True,
+            "encryption_version": "kms-v1",
             "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=900)).isoformat(),
             "updated_at": datetime.now(tz=timezone.utc).isoformat(),
         }
@@ -139,14 +142,15 @@ def get_renault_auth_url(request: RenaultAuthRequest, user_id: str = Depends(get
     })
 
     # Build the login URL
-    login_url = RENAULT_GIGYA_CONFIG["login_url"].format(locale=request.locale)
-    success_url = RENAULT_GIGYA_CONFIG["success_url"].format(locale=request.locale)
+    config = get_renault_gigya_config()
+    login_url = config["login_url"].format(locale=request.locale)
+    success_url = config["success_url"].format(locale=request.locale)
 
     logger.info(f"Generated Renault login URL for car {request.car_id}")
     return {
         "auth_url": login_url,
         "success_url": success_url,
-        "gigya_api_key": RENAULT_GIGYA_CONFIG["api_key"],
+        "gigya_api_key": config["api_key"],
         "state": state,
     }
 
@@ -163,11 +167,12 @@ def handle_renault_callback(request: RenaultCallbackRequest, user_id: str = Depe
     try:
         # Get JWT from Gigya using the login token
         async def get_gigya_jwt():
+            config = get_renault_gigya_config()
             async with aiohttp.ClientSession() as session:
                 # Get account info first to get person_id
-                account_url = f"{RENAULT_GIGYA_CONFIG['gigya_url']}/accounts.getAccountInfo"
+                account_url = f"{config['gigya_url']}/accounts.getAccountInfo"
                 account_data = {
-                    "ApiKey": RENAULT_GIGYA_CONFIG["api_key"],
+                    "ApiKey": config["api_key"],
                     "login_token": request.gigya_token,
                 }
                 async with session.post(account_url, data=account_data) as resp:
@@ -180,9 +185,9 @@ def handle_renault_callback(request: RenaultCallbackRequest, user_id: str = Depe
                     person_id = request.gigya_person_id
 
                 # Get JWT token
-                jwt_url = f"{RENAULT_GIGYA_CONFIG['gigya_url']}/accounts.getJWT"
+                jwt_url = f"{config['gigya_url']}/accounts.getJWT"
                 jwt_data = {
-                    "ApiKey": RENAULT_GIGYA_CONFIG["api_key"],
+                    "ApiKey": config["api_key"],
                     "login_token": request.gigya_token,
                     "fields": "data.personId,data.gigyaDataCenter",
                     "expiration": 900,
@@ -200,13 +205,14 @@ def handle_renault_callback(request: RenaultCallbackRequest, user_id: str = Depe
 
         result = asyncio.run(get_gigya_jwt())
 
-        # Store tokens
+        # Store tokens with encryption (no plaintext)
         tokens = {
             "brand": "renault",
-            "gigya_token": request.gigya_token,
-            "gigya_jwt": result["jwt"],
+            "gigya_token_encrypted": encrypt_string(request.gigya_token),
+            "gigya_jwt_encrypted": encrypt_string(result["jwt"]) if result["jwt"] else None,
             "gigya_person_id": result["person_id"],
             "oauth_completed": True,
+            "encryption_version": "kms-v1",
             "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=900)).isoformat(),
             "updated_at": datetime.now(tz=timezone.utc).isoformat(),
         }

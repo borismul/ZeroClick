@@ -113,3 +113,62 @@ resource "google_kms_crypto_key_iam_member" "api_kms_encrypt_decrypt" {
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${google_service_account.api.email}"
 }
+
+# =============================================================================
+# Renault Gigya API Keys
+# =============================================================================
+
+# Main Gigya API key
+resource "google_secret_manager_secret" "renault_gigya_api_key" {
+  secret_id = "renault-gigya-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Locale-specific API keys stored as JSON
+resource "google_secret_manager_secret" "renault_gigya_api_keys_json" {
+  secret_id = "renault-gigya-api-keys"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Secret versions with actual API keys
+resource "google_secret_manager_secret_version" "renault_gigya_api_key" {
+  secret      = google_secret_manager_secret.renault_gigya_api_key.id
+  secret_data = "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a"
+}
+
+resource "google_secret_manager_secret_version" "renault_gigya_api_keys_json" {
+  secret = google_secret_manager_secret.renault_gigya_api_keys_json.id
+  secret_data = jsonencode({
+    "nl_NL" = "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh"
+    "fr_FR" = "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a"
+    "de_DE" = "3_7PLksOyBRkHv126x5WhHb-5pqC1qFR8pQjxSeLB6nhAnPERTUlwnYoznHSxwX668"
+    "en_GB" = "3_e8d4g4SE_Fo8ahyHwwP7ohLGZ79HKNN2T8NjQqoNnk6Epj6ilyYwKdHUyCw3wuxz"
+    "es_ES" = "3_DyMiOwEaxLcPdBTu63Gv3hlhvLaLbW3ufvjHLeuU8U5bx7clnPKZwUf5u0GZAVrq"
+    "it_IT" = "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq"
+    "pt_PT" = "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq"
+    "be_BE" = "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh"
+  })
+}
+
+# Grant API service account access to Renault secrets
+resource "google_secret_manager_secret_iam_member" "api_renault_gigya_api_key" {
+  secret_id = google_secret_manager_secret.renault_gigya_api_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.api.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "api_renault_gigya_api_keys_json" {
+  secret_id = google_secret_manager_secret.renault_gigya_api_keys_json.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.api.email}"
+}

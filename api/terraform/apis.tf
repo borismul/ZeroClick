@@ -5,6 +5,7 @@ resource "google_project_service" "apis" {
     "run.googleapis.com",
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
+    "firebaserules.googleapis.com",
     "sheets.googleapis.com",
     "geocoding-backend.googleapis.com",
     "directions-backend.googleapis.com",

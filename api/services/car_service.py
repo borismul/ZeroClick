@@ -10,8 +10,60 @@ from google.cloud import firestore
 from config import CONFIG
 from database import get_db
 from models.car import Car
+from utils.encryption import decrypt_string
 
 logger = logging.getLogger(__name__)
+
+
+def _decrypt_credentials(creds: dict) -> dict:
+    """
+    Decrypt credentials from Firestore.
+
+    Handles both encrypted (*_encrypted fields) and legacy plaintext fields.
+    Encrypted fields take precedence when present.
+
+    Args:
+        creds: Raw credentials dict from Firestore
+
+    Returns:
+        Credentials dict with decrypted values in standard field names
+    """
+    result = dict(creds)
+
+    # OAuth tokens (Audi, VW Group)
+    for field in ["access_token", "refresh_token", "id_token"]:
+        enc_field = f"{field}_encrypted"
+        if enc_field in creds and creds[enc_field]:
+            try:
+                result[field] = decrypt_string(creds[enc_field])
+            except Exception as e:
+                logger.error(f"Failed to decrypt {field}: {e}")
+                # Fall back to plaintext if decryption fails and plaintext exists
+                if field not in creds:
+                    result[field] = None
+
+    # Renault Gigya tokens
+    for field in ["gigya_token", "gigya_jwt"]:
+        enc_field = f"{field}_encrypted"
+        if enc_field in creds and creds[enc_field]:
+            try:
+                result[field] = decrypt_string(creds[enc_field])
+            except Exception as e:
+                logger.error(f"Failed to decrypt {field}: {e}")
+                if field not in creds:
+                    result[field] = None
+
+    # Password (encrypted storage)
+    if "password_encrypted" in creds and creds["password_encrypted"]:
+        try:
+            result["password"] = decrypt_string(creds["password_encrypted"])
+        except Exception as e:
+            logger.error(f"Failed to decrypt password: {e}")
+            # Fall back to legacy plaintext if decryption fails
+            if "password" not in creds:
+                result["password"] = ""
+
+    return result
 
 
 class CarService:
@@ -296,11 +348,15 @@ class CarService:
             # Only use car's own credentials - no fallbacks
             creds_doc = cars_ref.document(car_id).collection("credentials").document("api").get()
             if creds_doc.exists:
-                creds = creds_doc.to_dict()
+                raw_creds = creds_doc.to_dict()
+                # Decrypt credentials
+                creds = _decrypt_credentials(raw_creds)
                 # Support both username/password and OAuth-based auth
                 has_password_auth = creds.get("username") and creds.get("password")
                 has_oauth_auth = creds.get("oauth_completed") and creds.get("access_token")
-                if has_password_auth or has_oauth_auth:
+                # Also check for Renault Gigya auth
+                has_renault_auth = creds.get("oauth_completed") and creds.get("gigya_token")
+                if has_password_auth or has_oauth_auth or has_renault_auth:
                     cars_with_creds.append({
                         "car_id": car_id,
                         "user_id": user_id,
@@ -313,6 +369,8 @@ class CarService:
 
     def save_car_credentials(self, user_id: str, car_id: str, creds: dict) -> dict:
         """Save API credentials for a specific car."""
+        from utils.encryption import encrypt_string
+
         db = get_db()
         car_ref = db.collection("users").document(user_id).collection("cars").document(car_id)
 
@@ -321,10 +379,15 @@ class CarService:
 
         # Store credentials in a subcollection for security
         creds_ref = car_ref.collection("credentials").document("api")
+
+        # Encrypt password if provided
+        password = creds.get("password", "")
+        password_encrypted = encrypt_string(password) if password else ""
+
         creds_ref.set({
             "brand": creds.get("brand", "audi"),
             "username": creds.get("username", ""),
-            "password": creds.get("password", ""),
+            "password_encrypted": password_encrypted,  # Encrypted, not plaintext
             "country": creds.get("country", "NL"),
             "locale": creds.get("locale", "nl_NL"),
             "spin": creds.get("spin", ""),
@@ -351,10 +414,12 @@ class CarService:
 
         creds = creds_doc.to_dict()
         # Return credential info but NOT the password
+        # Check both encrypted and legacy plaintext password fields
+        has_password = bool(creds.get("password_encrypted") or creds.get("password"))
         return {
             "brand": creds.get("brand"),
             "username": creds.get("username"),
-            "has_password": bool(creds.get("password")),
+            "has_password": has_password,
             "oauth_completed": creds.get("oauth_completed", False),
             "country": creds.get("country"),
             "updated_at": creds.get("updated_at"),
@@ -463,6 +528,7 @@ class CarService:
 
             # Save refreshed tokens back to Firestore (for Audi OAuth)
             if brand == "audi" and hasattr(provider, 'get_tokens'):
+                from utils.encryption import encrypt_string
                 new_tokens = provider.get_tokens()
                 if new_tokens and new_tokens.get("refresh_token"):
                     try:
@@ -471,11 +537,12 @@ class CarService:
                         if user_id:
                             db = get_db()
                             creds_ref = db.collection("users").document(user_id).collection("cars").document(car_id).collection("credentials").document("api")
+                            # Encrypt refreshed tokens
                             creds_ref.update({
-                                "access_token": new_tokens["access_token"],
-                                "id_token": new_tokens["id_token"],
+                                "access_token_encrypted": encrypt_string(new_tokens["access_token"]),
+                                "id_token_encrypted": encrypt_string(new_tokens["id_token"]) if new_tokens.get("id_token") else None,
+                                "refresh_token_encrypted": encrypt_string(new_tokens["refresh_token"]),
                                 "expires_at": new_tokens["expires_at"],
-                                "refresh_token": new_tokens["refresh_token"],
                                 "updated_at": datetime.utcnow().isoformat(),
                             })
                             logger.info(f"Saved refreshed Audi tokens for car {car_id}")

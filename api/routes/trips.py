@@ -66,12 +66,10 @@ def create_trip(trip: ManualTrip, user_id: str = Depends(get_current_user)):
 
 
 @router.post("/full")
-def create_full_trip(trip: FullTrip, user: str | None = None):
-    """Create a trip with full details including GPS trail (public endpoint for recovery)."""
-    if not user:
-        raise HTTPException(status_code=401, detail="User parameter required")
+def create_full_trip(trip: FullTrip, user_id: str = Depends(get_current_user)):
+    """Create a trip with full details including GPS trail."""
     return trip_service.create_full_trip(
-        user_id=user,
+        user_id=user_id,  # Use authenticated user, not request body
         date=trip.date,
         start_time=trip.start_time,
         end_time=trip.end_time,
@@ -89,27 +87,38 @@ def create_full_trip(trip: FullTrip, user: str | None = None):
 
 
 @router.get("/{trip_id}", response_model=Trip)
-def get_trip(trip_id: str):
+def get_trip(trip_id: str, user_id: str = Depends(get_current_user)):
     """Get single trip."""
     trip = trip_service.get_trip(trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     return trip
 
 
 @router.patch("/{trip_id}", response_model=Trip)
-def update_trip(trip_id: str, update: TripUpdate):
+def update_trip(trip_id: str, update: TripUpdate, user_id: str = Depends(get_current_user)):
     """Update trip fields."""
+    # First verify ownership
+    existing = trip_service.get_trip(trip_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if existing.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     updates = update.model_dump(exclude_unset=True)
     trip = trip_service.update_trip(trip_id, updates)
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
     return trip
 
 
 @router.delete("/{trip_id}")
-def delete_trip(trip_id: str):
+def delete_trip(trip_id: str, user_id: str = Depends(get_current_user)):
     """Delete a trip."""
-    if not trip_service.delete_trip(trip_id):
+    # First verify ownership
+    existing = trip_service.get_trip(trip_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Trip not found")
+    if existing.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    trip_service.delete_trip(trip_id)
     return {"status": "deleted"}

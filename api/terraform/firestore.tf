@@ -5,9 +5,28 @@ resource "google_firestore_database" "main" {
   location_id                 = "eur3"
   type                        = "FIRESTORE_NATIVE"
   deletion_policy             = "DELETE"
-  delete_protection_state     = "DELETE_PROTECTION_DISABLED"
+  delete_protection_state     = "DELETE_PROTECTION_ENABLED"
 
   depends_on = [google_project_service.apis]
+}
+
+# Firestore Security Rules
+resource "google_firebaserules_ruleset" "firestore" {
+  source {
+    files {
+      name    = "firestore.rules"
+      content = file("${path.module}/../../firestore.rules")
+    }
+  }
+
+  depends_on = [google_firestore_database.main]
+}
+
+resource "google_firebaserules_release" "firestore" {
+  name         = "cloud.firestore"
+  ruleset_name = google_firebaserules_ruleset.firestore.name
+
+  depends_on = [google_firebaserules_ruleset.firestore]
 }
 
 # Composite index for trips sorted by sort_date and start_time (per user)

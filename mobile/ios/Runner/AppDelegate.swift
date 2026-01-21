@@ -381,6 +381,10 @@ import OSLog
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Add Bearer token for authentication
+        if let token = KeychainHelper.shared.getToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
         Logger.api.info("Start trip: \(lat, privacy: .public), \(lng, privacy: .public)")
@@ -412,6 +416,10 @@ import OSLog
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Add Bearer token for authentication
+        if let token = KeychainHelper.shared.getToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
         Logger.api.debug("Ping: \(lat, privacy: .public), \(lng, privacy: .public)")
@@ -449,6 +457,10 @@ import OSLog
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Add Bearer token for authentication
+        if let token = KeychainHelper.shared.getToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["lat": lat, "lng": lng])
 
         Logger.api.info("End trip: \(lat, privacy: .public), \(lng, privacy: .public)")

@@ -29,6 +29,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """
 
     # Paths that don't require auth
+    # SECURITY: Only add truly public paths here
+    # /audi/odometer-now, /trips/full, /audi/check-trip were removed - they require auth
     PUBLIC_PATHS = {
         "/",
         "/auth/status",
@@ -37,9 +39,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/openapi.json",
         "/redoc",
-        "/audi/check-trip",
-        "/audi/odometer-now",
-        "/trips/full",
     }
 
     # Path prefixes that don't require auth

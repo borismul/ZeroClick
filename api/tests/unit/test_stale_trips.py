@@ -239,17 +239,18 @@ class TestGPSStationaryDetection:
     def test_gps_stationary_detected(self):
         """
         GPS events within small radius over time period = stationary.
+        Note: GPS_STATIONARY_TIMEOUT_MINUTES is 5, so events must be within last 5 min.
         """
         from services.webhook_service import webhook_service
 
         now = datetime.utcnow()
-        # All events within 50m over 30 minutes
+        # All events within 50m over 5 minutes (matching GPS_STATIONARY_TIMEOUT_MINUTES=5)
         gps_events = [
-            {"lat": 51.9200, "lng": 4.4700, "timestamp": (now - timedelta(minutes=25)).isoformat() + "Z"},
-            {"lat": 51.9201, "lng": 4.4701, "timestamp": (now - timedelta(minutes=20)).isoformat() + "Z"},
-            {"lat": 51.9200, "lng": 4.4700, "timestamp": (now - timedelta(minutes=15)).isoformat() + "Z"},
-            {"lat": 51.9202, "lng": 4.4702, "timestamp": (now - timedelta(minutes=10)).isoformat() + "Z"},
-            {"lat": 51.9201, "lng": 4.4701, "timestamp": (now - timedelta(minutes=5)).isoformat() + "Z"},
+            {"lat": 51.9200, "lng": 4.4700, "timestamp": (now - timedelta(minutes=4, seconds=30)).isoformat() + "Z"},
+            {"lat": 51.9201, "lng": 4.4701, "timestamp": (now - timedelta(minutes=3, seconds=30)).isoformat() + "Z"},
+            {"lat": 51.9200, "lng": 4.4700, "timestamp": (now - timedelta(minutes=2, seconds=30)).isoformat() + "Z"},
+            {"lat": 51.9202, "lng": 4.4702, "timestamp": (now - timedelta(minutes=1, seconds=30)).isoformat() + "Z"},
+            {"lat": 51.9201, "lng": 4.4701, "timestamp": (now - timedelta(seconds=30)).isoformat() + "Z"},
         ]
 
         result = webhook_service._check_gps_stationary(gps_events)

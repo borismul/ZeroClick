@@ -117,8 +117,9 @@ CONFIG = {
 STALE_TRIP_HOURS = 2  # Trips with no activity for 2+ hours are considered stale
 
 # GPS-based trip detection
-GPS_STATIONARY_TIMEOUT_MINUTES = 30  # Auto-end trip after 30 min stationary
+GPS_STATIONARY_TIMEOUT_MINUTES = 5   # Auto-end trip after 5 min stationary (was 30)
 GPS_STATIONARY_RADIUS_METERS = 50    # Consider stationary if within 50m
+TRIP_RESUME_WINDOW_MINUTES = 30      # Resume trip if driving again within 30 min of stop
 
 # Charging stations cache
 CHARGING_CACHE_TTL = 300  # 5 minutes
@@ -163,21 +164,48 @@ VW_GROUP_OAUTH_CONFIG = {
 
 # === Renault Gigya Configuration ===
 
-RENAULT_GIGYA_CONFIG = {
-    "api_key": "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a",
-    "gigya_url": "https://accounts.eu1.gigya.com",
-    "login_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup.html",
-    "success_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup/success.html",
-}
 
-# Renault Gigya API keys per locale
-RENAULT_GIGYA_API_KEYS = {
-    "nl_NL": "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh",
-    "fr_FR": "3_4LKbCcMMcvjDm3X89LU4z4mNKYKdl_W0oD9w-Jvih21WqgJKtFZAnb9YdUgWT9_a",
-    "de_DE": "3_7PLksOyBRkHv126x5WhHb-5pqC1qFR8pQjxSeLB6nhAnPERTUlwnYoznHSxwX668",
-    "en_GB": "3_e8d4g4SE_Fo8ahyHwwP7ohLGZ79HKNN2T8NjQqoNnk6Epj6ilyYwKdHUyCw3wuxz",
-    "es_ES": "3_DyMiOwEaxLcPdBTu63Gv3hlhvLaLbW3ufvjHLeuU8U5bx7clnPKZwUf5u0GZAVrq",
-    "it_IT": "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq",
-    "pt_PT": "3_js8th3jdmCWV86fKR3SXQWvXGKbHoWFv8NAgRbH7FnIBsi_XvCpN_rtLcI07uNuq",
-    "be_BE": "3_ZSMbhKpLMvjMcFB6NWTO2dj91RCQF1d3sRLHmWGJPGUHeZcCZd-0x-Vb4r_bYeYh",
-}
+def _load_renault_gigya_config() -> dict:
+    """Load Renault Gigya config from Secret Manager."""
+    from utils.secrets import get_secret_or_default
+    api_key = get_secret_or_default("renault-gigya-api-key", "")
+    return {
+        "api_key": api_key,
+        "gigya_url": "https://accounts.eu1.gigya.com",
+        "login_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup.html",
+        "success_url": "https://idconnect.renaultgroup.com/{locale}/authentication-portal/login-signup/success.html",
+    }
+
+
+def _load_renault_gigya_api_keys() -> dict:
+    """Load Renault Gigya API keys per locale from Secret Manager."""
+    import json
+    from utils.secrets import get_secret_or_default
+    keys_json = get_secret_or_default("renault-gigya-api-keys", "{}")
+    try:
+        return json.loads(keys_json)
+    except json.JSONDecodeError:
+        return {}
+
+
+# Lazy-loaded Renault config (loaded on first access)
+_renault_gigya_config: dict | None = None
+_renault_gigya_api_keys: dict | None = None
+
+
+def get_renault_gigya_config() -> dict:
+    """Get Renault Gigya config, loading from Secret Manager on first access."""
+    global _renault_gigya_config
+    if _renault_gigya_config is None:
+        _renault_gigya_config = _load_renault_gigya_config()
+    return _renault_gigya_config
+
+
+def get_renault_gigya_api_keys() -> dict:
+    """Get Renault Gigya API keys, loading from Secret Manager on first access."""
+    global _renault_gigya_api_keys
+    if _renault_gigya_api_keys is None:
+        _renault_gigya_api_keys = _load_renault_gigya_api_keys()
+    return _renault_gigya_api_keys
+
+

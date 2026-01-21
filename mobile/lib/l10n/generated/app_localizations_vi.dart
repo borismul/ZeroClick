@@ -556,10 +556,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get invalidDistance => 'Khoảng cách không hợp lệ';
 
   @override
-  String get language => 'Language';
+  String get language => 'Ngôn ngữ';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Mặc định hệ thống';
 
   @override
   String get languageEnglish => 'English';
@@ -918,230 +918,232 @@ class AppLocalizationsVi extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Thử lại';
 
   @override
   String get ok => 'OK';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => 'Không có kết nối';
 
   @override
-  String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+  String get checkInternetConnection => 'Kiểm tra kết nối internet và thử lại.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => 'Phiên đã hết hạn';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => 'Đăng nhập lại để tiếp tục.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => 'Lỗi máy chủ';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater => 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => 'Đầu vào không hợp lệ';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => 'Hết thời gian';
 
   @override
-  String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+  String get serverNotResponding => 'Máy chủ không phản hồi. Vui lòng thử lại.';
 
   @override
-  String get error => 'Error';
+  String get error => 'Lỗi';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => 'Đã xảy ra lỗi không mong muốn.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => 'Thiết lập xe để có trải nghiệm tốt nhất:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => 'Kết nối API Xe';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      'Đi đến Xe → chọn xe của bạn → liên kết tài khoản. Điều này cho phép bạn truy cập số km và nhiều hơn nữa.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => 'Kết nối Bluetooth';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      'Kết nối điện thoại qua Bluetooth với xe, mở ứng dụng này và liên kết trong thông báo. Điều này đảm bảo phát hiện chuyến đi đáng tin cậy.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip => 'Mẹo: Thiết lập cả hai để có độ tin cậy tốt nhất!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => 'Nhà phát triển';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => 'Nhật ký Debug';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => 'Xem nhật ký iOS gốc';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => 'Sao chép tất cả nhật ký';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => 'Đã sao chép nhật ký vào clipboard';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => 'Đã đăng xuất';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Đăng nhập bằng Audi ID';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription =>
+      'Đăng nhập bằng tài khoản myAudi của bạn';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Đăng nhập bằng Volkswagen ID';
 
   @override
   String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+      'Đăng nhập bằng tài khoản Volkswagen ID của bạn';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Đăng nhập bằng Skoda ID';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription =>
+      'Đăng nhập bằng tài khoản Skoda ID của bạn';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'Đăng nhập bằng SEAT ID';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription =>
+      'Đăng nhập bằng tài khoản SEAT ID của bạn';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'Đăng nhập bằng CUPRA ID';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription =>
+      'Đăng nhập bằng tài khoản CUPRA ID của bạn';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Đăng nhập bằng Renault ID';
 
   @override
   String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+      'Đăng nhập bằng tài khoản MY Renault của bạn';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault đã kết nối';
 
   @override
   String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+      'Tài khoản của bạn đã được liên kết thành công';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand đã kết nối';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return 'Kết nối $brand';
   }
 
   @override
   String get email => 'Email';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => 'Hà Lan';
 
   @override
-  String get countryBelgium => 'Belgium';
+  String get countryBelgium => 'Bỉ';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => 'Đức';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => 'Pháp';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => 'Vương quốc Anh';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => 'Tây Ban Nha';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => 'Ý';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => 'Bồ Đào Nha';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => 'Nhập email và mật khẩu của bạn';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl => 'Không thể lấy URL đăng nhập';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand đã liên kết';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand đã liên kết (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return 'Liên kết $brand thất bại';
   }
 
   @override
   String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+      'Thay đổi tên/màu/biểu tượng? Nhấn quay lại và chỉnh sửa.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => 'Phát hiện Xe';
 
   @override
   String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+      'Thông báo cho phát hiện xe và đăng ký chuyến đi';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => 'Phát hiện xe mới';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return '\"$deviceName\" có phải là xe bạn muốn theo dõi không?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => 'Chuyến đi Bắt đầu';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => 'Chuyến đi của bạn đang được theo dõi';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return 'Chuyến đi với $carName đang được theo dõi';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => 'Xe Đã Liên kết';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return '\"$deviceName\" đã được liên kết với $carName';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return 'Lỗi vị trí: $error';
   }
 }

@@ -557,10 +557,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get invalidDistance => 'Geçersiz mesafe';
 
   @override
-  String get language => 'Language';
+  String get language => 'Dil';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Sistem varsayılanı';
 
   @override
   String get languageEnglish => 'English';
@@ -919,230 +919,231 @@ class AppLocalizationsTr extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Tekrar dene';
 
   @override
-  String get ok => 'OK';
+  String get ok => 'Tamam';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => 'Bağlantı yok';
 
   @override
   String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+      'İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => 'Oturum süresi doldu';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => 'Devam etmek için tekrar giriş yapın.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => 'Sunucu hatası';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater =>
+      'Bir şeyler yanlış gitti. Lütfen daha sonra tekrar deneyin.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => 'Geçersiz giriş';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => 'Zaman aşımı';
 
   @override
   String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+      'Sunucu yanıt vermiyor. Lütfen tekrar deneyin.';
 
   @override
-  String get error => 'Error';
+  String get error => 'Hata';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => 'Beklenmeyen bir hata oluştu.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => 'En iyi deneyim için arabanızı ayarlayın:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => 'Araba API\'sini bağla';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      'Arabalar → arabanızı seçin → hesabınızı bağlayın. Bu, kilometre sayacı ve daha fazlasına erişim sağlar.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => 'Bluetooth\'u bağla';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      'Telefonunuzu Bluetooth ile arabanıza bağlayın, bu uygulamayı açın ve bildirimden bağlayın. Bu, güvenilir seyahat algılama sağlar.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip =>
+      'İpucu: En iyi güvenilirlik için her ikisini de ayarlayın!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => 'Geliştirici';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => 'Hata ayıklama günlükleri';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => 'Yerel iOS günlüklerini görüntüle';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => 'Tüm günlükleri kopyala';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => 'Günlükler panoya kopyalandı';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => 'Çıkış yapıldı';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Audi ID ile giriş yap';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription => 'myAudi hesabınızla giriş yapın';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Volkswagen ID ile giriş yap';
 
   @override
   String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+      'Volkswagen ID hesabınızla giriş yapın';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Skoda ID ile giriş yap';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription => 'Skoda ID hesabınızla giriş yapın';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'SEAT ID ile giriş yap';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription => 'SEAT ID hesabınızla giriş yapın';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'CUPRA ID ile giriş yap';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription => 'CUPRA ID hesabınızla giriş yapın';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Renault ID ile giriş yap';
 
   @override
   String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+      'MY Renault hesabınızla giriş yapın';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault bağlı';
 
   @override
-  String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+  String get accountLinkedSuccess => 'Hesabınız başarıyla bağlandı';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand bağlı';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return '$brand bağla';
   }
 
   @override
-  String get email => 'Email';
+  String get email => 'E-posta';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => 'Hollanda';
 
   @override
-  String get countryBelgium => 'Belgium';
+  String get countryBelgium => 'Belçika';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => 'Almanya';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => 'Fransa';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => 'Birleşik Krallık';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => 'İspanya';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => 'İtalya';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => 'Portekiz';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => 'E-posta ve şifrenizi girin';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl => 'Giriş URL\'si alınamadı';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand bağlandı';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand bağlandı (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return '$brand bağlantısı başarısız';
   }
 
   @override
   String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+      'Ad/renk/simge değişiklikleri? Geri basın ve düzenleyin.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => 'Araba Algılama';
 
   @override
   String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+      'Araba algılama ve seyahat kaydı bildirimleri';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => 'Yeni araba algılandı';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return '\"$deviceName\" takip etmek istediğiniz bir araba mı?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => 'Seyahat Başladı';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => 'Seyahatiniz şimdi takip ediliyor';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return '$carName ile seyahatiniz takip ediliyor';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => 'Araba Bağlandı';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return '\"$deviceName\" artık $carName\'e bağlı';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return 'Konum hatası: $error';
   }
 }

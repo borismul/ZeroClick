@@ -36,7 +36,7 @@ class TestGetLocations:
             {"name": "Kantoor", "lat": 51.95, "lng": 4.55, "is_business": True},
         ]
 
-        response = client.get("/locations")
+        response = client.get("/locations", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         data = response.json()
@@ -48,7 +48,7 @@ class TestGetLocations:
         """GET /locations returns empty list when no locations."""
         mock_location_service.get_locations.return_value = []
 
-        response = client.get("/locations")
+        response = client.get("/locations", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         assert response.json() == []
@@ -69,19 +69,21 @@ class TestAddLocation:
         response = client.post(
             "/locations",
             json={"name": "Gym", "lat": 51.92, "lng": 4.52},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "added"
         assert data["name"] == "Gym"
-        mock_location_service.add_location.assert_called_once_with("Gym", 51.92, 4.52)
+        mock_location_service.add_location.assert_called_once_with("Gym", 51.92, 4.52, "test@example.com")
 
     def test_add_location_requires_name(self, client, mock_location_service):
         """POST /locations requires name field."""
         response = client.post(
             "/locations",
             json={"lat": 51.92, "lng": 4.52},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 422
@@ -91,6 +93,7 @@ class TestAddLocation:
         response = client.post(
             "/locations",
             json={"name": "Test"},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 422
@@ -106,7 +109,7 @@ class TestDeleteLocation:
             "name": "Gym",
         }
 
-        response = client.delete("/locations/Gym")
+        response = client.delete("/locations/Gym", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         data = response.json()
@@ -118,7 +121,7 @@ class TestDeleteLocation:
         mock_location_service.delete_location.return_value = {"status": "deleted"}
 
         # URL encode "My Place"
-        response = client.delete("/locations/My%20Place")
+        response = client.delete("/locations/My%20Place", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         mock_location_service.delete_location.assert_called_once_with("My Place")

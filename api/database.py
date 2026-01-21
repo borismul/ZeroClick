@@ -74,6 +74,31 @@ def set_trip_cache(data: dict | None, user_id: str):
         logger.error(f"Failed to set trip cache: {e}")
 
 
+def get_paused_trip(user_id: str) -> dict | None:
+    """Get paused trip that can be resumed (per-user)."""
+    try:
+        db = get_db()
+        doc = db.collection("users").document(user_id).collection("cache").document("paused_trip").get()
+        if doc.exists:
+            return doc.to_dict()
+    except Exception as e:
+        logger.error(f"Failed to get paused trip: {e}")
+    return None
+
+
+def set_paused_trip(data: dict | None, user_id: str):
+    """Set or clear paused trip cache in Firestore (per-user)."""
+    try:
+        db = get_db()
+        ref = db.collection("users").document(user_id).collection("cache").document("paused_trip")
+        if data:
+            ref.set(data)
+        else:
+            ref.delete()
+    except Exception as e:
+        logger.error(f"Failed to set paused trip: {e}")
+
+
 def get_all_active_trips() -> list[tuple[str, dict]]:
     """Get all active trip caches across all users (for scheduler/safety net)."""
     active_trips = []

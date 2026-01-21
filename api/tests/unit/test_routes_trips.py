@@ -14,10 +14,11 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 
-def make_trip(trip_id: str, **overrides) -> dict:
+def make_trip(trip_id: str, user_id: str = "test@example.com", **overrides) -> dict:
     """Create a complete trip object with all required fields."""
     base = {
         "id": trip_id,
+        "user_id": user_id,
         "date": "15-01-2024",
         "start_time": "08:00",
         "end_time": "08:30",
@@ -200,7 +201,7 @@ class TestCreateFullTrip:
         }
 
         response = client.post(
-            "/trips/full?user=test@example.com",
+            "/trips/full",
             json={
                 "date": "20-01-2024",
                 "start_time": "08:00",
@@ -218,14 +219,15 @@ class TestCreateFullTrip:
                     {"lat": 51.95, "lng": 4.55, "timestamp": "2024-01-20T08:30:00Z"},
                 ],
             },
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == "full-trip-123"
 
-    def test_create_full_trip_requires_user_param(self, client, mock_trip_service):
-        """POST /trips/full requires user query parameter."""
+    def test_create_full_trip_requires_auth(self, client, mock_trip_service):
+        """POST /trips/full requires authentication."""
         response = client.post(
             "/trips/full",
             json={
@@ -254,10 +256,11 @@ class TestGetTrip:
         """GET /trips/{trip_id} returns trip details."""
         mock_trip_service.get_trip.return_value = make_trip(
             "trip-123",
+            user_id="test@example.com",
             gps_trail=[{"lat": 51.9, "lng": 4.5, "timestamp": None}],
         )
 
-        response = client.get("/trips/trip-123")
+        response = client.get("/trips/trip-123", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         data = response.json()
@@ -268,10 +271,22 @@ class TestGetTrip:
         """GET /trips/{trip_id} returns 404 for nonexistent trip."""
         mock_trip_service.get_trip.return_value = None
 
-        response = client.get("/trips/nonexistent-trip")
+        response = client.get("/trips/nonexistent-trip", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+    def test_get_trip_access_denied(self, client, mock_trip_service):
+        """GET /trips/{trip_id} returns 403 for another user's trip."""
+        mock_trip_service.get_trip.return_value = make_trip(
+            "trip-123",
+            user_id="other@example.com",
+        )
+
+        response = client.get("/trips/trip-123", headers={"X-User-Email": "test@example.com"})
+
+        assert response.status_code == 403
+        assert "denied" in response.json()["detail"].lower()
 
 
 class TestUpdateTrip:
@@ -279,8 +294,11 @@ class TestUpdateTrip:
 
     def test_update_trip_success(self, client, mock_trip_service):
         """PATCH /trips/{trip_id} updates trip fields."""
+        # get_trip called first for ownership check
+        mock_trip_service.get_trip.return_value = make_trip("trip-123", user_id="test@example.com")
         mock_trip_service.update_trip.return_value = make_trip(
             "trip-123",
+            user_id="test@example.com",
             trip_type="P",
             notes="Changed to private",
             business_km=0.0,
@@ -290,6 +308,7 @@ class TestUpdateTrip:
         response = client.patch(
             "/trips/trip-123",
             json={"trip_type": "P", "notes": "Changed to private"},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 200
@@ -299,11 +318,13 @@ class TestUpdateTrip:
 
     def test_update_trip_partial(self, client, mock_trip_service):
         """PATCH /trips/{trip_id} only updates provided fields."""
-        mock_trip_service.update_trip.return_value = make_trip("trip-123", notes="New note")
+        mock_trip_service.get_trip.return_value = make_trip("trip-123", user_id="test@example.com")
+        mock_trip_service.update_trip.return_value = make_trip("trip-123", user_id="test@example.com", notes="New note")
 
         response = client.patch(
             "/trips/trip-123",
             json={"notes": "New note"},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 200
@@ -313,11 +334,12 @@ class TestUpdateTrip:
 
     def test_update_trip_not_found(self, client, mock_trip_service):
         """PATCH /trips/{trip_id} returns 404 for nonexistent trip."""
-        mock_trip_service.update_trip.return_value = None
+        mock_trip_service.get_trip.return_value = None
 
         response = client.patch(
             "/trips/nonexistent-trip",
             json={"notes": "Won't work"},
+            headers={"X-User-Email": "test@example.com"},
         )
 
         assert response.status_code == 404
@@ -328,9 +350,10 @@ class TestDeleteTrip:
 
     def test_delete_trip_success(self, client, mock_trip_service):
         """DELETE /trips/{trip_id} deletes trip."""
+        mock_trip_service.get_trip.return_value = make_trip("trip-123", user_id="test@example.com")
         mock_trip_service.delete_trip.return_value = True
 
-        response = client.delete("/trips/trip-123")
+        response = client.delete("/trips/trip-123", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 200
         assert response.json()["status"] == "deleted"
@@ -338,8 +361,8 @@ class TestDeleteTrip:
 
     def test_delete_trip_not_found(self, client, mock_trip_service):
         """DELETE /trips/{trip_id} returns 404 for nonexistent trip."""
-        mock_trip_service.delete_trip.return_value = False
+        mock_trip_service.get_trip.return_value = None
 
-        response = client.delete("/trips/nonexistent-trip")
+        response = client.delete("/trips/nonexistent-trip", headers={"X-User-Email": "test@example.com"})
 
         assert response.status_code == 404

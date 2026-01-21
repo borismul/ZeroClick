@@ -123,13 +123,14 @@ class LocationService:
         docs = db.collection("locations").stream()
         return [{"name": doc.id, **doc.to_dict()} for doc in docs]
 
-    def add_location(self, name: str, lat: float, lng: float) -> dict:
+    def add_location(self, name: str, lat: float, lng: float, user_id: str | None = None) -> dict:
         """
         Add a custom location and update existing trips.
 
         Args:
             name: Location name
             lat, lng: Coordinates
+            user_id: Optional user ID (for filtering trips to update)
 
         Returns:
             Dict with status, name, trips_updated
@@ -141,6 +142,7 @@ class LocationService:
             "lat": lat,
             "lng": lng,
             "created_at": datetime.utcnow().isoformat(),
+            "user_id": user_id,  # Track who created it
         })
 
         # Also add to runtime config for immediate use
@@ -151,9 +153,12 @@ class LocationService:
             "is_business": True,
         }
 
-        # Update existing trips within 150m radius
+        # Update existing trips within 150m radius (only for this user if specified)
         updated = 0
-        trips = db.collection("trips").stream()
+        query = db.collection("trips")
+        if user_id:
+            query = query.where("user_id", "==", user_id)
+        trips = query.stream()
         for doc in trips:
             d = doc.to_dict()
             updates = {}

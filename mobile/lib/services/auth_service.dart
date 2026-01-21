@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,12 +25,19 @@ class AuthService {
   static const _serverClientId = '269285054406-mehvd44e88dfk6tbl69rou5g920r3lq1.apps.googleusercontent.com';
   static const _log = AppLogger('AuthService');
 
+  // Secure storage for tokens (encrypted on Android, Keychain on iOS)
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+  );
+
   // Prefs keys for session persistence
   static const _keyWasSignedIn = 'google_was_signed_in';
   static const _keyUserEmail = 'google_user_email';
   static const _keyAccessToken = 'api_access_token';
   static const _keyRefreshToken = 'api_refresh_token';
   static const _keyTokenExpiry = 'api_token_expiry';
+  static const _keyMigratedToSecure = 'tokens_migrated_to_secure';
 
   final _googleSignIn = GoogleSignIn.instance;
 
@@ -124,39 +132,78 @@ class AuthService {
 
   Future<void> _loadStoredTokens() async {
     final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString(_keyAccessToken);
-    _refreshToken = prefs.getString(_keyRefreshToken);
+
+    // Check if we need to migrate from SharedPreferences to SecureStorage
+    final migrated = prefs.getBool(_keyMigratedToSecure) ?? false;
+    if (!migrated) {
+      await _migrateToSecureStorage(prefs);
+    }
+
+    // Load tokens from secure storage
+    _accessToken = await _secureStorage.read(key: _keyAccessToken);
+    _refreshToken = await _secureStorage.read(key: _keyRefreshToken);
     _storedEmail = prefs.getString(_keyUserEmail);
-    final expiryMs = prefs.getInt(_keyTokenExpiry);
-    if (expiryMs != null) {
-      _tokenExpiry = DateTime.fromMillisecondsSinceEpoch(expiryMs);
+    final expiryStr = await _secureStorage.read(key: _keyTokenExpiry);
+    if (expiryStr != null) {
+      _tokenExpiry = DateTime.fromMillisecondsSinceEpoch(int.parse(expiryStr));
     }
     _log.info('Loaded stored tokens: access=${_accessToken != null}, refresh=${_refreshToken != null}, email=$_storedEmail');
   }
 
+  /// Migrate tokens from SharedPreferences to SecureStorage (one-time)
+  Future<void> _migrateToSecureStorage(SharedPreferences prefs) async {
+    _log.info('Migrating tokens to secure storage...');
+    try {
+      // Read from SharedPreferences
+      final accessToken = prefs.getString(_keyAccessToken);
+      final refreshToken = prefs.getString(_keyRefreshToken);
+      final expiryMs = prefs.getInt(_keyTokenExpiry);
+
+      // Write to SecureStorage
+      if (accessToken != null) {
+        await _secureStorage.write(key: _keyAccessToken, value: accessToken);
+        await prefs.remove(_keyAccessToken);
+      }
+      if (refreshToken != null) {
+        await _secureStorage.write(key: _keyRefreshToken, value: refreshToken);
+        await prefs.remove(_keyRefreshToken);
+      }
+      if (expiryMs != null) {
+        await _secureStorage.write(key: _keyTokenExpiry, value: expiryMs.toString());
+        await prefs.remove(_keyTokenExpiry);
+      }
+
+      // Mark as migrated
+      await prefs.setBool(_keyMigratedToSecure, true);
+      _log.info('Token migration complete');
+    } on Exception catch (e) {
+      _log.error('Token migration failed: $e');
+    }
+  }
+
   Future<void> _saveTokens(String accessToken, String refreshToken, int expiresIn) async {
-    final prefs = await SharedPreferences.getInstance();
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn));
 
-    await prefs.setString(_keyAccessToken, accessToken);
-    await prefs.setString(_keyRefreshToken, refreshToken);
-    await prefs.setInt(_keyTokenExpiry, _tokenExpiry!.millisecondsSinceEpoch);
+    // Save to secure storage (encrypted)
+    await _secureStorage.write(key: _keyAccessToken, value: accessToken);
+    await _secureStorage.write(key: _keyRefreshToken, value: refreshToken);
+    await _secureStorage.write(key: _keyTokenExpiry, value: _tokenExpiry!.millisecondsSinceEpoch.toString());
 
     // Sync to Keychain for Watch
     await _syncTokensToKeychain();
   }
 
   Future<void> _clearTokens() async {
-    final prefs = await SharedPreferences.getInstance();
     _accessToken = null;
     _refreshToken = null;
     _tokenExpiry = null;
 
-    await prefs.remove(_keyAccessToken);
-    await prefs.remove(_keyRefreshToken);
-    await prefs.remove(_keyTokenExpiry);
+    // Clear from secure storage
+    await _secureStorage.delete(key: _keyAccessToken);
+    await _secureStorage.delete(key: _keyRefreshToken);
+    await _secureStorage.delete(key: _keyTokenExpiry);
 
     // Clear from Keychain
     await _syncTokensToKeychain();
@@ -381,13 +428,12 @@ class AuthService {
         final newAccessToken = data['access_token'] as String;
         final expiresIn = data['expires_in'] as int;
 
-        // Update access token (keep same refresh token)
-        final prefs = await SharedPreferences.getInstance();
+        // Update access token in secure storage (keep same refresh token)
         _accessToken = newAccessToken;
         _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn));
 
-        await prefs.setString(_keyAccessToken, newAccessToken);
-        await prefs.setInt(_keyTokenExpiry, _tokenExpiry!.millisecondsSinceEpoch);
+        await _secureStorage.write(key: _keyAccessToken, value: newAccessToken);
+        await _secureStorage.write(key: _keyTokenExpiry, value: _tokenExpiry!.millisecondsSinceEpoch.toString());
 
         // Sync to Keychain for Watch
         await _syncTokensToKeychain();

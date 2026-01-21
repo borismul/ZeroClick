@@ -5,8 +5,8 @@ Webhook service - trip tracking state machine.
 import logging
 from datetime import datetime
 
-from config import CONFIG, GPS_STATIONARY_TIMEOUT_MINUTES, GPS_STATIONARY_RADIUS_METERS, STALE_TRIP_HOURS
-from database import get_trip_cache, set_trip_cache, get_all_active_trips
+from config import CONFIG, GPS_STATIONARY_TIMEOUT_MINUTES, GPS_STATIONARY_RADIUS_METERS, STALE_TRIP_HOURS, TRIP_RESUME_WINDOW_MINUTES
+from database import get_trip_cache, set_trip_cache, get_all_active_trips, get_paused_trip, set_paused_trip
 from utils.geo import haversine, calculate_gps_distance, get_gps_distance_from_trail
 from utils.routing import get_osrm_distance_from_trail
 from .location_service import location_service
@@ -42,7 +42,31 @@ class WebhookService:
         result = None  # Will hold the return value
         clear_cache = False  # Set to True to delete cache instead of saving
 
-        # If no active trip, start one
+        # If no active trip, check for resumable paused trip
+        if not cache or not cache.get("active"):
+            paused = get_paused_trip(user_id)
+            if paused and paused.get("paused_at"):
+                paused_at = datetime.fromisoformat(paused["paused_at"].replace("Z", "+00:00").replace("+00:00", ""))
+                minutes_since_pause = (datetime.utcnow() - paused_at).total_seconds() / 60
+
+                if minutes_since_pause <= TRIP_RESUME_WINDOW_MINUTES:
+                    # Resume the paused trip
+                    logger.info(f"Resuming paused trip from {minutes_since_pause:.1f} min ago")
+                    cache = paused
+                    cache["active"] = True
+                    cache.pop("paused_at", None)
+                    cache.pop("paused_lat", None)
+                    cache.pop("paused_lng", None)
+                    set_paused_trip(None, user_id)  # Clear paused trip
+                    result = {"status": "trip_resumed", "minutes_paused": round(minutes_since_pause, 1), "user": user_id}
+                else:
+                    # Too long since pause - finalize the paused trip and start fresh
+                    logger.info(f"Paused trip expired ({minutes_since_pause:.1f} min > {TRIP_RESUME_WINDOW_MINUTES} min) - finalizing")
+                    self._finalize_paused_trip(user_id, paused)
+                    set_paused_trip(None, user_id)
+                    cache = None  # Will start fresh below
+
+        # If no active trip (and no resumed trip), start one
         if not cache or not cache.get("active"):
             # Determine car_id: explicit car_id > device_id lookup > default car
             effective_car_id = car_id or car_service.get_car_id_by_device(user_id, device_id) or car_service.get_default_car_id(user_id)
@@ -196,10 +220,22 @@ class WebhookService:
                     logger.info(f"Trip assigned to {driving_car['name']}, start_odo={cache['start_odo']}")
                     result = {"status": "trip_started", "car": driving_car["name"], "start_odo": cache["start_odo"], "user": user_id}
 
-        # GPS-only mode: just collect GPS events, no car API checks
+        # GPS-only mode: collect GPS events and check for stationary
         if result is None and gps_only_mode:
-            logger.info(f"GPS-only mode: collected {len(cache.get('gps_events', []))} GPS events")
-            result = {"status": "gps_only_ping", "gps_count": len(cache.get("gps_events", [])), "user": user_id}
+            gps_events = cache.get("gps_events", [])
+            logger.info(f"GPS-only mode: collected {len(gps_events)} GPS events")
+
+            # Check if stationary - pause trip (can resume within 30 min)
+            if self._check_gps_stationary(gps_events):
+                logger.info(f"GPS-only mode: stationary detected - pausing trip for potential resume")
+                cache["paused_at"] = datetime.utcnow().isoformat()
+                cache["paused_lat"] = lat
+                cache["paused_lng"] = lng
+                set_paused_trip(cache, user_id)
+                set_trip_cache(None, user_id)  # Clear active trip
+                return {"status": "trip_paused", "reason": "gps_stationary", "resume_window_minutes": TRIP_RESUME_WINDOW_MINUTES, "user": user_id}
+
+            result = {"status": "gps_only_ping", "gps_count": len(gps_events), "user": user_id}
 
         # Subsequent pings: check assigned car status
         if result is None:
@@ -871,6 +907,48 @@ class WebhookService:
 
         logger.info(f"GPS stationary detected: {len(recent_events)} events within {GPS_STATIONARY_RADIUS_METERS}m for {timeout_minutes} min")
         return True
+
+    def _finalize_paused_trip(self, user_id: str, paused_cache: dict):
+        """Finalize a paused trip that exceeded the resume window."""
+        from .trip_service import trip_service
+
+        gps_events = paused_cache.get("gps_events", [])
+        if len(gps_events) < 2:
+            logger.info(f"Paused trip for {user_id} has insufficient GPS points - skipping")
+            return
+
+        # Calculate GPS distance
+        phone_gps_trail = [
+            {"lat": e["lat"], "lng": e["lng"], "timestamp": e["timestamp"]}
+            for e in gps_events if not e.get("is_skip")
+        ]
+
+        if len(phone_gps_trail) < 2:
+            logger.info(f"Paused trip for {user_id} has insufficient non-skip GPS points - skipping")
+            return
+
+        gps_distance = calculate_gps_distance(phone_gps_trail)
+        if gps_distance < 0.5:  # Minimum 500m
+            logger.info(f"Paused trip for {user_id} distance too short ({gps_distance:.2f} km) - skipping")
+            return
+
+        # Get start/end from GPS
+        start_event = phone_gps_trail[0]
+        end_event = phone_gps_trail[-1]
+
+        logger.info(f"Finalizing paused trip for {user_id}: {gps_distance:.2f} km")
+
+        trip_service.create_trip(
+            start_gps={"lat": start_event["lat"], "lng": start_event["lng"]},
+            end_gps={"lat": end_event["lat"], "lng": end_event["lng"]},
+            start_odo=paused_cache.get("start_odo"),
+            end_odo=paused_cache.get("last_odo"),
+            start_time=paused_cache.get("start_time"),
+            gps_trail=phone_gps_trail,
+            user_id=user_id,
+            car_id=paused_cache.get("car_id"),
+            distance_source="gps_paused",
+        )
 
 
 # Singleton instance

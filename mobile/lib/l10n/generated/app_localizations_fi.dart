@@ -563,10 +563,10 @@ class AppLocalizationsFi extends AppLocalizations {
   String get invalidDistance => 'Virheellinen matka';
 
   @override
-  String get language => 'Language';
+  String get language => 'Kieli';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Järjestelmän oletus';
 
   @override
   String get languageEnglish => 'English';
@@ -925,230 +925,228 @@ class AppLocalizationsFi extends AppLocalizations {
       'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app';
 
   @override
-  String get retry => 'Retry';
+  String get retry => 'Yritä uudelleen';
 
   @override
   String get ok => 'OK';
 
   @override
-  String get noConnection => 'No connection';
+  String get noConnection => 'Ei yhteyttä';
 
   @override
   String get checkInternetConnection =>
-      'Check your internet connection and try again.';
+      'Tarkista internetyhteys ja yritä uudelleen.';
 
   @override
-  String get sessionExpired => 'Session expired';
+  String get sessionExpired => 'Istunto vanhentunut';
 
   @override
-  String get loginAgainToContinue => 'Log in again to continue.';
+  String get loginAgainToContinue => 'Kirjaudu uudelleen jatkaaksesi.';
 
   @override
-  String get serverError => 'Server error';
+  String get serverError => 'Palvelinvirhe';
 
   @override
-  String get tryAgainLater => 'Something went wrong. Please try again later.';
+  String get tryAgainLater => 'Jotain meni pieleen. Yritä myöhemmin uudelleen.';
 
   @override
-  String get invalidInput => 'Invalid input';
+  String get invalidInput => 'Virheellinen syöte';
 
   @override
-  String get timeout => 'Timeout';
+  String get timeout => 'Aikakatkaisu';
 
   @override
-  String get serverNotResponding =>
-      'The server is not responding. Please try again.';
+  String get serverNotResponding => 'Palvelin ei vastaa. Yritä uudelleen.';
 
   @override
-  String get error => 'Error';
+  String get error => 'Virhe';
 
   @override
-  String get unexpectedError => 'An unexpected error occurred.';
+  String get unexpectedError => 'Odottamaton virhe tapahtui.';
 
   @override
-  String get setupCarTitle => 'Set up your car for the best experience:';
+  String get setupCarTitle => 'Määritä autosi parasta kokemusta varten:';
 
   @override
-  String get setupCarApiStep => 'Connect Car API';
+  String get setupCarApiStep => 'Yhdistä Auton API';
 
   @override
   String get setupCarApiDescription =>
-      'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.';
+      'Siirry kohtaan Autot → valitse autosi → yhdistä tilisi. Tämä antaa sinulle pääsyn matkamittarin lukemiin ja muuhun.';
 
   @override
-  String get setupBluetoothStep => 'Connect Bluetooth';
+  String get setupBluetoothStep => 'Yhdistä Bluetooth';
 
   @override
   String get setupBluetoothDescription =>
-      'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.';
+      'Yhdistä puhelin Bluetoothilla autoon, avaa tämä sovellus ja yhdistä ilmoituksessa. Tämä varmistaa luotettavan matkan tunnistuksen.';
 
   @override
-  String get setupTip => 'Tip: Set up both for the best reliability!';
+  String get setupTip =>
+      'Vinkki: Määritä molemmat parasta luotettavuutta varten!';
 
   @override
-  String get developer => 'Developer';
+  String get developer => 'Kehittäjä';
 
   @override
-  String get debugLogs => 'Debug Logs';
+  String get debugLogs => 'Virheenkorjauslokit';
 
   @override
-  String get viewNativeLogs => 'View native iOS logs';
+  String get viewNativeLogs => 'Näytä iOS-järjestelmälokit';
 
   @override
-  String get copyAllLogs => 'Copy all logs';
+  String get copyAllLogs => 'Kopioi kaikki lokit';
 
   @override
-  String get logsCopied => 'Logs copied to clipboard';
+  String get logsCopied => 'Lokit kopioitu leikepöydälle';
 
   @override
-  String get loggedOut => 'Logged out';
+  String get loggedOut => 'Uloskirjautunut';
 
   @override
-  String get loginWithAudiId => 'Log in with Audi ID';
+  String get loginWithAudiId => 'Kirjaudu Audi ID:llä';
 
   @override
-  String get loginWithAudiDescription => 'Log in with your myAudi account';
+  String get loginWithAudiDescription => 'Kirjaudu myAudi-tililläsi';
 
   @override
-  String get loginWithVolkswagenId => 'Log in with Volkswagen ID';
+  String get loginWithVolkswagenId => 'Kirjaudu Volkswagen ID:llä';
 
   @override
   String get loginWithVolkswagenDescription =>
-      'Log in with your Volkswagen ID account';
+      'Kirjaudu Volkswagen ID -tililläsi';
 
   @override
-  String get loginWithSkodaId => 'Log in with Skoda ID';
+  String get loginWithSkodaId => 'Kirjaudu Skoda ID:llä';
 
   @override
-  String get loginWithSkodaDescription => 'Log in with your Skoda ID account';
+  String get loginWithSkodaDescription => 'Kirjaudu Skoda ID -tililläsi';
 
   @override
-  String get loginWithSeatId => 'Log in with SEAT ID';
+  String get loginWithSeatId => 'Kirjaudu SEAT ID:llä';
 
   @override
-  String get loginWithSeatDescription => 'Log in with your SEAT ID account';
+  String get loginWithSeatDescription => 'Kirjaudu SEAT ID -tililläsi';
 
   @override
-  String get loginWithCupraId => 'Log in with CUPRA ID';
+  String get loginWithCupraId => 'Kirjaudu CUPRA ID:llä';
 
   @override
-  String get loginWithCupraDescription => 'Log in with your CUPRA ID account';
+  String get loginWithCupraDescription => 'Kirjaudu CUPRA ID -tililläsi';
 
   @override
-  String get loginWithRenaultId => 'Log in with Renault ID';
+  String get loginWithRenaultId => 'Kirjaudu Renault ID:llä';
 
   @override
-  String get loginWithRenaultDescription =>
-      'Log in with your MY Renault account';
+  String get loginWithRenaultDescription => 'Kirjaudu MY Renault -tililläsi';
 
   @override
   String get myRenault => 'MY Renault';
 
   @override
-  String get myRenaultConnected => 'MY Renault connected';
+  String get myRenaultConnected => 'MY Renault yhdistetty';
 
   @override
-  String get accountLinkedSuccess =>
-      'Your account has been successfully linked';
+  String get accountLinkedSuccess => 'Tilisi on yhdistetty onnistuneesti';
 
   @override
   String brandConnected(String brand) {
-    return '$brand connected';
+    return '$brand yhdistetty';
   }
 
   @override
   String connectBrand(String brand) {
-    return 'Connect $brand';
+    return 'Yhdistä $brand';
   }
 
   @override
-  String get email => 'Email';
+  String get email => 'Sähköposti';
 
   @override
-  String get countryNetherlands => 'Netherlands';
+  String get countryNetherlands => 'Alankomaat';
 
   @override
-  String get countryBelgium => 'Belgium';
+  String get countryBelgium => 'Belgia';
 
   @override
-  String get countryGermany => 'Germany';
+  String get countryGermany => 'Saksa';
 
   @override
-  String get countryFrance => 'France';
+  String get countryFrance => 'Ranska';
 
   @override
-  String get countryUnitedKingdom => 'United Kingdom';
+  String get countryUnitedKingdom => 'Iso-Britannia';
 
   @override
-  String get countrySpain => 'Spain';
+  String get countrySpain => 'Espanja';
 
   @override
-  String get countryItaly => 'Italy';
+  String get countryItaly => 'Italia';
 
   @override
-  String get countryPortugal => 'Portugal';
+  String get countryPortugal => 'Portugali';
 
   @override
-  String get enterEmailAndPassword => 'Enter your email and password';
+  String get enterEmailAndPassword => 'Anna sähköposti ja salasana';
 
   @override
-  String get couldNotGetLoginUrl => 'Could not retrieve login URL';
+  String get couldNotGetLoginUrl => 'Kirjautumis-URL:ia ei voitu hakea';
 
   @override
   String brandLinked(String brand) {
-    return '$brand linked';
+    return '$brand yhdistetty';
   }
 
   @override
   String brandLinkedWithVin(String brand, String vin) {
-    return '$brand linked (VIN: $vin)';
+    return '$brand yhdistetty (VIN: $vin)';
   }
 
   @override
   String brandLinkFailed(String brand) {
-    return '$brand linking failed';
+    return '$brand-yhdistäminen epäonnistui';
   }
 
   @override
   String get changesInNameColorIcon =>
-      'Changes to name/color/icon? Press back and edit.';
+      'Muutoksia nimeen/väriin/kuvakkeeseen? Paina takaisin ja muokkaa.';
 
   @override
-  String get notificationChannelCarDetection => 'Car Detection';
+  String get notificationChannelCarDetection => 'Auton tunnistus';
 
   @override
   String get notificationChannelDescription =>
-      'Notifications for car detection and trip registration';
+      'Ilmoitukset auton tunnistuksesta ja matkan rekisteröinnistä';
 
   @override
-  String get notificationNewCarDetected => 'New car detected';
+  String get notificationNewCarDetected => 'Uusi auto tunnistettu';
 
   @override
   String notificationIsCarToTrack(String deviceName) {
-    return 'Is \"$deviceName\" a car you want to track?';
+    return 'Onko \"$deviceName\" auto, jota haluat seurata?';
   }
 
   @override
-  String get notificationTripStarted => 'Trip Started';
+  String get notificationTripStarted => 'Matka aloitettu';
 
   @override
-  String get notificationTripTracking => 'Your trip is now being tracked';
+  String get notificationTripTracking => 'Matkaasi seurataan nyt';
 
   @override
   String notificationTripTrackingWithCar(String carName) {
-    return 'Your trip with $carName is now being tracked';
+    return 'Matkaasi $carName:lla seurataan nyt';
   }
 
   @override
-  String get notificationCarLinked => 'Car Linked';
+  String get notificationCarLinked => 'Auto yhdistetty';
 
   @override
   String notificationCarLinkedBody(String deviceName, String carName) {
-    return '\"$deviceName\" is now linked to $carName';
+    return '\"$deviceName\" on nyt yhdistetty $carName:iin';
   }
 
   @override
   String locationError(String error) {
-    return 'Location error: $error';
+    return 'Sijaintivirhe: $error';
   }
 }

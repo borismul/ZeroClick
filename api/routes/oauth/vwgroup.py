@@ -16,6 +16,7 @@ from models.auth import VWGroupAuthRequest, VWGroupCallbackRequest
 from config import VW_GROUP_OAUTH_CONFIG
 from auth.dependencies import get_current_user
 from database import get_db
+from utils.encryption import encrypt_string
 
 router = APIRouter(prefix="/vwgroup/auth", tags=["oauth", "vwgroup"])
 logger = logging.getLogger(__name__)
@@ -111,8 +112,8 @@ def handle_vwgroup_callback(request: VWGroupCallbackRequest, user_id: str = Depe
         code_verifier = state_data.get("code_verifier")
         stored_state = state_data.get("state")
 
-    # Validate state (CSRF protection)
-    if params.get("state") and stored_state and stored_state != params["state"]:
+    # Validate state (CSRF protection) - state parameter MUST be present and match
+    if not params.get("state") or not stored_state or stored_state != params["state"]:
         logger.warning(f"OAuth state mismatch for car {request.car_id} - possible CSRF attack")
         raise HTTPException(
             status_code=400,
@@ -188,17 +189,16 @@ def handle_vwgroup_callback(request: VWGroupCallbackRequest, user_id: str = Depe
     else:
         raise HTTPException(status_code=400, detail="No code or tokens in redirect URL")
 
-    # Store tokens
+    # Store tokens with encryption (no plaintext)
     tokens = {
         "brand": brand,
-        "access_token": access_token,
-        "id_token": id_token,
+        "access_token_encrypted": encrypt_string(access_token),
+        "id_token_encrypted": encrypt_string(id_token) if id_token else None,
         "token_type": params.get("token_type", "bearer"),
         "expires_in": expires_in,
         "expires_at": (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)).isoformat(),
-        "code": params.get("code"),
-        "state": params.get("state"),
         "oauth_completed": True,
+        "encryption_version": "kms-v1",
         "updated_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 
