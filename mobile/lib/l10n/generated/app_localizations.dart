@@ -1823,6 +1823,408 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'TERMS OF SERVICE\n\nBy using Zero Click (\'the app\'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car\'s API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car\'s API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided \'as is\' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app'**
   String get termsOfServiceContent;
+
+  /// Retry button text
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// OK button text
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// Error title when offline
+  ///
+  /// In en, this message translates to:
+  /// **'No connection'**
+  String get noConnection;
+
+  /// Error message when offline
+  ///
+  /// In en, this message translates to:
+  /// **'Check your internet connection and try again.'**
+  String get checkInternetConnection;
+
+  /// Error title when session expired
+  ///
+  /// In en, this message translates to:
+  /// **'Session expired'**
+  String get sessionExpired;
+
+  /// Error message when session expired
+  ///
+  /// In en, this message translates to:
+  /// **'Log in again to continue.'**
+  String get loginAgainToContinue;
+
+  /// Error title for server errors
+  ///
+  /// In en, this message translates to:
+  /// **'Server error'**
+  String get serverError;
+
+  /// Generic server error message
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again later.'**
+  String get tryAgainLater;
+
+  /// Error title for validation errors
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid input'**
+  String get invalidInput;
+
+  /// Error title for timeout
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout'**
+  String get timeout;
+
+  /// Timeout error message
+  ///
+  /// In en, this message translates to:
+  /// **'The server is not responding. Please try again.'**
+  String get serverNotResponding;
+
+  /// Generic error title
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get error;
+
+  /// Generic error message
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred.'**
+  String get unexpectedError;
+
+  /// Settings screen setup guidance title
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your car for the best experience:'**
+  String get setupCarTitle;
+
+  /// Setup step for car API
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Car API'**
+  String get setupCarApiStep;
+
+  /// Setup step description for car API
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.'**
+  String get setupCarApiDescription;
+
+  /// Setup step for Bluetooth
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Bluetooth'**
+  String get setupBluetoothStep;
+
+  /// Setup step description for Bluetooth
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.'**
+  String get setupBluetoothDescription;
+
+  /// Setup tip text
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: Set up both for the best reliability!'**
+  String get setupTip;
+
+  /// Developer section header
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get developer;
+
+  /// Debug logs menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Debug Logs'**
+  String get debugLogs;
+
+  /// Debug logs subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'View native iOS logs'**
+  String get viewNativeLogs;
+
+  /// Copy logs button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all logs'**
+  String get copyAllLogs;
+
+  /// Logs copied confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get logsCopied;
+
+  /// Logged out confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Logged out'**
+  String get loggedOut;
+
+  /// Audi login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with Audi ID'**
+  String get loginWithAudiId;
+
+  /// Audi login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your myAudi account'**
+  String get loginWithAudiDescription;
+
+  /// Volkswagen login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with Volkswagen ID'**
+  String get loginWithVolkswagenId;
+
+  /// Volkswagen login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your Volkswagen ID account'**
+  String get loginWithVolkswagenDescription;
+
+  /// Skoda login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with Skoda ID'**
+  String get loginWithSkodaId;
+
+  /// Skoda login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your Skoda ID account'**
+  String get loginWithSkodaDescription;
+
+  /// SEAT login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with SEAT ID'**
+  String get loginWithSeatId;
+
+  /// SEAT login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your SEAT ID account'**
+  String get loginWithSeatDescription;
+
+  /// CUPRA login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with CUPRA ID'**
+  String get loginWithCupraId;
+
+  /// CUPRA login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your CUPRA ID account'**
+  String get loginWithCupraDescription;
+
+  /// Renault login button
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with Renault ID'**
+  String get loginWithRenaultId;
+
+  /// Renault login description
+  ///
+  /// In en, this message translates to:
+  /// **'Log in with your MY Renault account'**
+  String get loginWithRenaultDescription;
+
+  /// MY Renault title
+  ///
+  /// In en, this message translates to:
+  /// **'MY Renault'**
+  String get myRenault;
+
+  /// Renault connected status
+  ///
+  /// In en, this message translates to:
+  /// **'MY Renault connected'**
+  String get myRenaultConnected;
+
+  /// Account linked success message
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been successfully linked'**
+  String get accountLinkedSuccess;
+
+  /// Brand connected status
+  ///
+  /// In en, this message translates to:
+  /// **'{brand} connected'**
+  String brandConnected(String brand);
+
+  /// Connect brand button
+  ///
+  /// In en, this message translates to:
+  /// **'Connect {brand}'**
+  String connectBrand(String brand);
+
+  /// Email field label
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Netherlands'**
+  String get countryNetherlands;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Belgium'**
+  String get countryBelgium;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Germany'**
+  String get countryGermany;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'France'**
+  String get countryFrance;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'United Kingdom'**
+  String get countryUnitedKingdom;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Spain'**
+  String get countrySpain;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Italy'**
+  String get countryItaly;
+
+  /// Country name
+  ///
+  /// In en, this message translates to:
+  /// **'Portugal'**
+  String get countryPortugal;
+
+  /// Validation message for login form
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email and password'**
+  String get enterEmailAndPassword;
+
+  /// Error when getting OAuth URL fails
+  ///
+  /// In en, this message translates to:
+  /// **'Could not retrieve login URL'**
+  String get couldNotGetLoginUrl;
+
+  /// Brand linked success message
+  ///
+  /// In en, this message translates to:
+  /// **'{brand} linked'**
+  String brandLinked(String brand);
+
+  /// Brand linked with VIN success message
+  ///
+  /// In en, this message translates to:
+  /// **'{brand} linked (VIN: {vin})'**
+  String brandLinkedWithVin(String brand, String vin);
+
+  /// Brand link failed message
+  ///
+  /// In en, this message translates to:
+  /// **'{brand} linking failed'**
+  String brandLinkFailed(String brand);
+
+  /// Hint about editing car details
+  ///
+  /// In en, this message translates to:
+  /// **'Changes to name/color/icon? Press back and edit.'**
+  String get changesInNameColorIcon;
+
+  /// Notification channel name
+  ///
+  /// In en, this message translates to:
+  /// **'Car Detection'**
+  String get notificationChannelCarDetection;
+
+  /// Notification channel description
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications for car detection and trip registration'**
+  String get notificationChannelDescription;
+
+  /// New car notification title
+  ///
+  /// In en, this message translates to:
+  /// **'New car detected'**
+  String get notificationNewCarDetected;
+
+  /// New car notification body
+  ///
+  /// In en, this message translates to:
+  /// **'Is \"{deviceName}\" a car you want to track?'**
+  String notificationIsCarToTrack(String deviceName);
+
+  /// Trip started notification title
+  ///
+  /// In en, this message translates to:
+  /// **'Trip Started'**
+  String get notificationTripStarted;
+
+  /// Trip tracking notification body
+  ///
+  /// In en, this message translates to:
+  /// **'Your trip is now being tracked'**
+  String get notificationTripTracking;
+
+  /// Trip tracking with car name notification body
+  ///
+  /// In en, this message translates to:
+  /// **'Your trip with {carName} is now being tracked'**
+  String notificationTripTrackingWithCar(String carName);
+
+  /// Car linked notification title
+  ///
+  /// In en, this message translates to:
+  /// **'Car Linked'**
+  String get notificationCarLinked;
+
+  /// Car linked notification body
+  ///
+  /// In en, this message translates to:
+  /// **'\"{deviceName}\" is now linked to {carName}'**
+  String notificationCarLinkedBody(String deviceName, String carName);
+
+  /// Location error message
+  ///
+  /// In en, this message translates to:
+  /// **'Location error: {error}'**
+  String locationError(String error);
 }
 
 class _AppLocalizationsDelegate

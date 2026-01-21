@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import dynamic from 'next/dynamic'
+import { getDashboardTranslations, DashboardTranslations } from './dashboard-translations'
+import { Locale, detectLocale } from './login/translations'
 
 // Dynamic import for Leaflet (SSR disabled - Leaflet needs window)
 const TripMapModal = dynamic(() => import('./TripMap'), { ssr: false })
@@ -112,6 +114,16 @@ type Tab = 'status' | 'ritten' | 'instellingen'
 
 export default function Dashboard() {
   const { data: session } = useSession()
+
+  // Localization
+  const [locale, setLocale] = useState<Locale>('en')
+  const t = useMemo(() => getDashboardTranslations(locale), [locale])
+
+  // Detect locale on mount
+  useEffect(() => {
+    setLocale(detectLocale())
+  }, [])
+
   const [activeTab, setActiveTab] = useState<Tab>('status')
   const [trips, setTrips] = useState<Trip[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
@@ -251,7 +263,7 @@ export default function Dashboard() {
   }
 
   async function deleteCar(carId: string) {
-    if (!confirm('Weet je zeker dat je deze auto wilt verwijderen?')) return
+    if (!confirm(t.confirmDeleteCar)) return
     try {
       const res = await fetch(`${API_URL}/cars/${carId}`, {
         method: 'DELETE',
@@ -263,7 +275,7 @@ export default function Dashboard() {
         setEditingCar(null)
       } else {
         const data = await res.json()
-        alert(data.detail || 'Kon auto niet verwijderen')
+        alert(data.detail || t.couldNotDeleteCar)
       }
     } catch (e) {
       console.error('Failed to delete car:', e)
@@ -299,7 +311,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API_URL}/locations`, { headers: apiHeaders(idToken, userEmail) })
       const data = await res.json()
-      setLocations(['Thuis', 'Kantoor', ...data.map((l: {name: string}) => l.name)])
+      setLocations([t.home, t.office, ...data.map((l: {name: string}) => l.name)])
     } catch (e) {
       console.error('Failed to fetch locations:', e)
     }
@@ -390,7 +402,7 @@ export default function Dashboard() {
   }
 
   async function deleteTrip(tripId: string) {
-    if (!confirm('Weet je zeker dat je deze rit wilt verwijderen?')) return
+    if (!confirm(t.confirmDeleteTrip)) return
     await fetch(`${API_URL}/trips/${tripId}`, { method: 'DELETE', headers: apiHeaders(idToken, userEmail) })
     if (userEmail && idToken) fetchData()
   }
@@ -430,27 +442,27 @@ export default function Dashboard() {
       })
       const data = await res.json()
       if (data.separate_sheets) {
-        alert(`Export succesvol! ${data.rows} ritten geëxporteerd naar ${data.cars?.length || 0} sheets`)
+        alert(t.exportSuccess.replace('{count}', data.rows).replace('{sheet}', `${data.cars?.length || 0} sheets`))
       } else {
-        alert(`Export succesvol! ${data.rows} ritten geëxporteerd`)
+        alert(t.exportSuccess.replace('{count}', data.rows).replace('{sheet}', t.trips))
       }
     } catch {
-      alert('Export mislukt')
+      alert(t.exportFailed)
     } finally {
       setExporting(false)
     }
   }
 
-  if (loading) return <div className="container"><div className="loading">Laden...</div></div>
+  if (loading) return <div className="container"><div className="loading">{t.loading}</div></div>
 
   return (
     <div className="container">
       <header>
-        <h1>Kilometerregistratie</h1>
+        <h1>{t.appTitle}</h1>
         <nav className="tabs">
-          <button className={activeTab === 'status' ? 'active' : ''} onClick={() => setActiveTab('status')}>Status</button>
-          <button className={activeTab === 'ritten' ? 'active' : ''} onClick={() => setActiveTab('ritten')}>Ritten</button>
-          <button className={activeTab === 'instellingen' ? 'active' : ''} onClick={() => setActiveTab('instellingen')}>Instellingen</button>
+          <button className={activeTab === 'status' ? 'active' : ''} onClick={() => setActiveTab('status')}>{t.tabStatus}</button>
+          <button className={activeTab === 'ritten' ? 'active' : ''} onClick={() => setActiveTab('ritten')}>{t.tabTrips}</button>
+          <button className={activeTab === 'instellingen' ? 'active' : ''} onClick={() => setActiveTab('instellingen')}>{t.tabSettings}</button>
         </nav>
         <div className="header-actions">
           {cars.length > 0 && (
@@ -469,7 +481,7 @@ export default function Dashboard() {
           {session?.user && (
             <>
               <span className="user-email">{session.user.email}</span>
-              <button className="logout-btn" onClick={() => signOut()}>Uitloggen</button>
+              <button className="logout-btn" onClick={() => signOut()}>{t.logout}</button>
             </>
           )}
         </div>
@@ -483,10 +495,10 @@ export default function Dashboard() {
             <div className="active-trip-banner">
               <div className="pulse"></div>
               <div className="active-trip-info">
-                <strong>Actieve rit</strong>
-                <span>Gestart: {activeTrip.start_time ? new Date(activeTrip.start_time).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : '-'}</span>
+                <strong>{t.activeTrip}</strong>
+                <span>{t.started} {activeTrip.start_time ? new Date(activeTrip.start_time).toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'}) : '-'}</span>
                 {activeTrip.start_odo && activeTrip.last_odo && (
-                  <span className="trip-km">{(activeTrip.last_odo - activeTrip.start_odo).toFixed(1)} km gereden</span>
+                  <span className="trip-km">{(activeTrip.last_odo - activeTrip.start_odo).toFixed(1)} {t.kmDriven}</span>
                 )}
               </div>
             </div>
@@ -495,7 +507,7 @@ export default function Dashboard() {
           {/* Car Status */}
           <div className="car-status-card">
             <div className="car-status-header">
-              <h2>{cars.find(c => c.id === selectedCarId)?.name || carData?.car_name || 'Auto'}</h2>
+              <h2>{cars.find(c => c.id === selectedCarId)?.name || carData?.car_name || t.car}</h2>
               <button onClick={() => userEmail && fetchCarData(selectedCarId)} disabled={fetchingCarData || !userEmail || !selectedCarId} className="refresh-btn">
                 {fetchingCarData ? '...' : '↻'}
               </button>
@@ -504,38 +516,38 @@ export default function Dashboard() {
               <>
                 <div className="car-status-grid">
                   <div className="car-stat clickable" onClick={() => setShowChargingDetails(true)}>
-                    <span className="label">Batterij</span>
+                    <span className="label">{t.battery}</span>
                     <span className="value">{carData.battery_level != null ? `${carData.battery_level}%` : '—'} · {carData.range_km != null ? `${carData.range_km} km` : '—'}</span>
                   </div>
                   <div className="car-stat">
-                    <span className="label">Status</span>
+                    <span className="label">{t.status}</span>
                     <span className={`value state-${carData.state}`}>
-                      {carData.state === 'parked' ? 'Geparkeerd' : carData.state === 'driving' ? 'Rijdend' : carData.state === 'charging' ? 'Laden' : carData.state}
+                      {carData.state === 'parked' ? t.parked : carData.state === 'driving' ? t.driving : carData.state === 'charging' ? t.charging : carData.state}
                     </span>
                   </div>
                   {carData.is_charging ? (
                     <>
                       <div className="car-stat charging-main clickable" onClick={() => setShowChargingDetails(true)}>
-                        <span className="label">⚡ Laden</span>
+                        <span className="label">⚡ {t.chargingStatus}</span>
                         <span className="value">{carData.charging_power_kw} kW</span>
                       </div>
                       <div className="car-stat clickable" onClick={() => setShowChargingDetails(true)}>
-                        <span className="label">Klaar om</span>
+                        <span className="label">{t.readyBy}</span>
                         <span className="value">
                           {carData.charging_remaining_minutes != null
-                            ? new Date(Date.now() + carData.charging_remaining_minutes * 60000).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})
+                            ? new Date(Date.now() + carData.charging_remaining_minutes * 60000).toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'})
                             : '—'}
                         </span>
                       </div>
                     </>
                   ) : carData.is_plugged_in && (
                     <div className="car-stat charged clickable" onClick={() => setShowChargingDetails(true)}>
-                      <span className="label">✓ Laden klaar</span>
+                      <span className="label">✓ {t.chargingComplete}</span>
                       <span className="value">{carData.battery_level}%</span>
                     </div>
                   )}
                   <div className="car-stat clickable" onClick={() => setShowCarDetails(true)}>
-                    <span className="label">Details</span>
+                    <span className="label">{t.details}</span>
                     <span className="value">→</span>
                   </div>
                 </div>
@@ -545,7 +557,7 @@ export default function Dashboard() {
                   <div className="popup-overlay" onClick={() => setShowChargingDetails(false)}>
                     <div className="popup" onClick={e => e.stopPropagation()}>
                       <div className="popup-header">
-                        <h3>{carData.is_charging ? '⚡ Laden' : 'Batterij'}</h3>
+                        <h3>{carData.is_charging ? `⚡ ${t.chargingStatus}` : t.battery}</h3>
                         <button onClick={() => setShowChargingDetails(false)}>×</button>
                       </div>
                       <div className="popup-content">
@@ -556,47 +568,47 @@ export default function Dashboard() {
                         </div>
 
                         <div className="popup-row">
-                          <span>Bereik</span>
-                          <span>{carData.range_km != null ? `${carData.range_km} km` : 'Onbekend'}</span>
+                          <span>{t.range}</span>
+                          <span>{carData.range_km != null ? `${carData.range_km} km` : t.unknown}</span>
                         </div>
                         {carData.battery_temp_celsius !== null && (
                           <div className="popup-row">
-                            <span>Batterij temp</span>
+                            <span>{t.batteryTemp}</span>
                             <span>{carData.battery_temp_celsius}°C</span>
                           </div>
                         )}
                         <div className="popup-row">
-                          <span>Stekker</span>
-                          <span className={carData.is_plugged_in ? 'plugged' : ''}>{carData.is_plugged_in ? 'Aangesloten' : 'Niet aangesloten'}</span>
+                          <span>{t.plug}</span>
+                          <span className={carData.is_plugged_in ? 'plugged' : ''}>{carData.is_plugged_in ? t.pluggedIn : t.notPluggedIn}</span>
                         </div>
                         {carData.is_charging ? (
                           <>
                             <div className="popup-divider"></div>
                             <div className="popup-row highlight">
-                              <span>Laadvermogen</span>
+                              <span>{t.chargingPower}</span>
                               <span>{carData.charging_power_kw || 0} kW</span>
                             </div>
                             <div className="popup-row highlight">
-                              <span>Klaar over</span>
+                              <span>{t.readyIn}</span>
                               <span>
                                 {carData.charging_remaining_minutes != null
                                   ? `${Math.floor(carData.charging_remaining_minutes / 60)}u ${carData.charging_remaining_minutes % 60}m`
-                                  : 'Onbekend'}
+                                  : t.unknown}
                               </span>
                             </div>
                             <div className="popup-row highlight">
-                              <span>Klaar om</span>
+                              <span>{t.readyBy}</span>
                               <span>
                                 {carData.charging_remaining_minutes != null
-                                  ? new Date(Date.now() + carData.charging_remaining_minutes * 60000).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})
-                                  : 'Onbekend'}
+                                  ? new Date(Date.now() + carData.charging_remaining_minutes * 60000).toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'})
+                                  : t.unknown}
                               </span>
                             </div>
                           </>
                         ) : carData.is_plugged_in && (
                           <div className="popup-row">
-                            <span>Status</span>
-                            <span className="plugged">✓ Laden klaar</span>
+                            <span>{t.status}</span>
+                            <span className="plugged">✓ {t.chargingComplete}</span>
                           </div>
                         )}
                       </div>
@@ -609,42 +621,42 @@ export default function Dashboard() {
                   <div className="popup-overlay" onClick={() => setShowCarDetails(false)}>
                     <div className="popup" onClick={e => e.stopPropagation()}>
                       <div className="popup-header">
-                        <h3>Auto details</h3>
+                        <h3>{t.details}</h3>
                         <button onClick={() => setShowCarDetails(false)}>×</button>
                       </div>
                       <div className="popup-content">
                         <div className="popup-row">
-                          <span>Kilometerstand</span>
-                          <span>{carData.odometer_km?.toLocaleString()} km</span>
+                          <span>{t.odometer}</span>
+                          <span>{carData.odometer_km?.toLocaleString(locale)} km</span>
                         </div>
                         <div className="popup-row">
-                          <span>Stekker</span>
-                          <span className={carData.is_plugged_in ? 'plugged' : ''}>{carData.is_plugged_in ? 'Aangesloten' : 'Niet aangesloten'}</span>
+                          <span>{t.plug}</span>
+                          <span className={carData.is_plugged_in ? 'plugged' : ''}>{carData.is_plugged_in ? t.pluggedIn : t.notPluggedIn}</span>
                         </div>
                         <div className="popup-row">
-                          <span>Airco</span>
-                          <span className={carData.climate_state === 'on' ? 'active' : ''}>{carData.climate_state === 'on' ? `Aan (${carData.climate_target_temp}°C)` : 'Uit'}</span>
+                          <span>{t.ac}</span>
+                          <span className={carData.climate_state === 'on' ? 'active' : ''}>{carData.climate_state === 'on' ? `${t.on} (${carData.climate_target_temp}°C)` : t.off}</span>
                         </div>
                         <div className="popup-row">
-                          <span>Stoelverwarming</span>
-                          <span className={carData.seat_heating ? 'active' : ''}>{carData.seat_heating ? 'Aan' : 'Uit'}</span>
+                          <span>{t.seatHeating}</span>
+                          <span className={carData.seat_heating ? 'active' : ''}>{carData.seat_heating ? t.on : t.off}</span>
                         </div>
                         <div className="popup-row">
-                          <span>Ruitverwarming</span>
-                          <span className={carData.window_heating ? 'active' : ''}>{carData.window_heating ? 'Aan' : 'Uit'}</span>
+                          <span>{t.windowHeating}</span>
+                          <span className={carData.window_heating ? 'active' : ''}>{carData.window_heating ? t.on : t.off}</span>
                         </div>
                         <div className="popup-row">
-                          <span>Connectie</span>
-                          <span className={carData.connection_state === 'reachable' ? 'connected' : ''}>{carData.connection_state === 'reachable' ? 'Online' : carData.connection_state || 'Onbekend'}</span>
+                          <span>{t.connection}</span>
+                          <span className={carData.connection_state === 'reachable' ? 'connected' : ''}>{carData.connection_state === 'reachable' ? t.online : carData.connection_state || t.unknown}</span>
                         </div>
                         <div className="popup-row">
-                          <span>Lampen</span>
-                          <span>{carData.lights_state === 'off' ? 'Uit' : carData.lights_state || 'Onbekend'}</span>
+                          <span>{t.lights}</span>
+                          <span>{carData.lights_state === 'off' ? t.off : carData.lights_state || t.unknown}</span>
                         </div>
                         {carData.latitude && carData.longitude && (
                           <div className="popup-row">
                             <a href={`https://www.google.com/maps?q=${carData.latitude},${carData.longitude}`} target="_blank" rel="noopener noreferrer">
-                              Bekijk locatie →
+                              {t.viewLocation}
                             </a>
                           </div>
                         )}
@@ -656,31 +668,31 @@ export default function Dashboard() {
             ) : fetchingCarData ? (
               <div className="car-status-loading">
                 <div className="spinner"></div>
-                <span>Laden...</span>
+                <span>{t.loading}</span>
               </div>
             ) : (
-              <div className="car-status-empty">Geen data beschikbaar</div>
+              <div className="car-status-empty">{t.noDataAvailable}</div>
             )}
-            {carData && <div className="car-status-footer">Bijgewerkt: {new Date(carData.fetched_at).toLocaleTimeString('nl-NL')}</div>}
+            {carData && <div className="car-status-footer">{t.updated} {new Date(carData.fetched_at).toLocaleTimeString(locale)}</div>}
           </div>
 
           {/* Stats */}
           {stats && (
             <div className="stats">
               <div className="stat-card">
-                <h3>Totaal ritten</h3>
+                <h3>{t.totalTrips}</h3>
                 <div className="value">{stats.trip_count}</div>
               </div>
               <div className="stat-card">
-                <h3>Totaal km</h3>
+                <h3>{t.totalKm}</h3>
                 <div className="value">{stats.total_km}</div>
               </div>
               <div className="stat-card business">
-                <h3>Zakelijk km</h3>
+                <h3>{t.businessKm}</h3>
                 <div className="value">{stats.business_km}</div>
               </div>
               <div className="stat-card private">
-                <h3>Privé km</h3>
+                <h3>{t.privateKm}</h3>
                 <div className="value">{stats.private_km}</div>
               </div>
             </div>
@@ -688,7 +700,7 @@ export default function Dashboard() {
 
           {/* Recent Trips */}
           <div className="recent-trips">
-            <h2>Laatste ritten</h2>
+            <h2>{t.recentTrips}</h2>
             <div className="trips-list">
               {trips.slice(0, 5).map(trip => (
                 <div key={trip.id} className="trip-item">
@@ -697,13 +709,13 @@ export default function Dashboard() {
                   <div className="trip-meta">
                     <span>{trip.distance_km} km</span>
                     <span className={`badge ${trip.trip_type}`}>
-                      {trip.trip_type === 'B' ? 'Zakelijk' : trip.trip_type === 'P' ? 'Privé' : 'Gemengd'}
+                      {trip.trip_type === 'B' ? t.business : trip.trip_type === 'P' ? t.private : t.mixed}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-            <button className="view-all-btn" onClick={() => setActiveTab('ritten')}>Alle ritten bekijken →</button>
+            <button className="view-all-btn" onClick={() => setActiveTab('ritten')}>{t.viewAllTrips}</button>
           </div>
         </div>
       )}
@@ -712,22 +724,22 @@ export default function Dashboard() {
       {activeTab === 'ritten' && (
         <div className="tab-content">
           <div className="ritten-header">
-            <h2>Ritten</h2>
-            <button className="add-btn" onClick={() => setShowAddModal(true)}>+ Rit toevoegen</button>
+            <h2>{t.trips}</h2>
+            <button className="add-btn" onClick={() => setShowAddModal(true)}>{t.addTrip}</button>
           </div>
 
           <div className="trips-table">
             <table>
               <thead>
                 <tr>
-                  <th>Datum</th>
-                  <th>Tijd</th>
-                  <th>Van</th>
-                  <th>Naar</th>
-                  <th>Afstand</th>
-                  <th>Route</th>
-                  <th>Type</th>
-                  <th>Actie</th>
+                  <th>{t.date}</th>
+                  <th>{t.time}</th>
+                  <th>{t.from}</th>
+                  <th>{t.to}</th>
+                  <th>{t.distance}</th>
+                  <th>{t.route}</th>
+                  <th>{t.type}</th>
+                  <th>{t.action}</th>
                 </tr>
               </thead>
               <tbody>
@@ -738,20 +750,20 @@ export default function Dashboard() {
                     <td className="address-cell">
                       {trip.from_address}
                       {!isKnownLocation(trip.from_address) && trip.from_lat && (
-                        <button className="save-loc-btn" title="Locatie opslaan" onClick={() => setSavingLocation({lat: trip.from_lat!, lon: trip.from_lon!, current: trip.from_address})}>+</button>
+                        <button className="save-loc-btn" title={t.saveLocation} onClick={() => setSavingLocation({lat: trip.from_lat!, lon: trip.from_lon!, current: trip.from_address})}>+</button>
                       )}
                     </td>
                     <td className="address-cell">
                       {trip.to_address}
                       {!isKnownLocation(trip.to_address) && trip.to_lat && (
-                        <button className="save-loc-btn" title="Locatie opslaan" onClick={() => setSavingLocation({lat: trip.to_lat!, lon: trip.to_lon!, current: trip.to_address})}>+</button>
+                        <button className="save-loc-btn" title={t.saveLocation} onClick={() => setSavingLocation({lat: trip.to_lat!, lon: trip.to_lon!, current: trip.to_address})}>+</button>
                       )}
                     </td>
                     <td>{trip.distance_km} km</td>
                     <td className="route-cell">
                       {trip.google_maps_km ? (
                         <div className={`route-comparison ${trip.route_flag === 'long_route' ? 'flagged' : ''}`}>
-                          <span className="route-detail" title={`Gereden: ${trip.distance_km} km / Google Maps: ${trip.google_maps_km} km`}>
+                          <span className="route-detail" title={`${t.driven} ${trip.distance_km} km / ${t.googleMaps} ${trip.google_maps_km} km`}>
                             {trip.google_maps_km} km
                             {trip.route_deviation_percent !== null && trip.route_deviation_percent !== undefined && (
                               <span className={`deviation ${trip.route_deviation_percent > 5 ? 'high' : ''}`}>
@@ -762,7 +774,7 @@ export default function Dashboard() {
                           <button
                             className={`flag-btn ${trip.route_flag === 'long_route' ? 'flagged' : ''}`}
                             onClick={() => toggleRouteFlag(trip.id, trip.route_flag)}
-                            title={trip.route_flag === 'long_route' ? 'Vlag verwijderen' : 'Markeer als afwijkend'}
+                            title={trip.route_flag === 'long_route' ? t.removeFlag : t.markAsDeviant}
                           >
                             ⚑
                           </button>
@@ -773,17 +785,17 @@ export default function Dashboard() {
                     </td>
                     <td>
                       <span className={`badge ${trip.trip_type}`}>
-                        {trip.trip_type === 'B' ? 'Zakelijk' : trip.trip_type === 'P' ? 'Privé' : 'Gemengd'}
+                        {trip.trip_type === 'B' ? t.business : trip.trip_type === 'P' ? t.private : t.mixed}
                       </span>
                     </td>
                     <td className="actions">
-                      <button className="icon-btn" title="Kaart" onClick={() => setMapTrip(trip)} disabled={!trip.from_lat && !trip.gps_trail?.length}>
+                      <button className="icon-btn" title={t.map} onClick={() => setMapTrip(trip)} disabled={!trip.from_lat && !trip.gps_trail?.length}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                       </button>
-                      <button className="icon-btn" title="Bewerken" onClick={() => setEditingTrip(trip)}>
+                      <button className="icon-btn" title={t.edit} onClick={() => setEditingTrip(trip)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button className="icon-btn delete" title="Verwijderen" onClick={() => deleteTrip(trip.id)}>
+                      <button className="icon-btn delete" title={t.delete} onClick={() => deleteTrip(trip.id)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     </td>
@@ -794,37 +806,37 @@ export default function Dashboard() {
           </div>
 
           <div className="pagination">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>← Vorige</button>
-            <span>Pagina {page}</span>
-            <button disabled={!hasMore} onClick={() => setPage(p => p + 1)}>Volgende →</button>
+            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>{t.previous}</button>
+            <span>{t.page} {page}</span>
+            <button disabled={!hasMore} onClick={() => setPage(p => p + 1)}>{t.next}</button>
           </div>
 
           {/* Debug toggle */}
           <button className="debug-toggle" onClick={() => setShowDebug(!showDebug)}>
-            {showDebug ? '▼ Debug' : '▶ Debug'}
+            {showDebug ? `▼ ${t.debug}` : `▶ ${t.debug}`}
           </button>
 
           {showDebug && (
             <div className="settings-section debug-section">
               <div className="section-header">
-                <h2>Kilometerstand Verificatie</h2>
+                <h2>{t.odometerVerification}</h2>
                 <button onClick={() => userEmail && fetchOdometer()} disabled={fetchingOdo || !userEmail} className="fetch-btn">
-                  {fetchingOdo ? 'Ophalen...' : 'Uitlezen'}
+                  {fetchingOdo ? t.fetching : t.readOdometer}
                 </button>
               </div>
 
               {odometerData?.comparison && (
                 <div className={`odometer-comparison ${odometerData.comparison.status}`}>
                   <div className="odo-stat">
-                    <span className="label">Werkelijke km-stand</span>
+                    <span className="label">{t.actualOdometer}</span>
                     <span className="value">{odometerData.comparison.actual_odometer_km} km</span>
                   </div>
                   <div className="odo-stat">
-                    <span className="label">Berekend uit ritten</span>
+                    <span className="label">{t.calculatedFromTrips}</span>
                     <span className="value">{odometerData.comparison.calculated_km} km</span>
                   </div>
                   <div className="odo-stat diff">
-                    <span className="label">Verschil</span>
+                    <span className="label">{t.difference}</span>
                     <span className={`value ${odometerData.comparison.status}`}>
                       {odometerData.comparison.difference_km > 0 ? '+' : ''}{odometerData.comparison.difference_km} km
                       ({odometerData.comparison.difference_percent}%)
@@ -863,14 +875,14 @@ export default function Dashboard() {
           {/* My Cars Section */}
           <div className="settings-section">
             <div className="section-header">
-              <h2>Mijn Auto's</h2>
-              <button className="add-btn" onClick={() => setShowAddCarModal(true)}>+ Auto toevoegen</button>
+              <h2>{t.myCars}</h2>
+              <button className="add-btn" onClick={() => setShowAddCarModal(true)}>{t.addCar}</button>
             </div>
 
             {cars.length === 0 ? (
               <div className="empty-state">
-                <p>Nog geen auto's toegevoegd</p>
-                <button className="add-btn" onClick={() => setShowAddCarModal(true)}>+ Eerste auto toevoegen</button>
+                <p>{t.noCarsAdded}</p>
+                <button className="add-btn" onClick={() => setShowAddCarModal(true)}>{t.addFirstCar}</button>
               </div>
             ) : (
               <div className="cars-list">
@@ -880,14 +892,14 @@ export default function Dashboard() {
                     <div className="car-info">
                       <div className="car-name">
                         {car.name}
-                        {car.is_default && <span className="default-badge">Standaard</span>}
+                        {car.is_default && <span className="default-badge">{t.defaultBadge}</span>}
                       </div>
                       <div className="car-meta">
-                        {car.brand.charAt(0).toUpperCase() + car.brand.slice(1)} · {car.total_trips} ritten · {car.total_km.toFixed(0)} km
+                        {car.brand.charAt(0).toUpperCase() + car.brand.slice(1)} · {car.total_trips} {t.trips.toLowerCase()} · {car.total_km.toFixed(0)} km
                       </div>
                     </div>
                     <div className="car-actions">
-                      <button className="icon-btn" title="Bewerken">→</button>
+                      <button className="icon-btn" title={t.edit}>→</button>
                     </div>
                   </div>
                 ))}
@@ -897,11 +909,11 @@ export default function Dashboard() {
 
           {/* Export */}
           <div className="settings-section">
-            <h2>Exporteren naar Google Sheets</h2>
+            <h2>{t.exportToSheets}</h2>
             <div className="export-form">
               <input
                 type="text"
-                placeholder="Spreadsheet ID (uit URL)"
+                placeholder={t.spreadsheetId}
                 value={spreadsheetId}
                 onChange={e => setSpreadsheetId(e.target.value)}
               />
@@ -910,7 +922,7 @@ export default function Dashboard() {
                 onChange={e => setExportCarId(e.target.value)}
                 style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
               >
-                <option value="">Alle auto&apos;s</option>
+                <option value="">{t.allCars}</option>
                 {cars.map(car => (
                   <option key={car.id} value={car.id}>{car.name}</option>
                 ))}
@@ -921,10 +933,10 @@ export default function Dashboard() {
                   checked={exportSeparateSheets}
                   onChange={e => setExportSeparateSheets(e.target.checked)}
                 />
-                Aparte sheets per auto
+                {t.separateSheets}
               </label>
               <button onClick={exportToSheet} disabled={exporting || !spreadsheetId}>
-                {exporting ? 'Bezig...' : 'Exporteren'}
+                {exporting ? t.exporting : t.export}
               </button>
             </div>
           </div>
@@ -938,6 +950,7 @@ export default function Dashboard() {
           onSave={(updates) => updateTrip(editingTrip.id, updates)}
           onClose={() => setEditingTrip(null)}
           cars={cars}
+          t={t}
         />
       )}
 
@@ -947,27 +960,28 @@ export default function Dashboard() {
           onClose={() => setShowAddModal(false)}
           cars={cars}
           selectedCarId={selectedCarId}
+          t={t}
         />
       )}
 
       {savingLocation && (
         <div className="edit-modal" onClick={() => setSavingLocation(null)}>
           <div className="edit-modal-content small" onClick={e => e.stopPropagation()}>
-            <h2>Locatie opslaan</h2>
+            <h2>{t.saveLocation}</h2>
             <p className="current-address">{savingLocation.current}</p>
             <div className="form-group">
-              <label>Naam voor deze locatie</label>
+              <label>{t.locationName}</label>
               <input
                 type="text"
                 value={newLocationName}
                 onChange={e => setNewLocationName(e.target.value)}
-                placeholder="Bijv. Klant ABC"
+                placeholder={t.exampleClient}
                 autoFocus
               />
             </div>
             <div className="modal-actions">
-              <button onClick={() => saveLocation(newLocationName, savingLocation.lat, savingLocation.lon)} disabled={!newLocationName.trim()}>Opslaan</button>
-              <button className="cancel" onClick={() => setSavingLocation(null)}>Annuleren</button>
+              <button onClick={() => saveLocation(newLocationName, savingLocation.lat, savingLocation.lon)} disabled={!newLocationName.trim()}>{t.save}</button>
+              <button className="cancel" onClick={() => setSavingLocation(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -978,6 +992,7 @@ export default function Dashboard() {
         <AddCarModal
           onSave={(name, brand, color, credentials) => createCar(name, brand, color, credentials)}
           onClose={() => setShowAddCarModal(false)}
+          t={t}
         />
       )}
 
@@ -990,6 +1005,7 @@ export default function Dashboard() {
           onClose={() => setEditingCar(null)}
           onSaveCredentials={saveCarCredentials}
           onTestCredentials={testCarCredentials}
+          t={t}
         />
       )}
 
@@ -998,17 +1014,23 @@ export default function Dashboard() {
         <TripMapModal
           trip={mapTrip}
           onClose={() => setMapTrip(null)}
+          translations={{
+            routeLoading: t.routeLoading,
+            expected: t.expected,
+            drivenRoute: t.drivenRoute,
+          }}
         />
       )}
     </div>
   )
 }
 
-function EditModal({ trip, onSave, onClose, cars }: {
+function EditModal({ trip, onSave, onClose, cars, t }: {
   trip: Trip
   onSave: (updates: Partial<Trip>) => void
   onClose: () => void
   cars: Car[]
+  t: DashboardTranslations
 }) {
   const dateForInput = trip.date.split('-').reverse().join('-')
   const [date, setDate] = useState(dateForInput)
@@ -1054,52 +1076,52 @@ function EditModal({ trip, onSave, onClose, cars }: {
   return (
     <div className="edit-modal" onClick={onClose}>
       <div className="edit-modal-content" onClick={e => e.stopPropagation()}>
-        <h2>Rit bewerken</h2>
+        <h2>{t.editTrip}</h2>
         <div className="form-row">
           <div className="form-group">
-            <label>Datum</label>
+            <label>{t.date}</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Van</label>
+            <label>{t.from}</label>
             <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Tot</label>
+            <label>{t.to}</label>
             <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label>Van adres</label>
+          <label>{t.fromAddress}</label>
           <input type="text" value={fromAddress} onChange={e => setFromAddress(e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Naar adres</label>
+          <label>{t.toAddress}</label>
           <input type="text" value={toAddress} onChange={e => setToAddress(e.target.value)} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Afstand (km)</label>
+            <label>{t.distanceKm}</label>
             <input type="number" step="0.1" value={distanceKm} onChange={e => handleDistanceChange(+e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Type</label>
+            <label>{t.type}</label>
             <select value={tripType} onChange={e => handleTypeChange(e.target.value)}>
-              <option value="B">Zakelijk</option>
-              <option value="P">Privé</option>
-              <option value="M">Gemengd</option>
+              <option value="B">{t.business}</option>
+              <option value="P">{t.private}</option>
+              <option value="M">{t.mixed}</option>
             </select>
           </div>
         </div>
         {tripType === 'M' && (
           <div className="form-row">
             <div className="form-group">
-              <label>Zakelijk km</label>
+              <label>{t.businessKm}</label>
               <input type="number" step="0.1" value={businessKm}
                 onChange={e => { setBusinessKm(+e.target.value); setPrivateKm(+(distanceKm - +e.target.value).toFixed(1)) }} />
             </div>
             <div className="form-group">
-              <label>Privé km</label>
+              <label>{t.privateKm}</label>
               <input type="number" step="0.1" value={privateKm}
                 onChange={e => { setPrivateKm(+e.target.value); setBusinessKm(+(distanceKm - +e.target.value).toFixed(1)) }} />
             </div>
@@ -1107,9 +1129,9 @@ function EditModal({ trip, onSave, onClose, cars }: {
         )}
         {cars.length > 0 && (
           <div className="form-group">
-            <label>Auto</label>
+            <label>{t.car}</label>
             <select value={carId} onChange={e => setCarId(e.target.value)}>
-              <option value="">-- Geen auto --</option>
+              <option value="">--</option>
               {cars.map(car => (
                 <option key={car.id} value={car.id}>{car.name}</option>
               ))}
@@ -1117,19 +1139,20 @@ function EditModal({ trip, onSave, onClose, cars }: {
           </div>
         )}
         <div className="modal-actions">
-          <button onClick={handleSave}>Opslaan</button>
-          <button className="cancel" onClick={onClose}>Annuleren</button>
+          <button onClick={handleSave}>{t.save}</button>
+          <button className="cancel" onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
   )
 }
 
-function AddModal({ onSave, onClose, cars, selectedCarId }: {
+function AddModal({ onSave, onClose, cars, selectedCarId, t }: {
   onSave: (trip: Partial<Trip>) => void
   onClose: () => void
   cars: Car[]
   selectedCarId: string | null
+  t: DashboardTranslations
 }) {
   const today = new Date().toISOString().split('T')[0]
   const now = new Date()
@@ -1161,46 +1184,46 @@ function AddModal({ onSave, onClose, cars, selectedCarId }: {
   return (
     <div className="edit-modal" onClick={onClose}>
       <div className="edit-modal-content" onClick={e => e.stopPropagation()}>
-        <h2>Rit toevoegen</h2>
+        <h2>{t.addTripTitle}</h2>
         <div className="form-row">
           <div className="form-group">
-            <label>Datum</label>
+            <label>{t.date}</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Van</label>
+            <label>{t.from}</label>
             <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Tot</label>
+            <label>{t.to}</label>
             <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
           </div>
         </div>
         <div className="form-group">
-          <label>Van adres</label>
-          <input type="text" value={fromAddress} onChange={e => setFromAddress(e.target.value)} placeholder="Bijv. Thuis" />
+          <label>{t.fromAddress}</label>
+          <input type="text" value={fromAddress} onChange={e => setFromAddress(e.target.value)} placeholder={t.exampleHome} />
         </div>
         <div className="form-group">
-          <label>Naar adres</label>
-          <input type="text" value={toAddress} onChange={e => setToAddress(e.target.value)} placeholder="Bijv. Klant ABC" />
+          <label>{t.toAddress}</label>
+          <input type="text" value={toAddress} onChange={e => setToAddress(e.target.value)} placeholder={t.exampleClient} />
         </div>
         <div className="form-row">
           <div className="form-group">
-            <label>Afstand (km)</label>
+            <label>{t.distanceKm}</label>
             <input type="number" step="0.1" value={distanceKm} onChange={e => setDistanceKm(+e.target.value)} />
           </div>
           <div className="form-group">
-            <label>Type</label>
+            <label>{t.type}</label>
             <select value={tripType} onChange={e => setTripType(e.target.value)}>
-              <option value="B">Zakelijk</option>
-              <option value="P">Privé</option>
-              <option value="M">Gemengd</option>
+              <option value="B">{t.business}</option>
+              <option value="P">{t.private}</option>
+              <option value="M">{t.mixed}</option>
             </select>
           </div>
         </div>
         {cars.length > 0 && (
           <div className="form-group">
-            <label>Auto</label>
+            <label>{t.car}</label>
             <select value={carId} onChange={e => setCarId(e.target.value)}>
               {cars.map(car => (
                 <option key={car.id} value={car.id}>{car.name}</option>
@@ -1209,8 +1232,8 @@ function AddModal({ onSave, onClose, cars, selectedCarId }: {
           </div>
         )}
         <div className="modal-actions">
-          <button onClick={handleSave}>Toevoegen</button>
-          <button className="cancel" onClick={onClose}>Annuleren</button>
+          <button onClick={handleSave}>{t.add}</button>
+          <button className="cancel" onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
@@ -1336,9 +1359,10 @@ function OdometerChart({ data }: { data: OdometerComparison }) {
 const CAR_COLORS = ['#3B82F6', '#22C55E', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280', '#000000']
 const CAR_BRANDS = ['audi', 'volkswagen', 'skoda', 'seat', 'cupra', 'renault', 'tesla', 'bmw', 'mercedes', 'other']
 
-function AddCarModal({ onSave, onClose }: {
+function AddCarModal({ onSave, onClose, t }: {
   onSave: (name: string, brand: string, color: string, credentials?: { username: string, password: string, country: string }) => void
   onClose: () => void
+  t: DashboardTranslations
 }) {
   const [name, setName] = useState('')
   const [brand, setBrand] = useState('audi')
@@ -1355,13 +1379,13 @@ function AddCarModal({ onSave, onClose }: {
   return (
     <div className="edit-modal" onClick={onClose}>
       <div className="edit-modal-content" onClick={e => e.stopPropagation()}>
-        <h2>Auto toevoegen</h2>
+        <h2>{t.addCarTitle}</h2>
         <div className="form-group">
-          <label>Naam</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Bijv. Audi Q4 e-tron" autoFocus />
+          <label>{t.name}</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t.namePlaceholder} autoFocus />
         </div>
         <div className="form-group">
-          <label>Merk</label>
+          <label>{t.brand}</label>
           <select value={brand} onChange={e => setBrand(e.target.value)}>
             {CAR_BRANDS.map(b => (
               <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>
@@ -1369,7 +1393,7 @@ function AddCarModal({ onSave, onClose }: {
           </select>
         </div>
         <div className="form-group">
-          <label>Kleur</label>
+          <label>{t.color}</label>
           <div className="color-picker">
             {CAR_COLORS.map(c => (
               <button
@@ -1382,36 +1406,37 @@ function AddCarModal({ onSave, onClose }: {
           </div>
         </div>
 
-        <h3 style={{marginTop: '1.5rem', marginBottom: '0.5rem'}}>API Inloggegevens (optioneel)</h3>
+        <h3 style={{marginTop: '1.5rem', marginBottom: '0.5rem'}}>{t.apiCredentials}</h3>
         <div className="form-group">
-          <label>Gebruikersnaam</label>
+          <label>{t.username}</label>
           <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="email@example.com" />
         </div>
         <div className="form-group">
-          <label>Wachtwoord</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Wachtwoord" />
+          <label>{t.password}</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t.password} />
         </div>
         <div className="form-group">
-          <label>Land</label>
+          <label>{t.country}</label>
           <input type="text" value={country} onChange={e => setCountry(e.target.value)} placeholder="NL" />
         </div>
 
         <div className="modal-actions">
-          <button onClick={handleSave} disabled={!name.trim()}>Toevoegen</button>
-          <button className="cancel" onClick={onClose}>Annuleren</button>
+          <button onClick={handleSave} disabled={!name.trim()}>{t.add}</button>
+          <button className="cancel" onClick={onClose}>{t.cancel}</button>
         </div>
       </div>
     </div>
   )
 }
 
-function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTestCredentials }: {
+function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTestCredentials, t }: {
   car: { id: string, name: string, brand: string, color: string, is_default: boolean, start_odometer?: number }
   onSave: (updates: Partial<{ name: string, brand: string, color: string, is_default: boolean, start_odometer: number }>) => void
   onDelete: () => void
   onClose: () => void
   onSaveCredentials?: (carId: string, creds: { brand: string, username: string, password: string, country: string }) => Promise<void>
   onTestCredentials?: (carId: string, creds: { brand: string, username: string, password: string, country: string }) => Promise<{ odometer_km?: number, battery_level?: number }>
+  t: DashboardTranslations
 }) {
   const [name, setName] = useState(car.name)
   const [brand, setBrand] = useState(car.brand)
@@ -1444,22 +1469,22 @@ function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTes
     if (!username || !password || !onSaveCredentials) return
     try {
       await onSaveCredentials(car.id, { brand, username, password, country })
-      setTestResult('Opgeslagen!')
+      setTestResult(t.saved)
     } catch (e) {
-      setTestResult(`Fout: ${e}`)
+      setTestResult(`${t.saveFailed}: ${e}`)
     }
   }
 
   return (
     <div className="edit-modal" onClick={onClose}>
       <div className="edit-modal-content" onClick={e => e.stopPropagation()}>
-        <h2>Auto bewerken</h2>
+        <h2>{t.editCar}</h2>
         <div className="form-group">
-          <label>Naam</label>
+          <label>{t.name}</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Merk</label>
+          <label>{t.brand}</label>
           <select value={brand} onChange={e => setBrand(e.target.value)}>
             {CAR_BRANDS.map(b => (
               <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>
@@ -1467,7 +1492,7 @@ function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTes
           </select>
         </div>
         <div className="form-group">
-          <label>Kleur</label>
+          <label>{t.color}</label>
           <div className="color-picker">
             {CAR_COLORS.map(c => (
               <button
@@ -1482,11 +1507,11 @@ function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTes
         <div className="form-group">
           <label>
             <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} />
-            {' '}Standaard auto
+            {' '}{t.defaultCar}
           </label>
         </div>
         <div className="form-group">
-          <label>Start kilometerstand</label>
+          <label>{t.startOdometer}</label>
           <input
             type="number"
             value={startOdometer || ''}
@@ -1494,42 +1519,42 @@ function EditCarModal({ car, onSave, onDelete, onClose, onSaveCredentials, onTes
             placeholder="0"
             step="0.1"
           />
-          <small style={{ color: '#888', fontSize: '0.8rem' }}>Voor km verificatie - kilometerstand bij eerste rit</small>
+          <small style={{ color: '#888', fontSize: '0.8rem' }}>{t.startOdometerHint}</small>
         </div>
 
         <hr style={{ margin: '1.5rem 0', borderColor: '#333' }} />
 
-        <h3 style={{ marginBottom: '1rem' }}>API Koppeling ({brand.charAt(0).toUpperCase() + brand.slice(1)})</h3>
+        <h3 style={{ marginBottom: '1rem' }}>{t.apiConnection} ({brand.charAt(0).toUpperCase() + brand.slice(1)})</h3>
         <div className="form-group">
-          <label>E-mail / Gebruikersnaam</label>
+          <label>{t.emailUsername}</label>
           <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="myaudi@email.com" />
         </div>
         <div className="form-group">
-          <label>Wachtwoord</label>
+          <label>{t.password}</label>
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
         </div>
         <div className="form-group">
-          <label>Land</label>
+          <label>{t.country}</label>
           <input type="text" value={country} onChange={e => setCountry(e.target.value)} placeholder="NL" />
         </div>
         {testResult && (
-          <div className={`test-result ${testResult.startsWith('OK') || testResult.startsWith('Opgeslagen') ? 'success' : 'error'}`}>
+          <div className={`test-result ${testResult.startsWith('OK') || testResult === t.saved ? 'success' : 'error'}`}>
             {testResult}
           </div>
         )}
         <div className="api-actions" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
           <button onClick={handleTestApi} disabled={testing || !username || !password}>
-            {testing ? 'Testen...' : 'Test API'}
+            {testing ? t.testing : t.testApi}
           </button>
           <button onClick={handleSaveCredentials} disabled={!username || !password}>
-            API Opslaan
+            {t.saveApi}
           </button>
         </div>
 
         <div className="modal-actions">
-          <button onClick={() => onSave({ name, brand, color, is_default: isDefault, start_odometer: startOdometer })} disabled={!name.trim()}>Auto Opslaan</button>
-          <button className="cancel" onClick={onClose}>Sluiten</button>
-          <button className="delete" onClick={onDelete}>Verwijderen</button>
+          <button onClick={() => onSave({ name, brand, color, is_default: isDefault, start_odometer: startOdometer })} disabled={!name.trim()}>{t.saveCar}</button>
+          <button className="cancel" onClick={onClose}>{t.close}</button>
+          <button className="delete" onClick={onDelete}>{t.delete}</button>
         </div>
       </div>
     </div>

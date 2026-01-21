@@ -25,30 +25,48 @@ class TeslaProvider(CarProvider):
         return "Tesla"
 
     def _load_tokens_from_firestore(self) -> dict | None:
-        """Load cached tokens from Firestore."""
+        """Load and decrypt cached tokens from Firestore."""
         try:
             from google.cloud import firestore
+            from utils.encryption import decrypt_dict, is_encrypted
             db = firestore.Client()
             doc = db.collection("cache").document(f"tesla_tokens_{self.email}").get()
             if doc.exists:
                 data = doc.to_dict()
+
+                # Handle encrypted tokens (new format)
+                if data and "tokens_encrypted" in data:
+                    logger.info("Loading encrypted Tesla tokens from Firestore")
+                    tokens = decrypt_dict(data["tokens_encrypted"])
+                    return tokens
+
+                # Handle legacy unencrypted tokens (migrate on read)
                 if data and "tokens" in data:
-                    logger.info("Loaded Tesla tokens from Firestore")
-                    return json.loads(data["tokens"])
+                    logger.warning("Found unencrypted Tesla tokens - migrating to encrypted")
+                    tokens = json.loads(data["tokens"])
+                    self._save_tokens_to_firestore(tokens)  # Re-save encrypted
+                    return tokens
+
         except Exception as e:
             logger.warning(f"Could not load tokens from Firestore: {e}")
         return None
 
     def _save_tokens_to_firestore(self, tokens: dict) -> None:
-        """Save tokens to Firestore for persistence."""
+        """Save encrypted tokens to Firestore for persistence."""
         try:
             from google.cloud import firestore
+            from utils.encryption import encrypt_dict
             db = firestore.Client()
+
+            # ENCRYPT before storing
+            encrypted_tokens = encrypt_dict(tokens)
+
             db.collection("cache").document(f"tesla_tokens_{self.email}").set({
-                "tokens": json.dumps(tokens),
+                "tokens_encrypted": encrypted_tokens,
+                "encryption_version": "kms-v1",
                 "updated_at": datetime.utcnow().isoformat(),
             })
-            logger.info("Saved Tesla tokens to Firestore")
+            logger.info("Saved encrypted Tesla tokens to Firestore")
         except Exception as e:
             logger.warning(f"Could not save tokens to Firestore: {e}")
 

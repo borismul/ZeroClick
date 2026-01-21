@@ -14,6 +14,7 @@ COPY main.py config.py database.py ./
 COPY car_providers ./car_providers
 COPY models ./models
 COPY auth ./auth
+COPY middleware ./middleware
 COPY services ./services
 COPY routes ./routes
 COPY utils ./utils
@@ -29,6 +30,7 @@ COPY --from=builder /app/main.py /app/config.py /app/database.py ./
 COPY --from=builder /app/car_providers ./car_providers
 COPY --from=builder /app/models ./models
 COPY --from=builder /app/auth ./auth
+COPY --from=builder /app/middleware ./middleware
 COPY --from=builder /app/services ./services
 COPY --from=builder /app/routes ./routes
 COPY --from=builder /app/utils ./utils

@@ -6,12 +6,17 @@ Supports two token types:
 2. Google ID tokens (legacy, for backward compatibility)
 """
 
+import logging
+
+import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from config import AUTH_ENABLED
 from .google import verify_google_token
+
+logger = logging.getLogger(__name__)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -101,6 +106,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             payload = token_service.verify_access_token(token)
             if payload:
                 return payload.get("email")
-        except Exception:
-            pass
+        except jwt.ExpiredSignatureError:
+            logger.debug("Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.debug(f"Invalid token: {type(e).__name__}")
+        except Exception as e:
+            # Unexpected error - log for investigation
+            logger.error(f"Unexpected token verification error: {e}", exc_info=True)
         return None

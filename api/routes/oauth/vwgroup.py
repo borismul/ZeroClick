@@ -105,9 +105,19 @@ def handle_vwgroup_callback(request: VWGroupCallbackRequest, user_id: str = Depe
     # Get stored state
     state_doc = car_ref.collection("credentials").document("oauth_state").get()
     code_verifier = None
+    stored_state = None
     if state_doc.exists:
         state_data = state_doc.to_dict()
         code_verifier = state_data.get("code_verifier")
+        stored_state = state_data.get("state")
+
+    # Validate state (CSRF protection)
+    if params.get("state") and stored_state and stored_state != params["state"]:
+        logger.warning(f"OAuth state mismatch for car {request.car_id} - possible CSRF attack")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid OAuth state parameter"
+        )
 
     # Check if we have tokens (hybrid flow) or just code (auth code flow)
     if "access_token" in params and "id_token" in params:

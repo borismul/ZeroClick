@@ -46,8 +46,10 @@ void main() async {
 
   // Initialize Firebase with try-catch for iOS 26
   try {
+    DebugLogService.instance.addLog('Firebase', 'Starting Firebase init...');
     _log.info('Initializing Firebase...');
     await Firebase.initializeApp();
+    DebugLogService.instance.addLog('Firebase', 'Firebase.initializeApp() done');
     _log.info('Firebase initialized successfully');
 
     // Setup Crashlytics error handlers
@@ -63,12 +65,15 @@ void main() async {
     if (kDebugMode) {
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
     }
+    DebugLogService.instance.addLog('Firebase', 'Crashlytics done, calling AnalyticsService.init()...');
     _log.info('Crashlytics initialized successfully');
 
     // Initialize analytics service
     await AnalyticsService.init();
+    DebugLogService.instance.addLog('Firebase', 'AnalyticsService.init() done');
     _log.info('Analytics initialized successfully');
   } catch (e, stack) {
+    DebugLogService.instance.addLog('Firebase', 'ERROR: $e');
     _log.error('FIREBASE INIT FAILED', e, stack);
     // App continues without Firebase
   }

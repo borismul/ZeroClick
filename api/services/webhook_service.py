@@ -118,7 +118,8 @@ class WebhookService:
                             cache["start_odo"] = car_status["odometer"]
                             logger.info(f"Trip start (Bluetooth+API): no last parked, odo={car_status['odometer']}")
 
-                        cache["last_odo"] = car_status["odometer"]
+                        if car_status["odometer"] is not None:
+                            cache["last_odo"] = car_status["odometer"]
                         logger.info(f"Trip assigned to {car_status['name']} (Bluetooth), start_odo={cache['start_odo']}")
                         result = {"status": "trip_started", "car": car_status["name"], "start_odo": cache["start_odo"], "user": user_id, "source": "bluetooth"}
                     else:
@@ -190,7 +191,8 @@ class WebhookService:
                         cache["start_odo"] = driving_car["odometer"]
                         logger.info(f"Trip start (no last parked data)")
 
-                    cache["last_odo"] = driving_car["odometer"]
+                    if driving_car["odometer"] is not None:
+                        cache["last_odo"] = driving_car["odometer"]
                     logger.info(f"Trip assigned to {driving_car['name']}, start_odo={cache['start_odo']}")
                     result = {"status": "trip_started", "car": driving_car["name"], "start_odo": cache["start_odo"], "user": user_id}
 
@@ -287,7 +289,7 @@ class WebhookService:
                 cache["skip_pause_count"] = 0
 
             # Always update last_odo when it increases
-            if current_odo is not None and current_odo > cache.get("last_odo", 0):
+            if current_odo is not None and current_odo > (cache.get("last_odo") or 0):
                 cache["last_odo"] = current_odo
                 if cache.get("end_triggered"):
                     logger.info(f"Clearing end_triggered - car is moving, continuing trip")
@@ -468,7 +470,8 @@ class WebhookService:
                 cache["car_id"] = driving_car["car_id"]
                 cache["car_name"] = driving_car["name"]
                 cache["start_odo"] = driving_car["odometer"]
-                cache["last_odo"] = driving_car["odometer"]
+                if driving_car["odometer"] is not None:
+                    cache["last_odo"] = driving_car["odometer"]
                 start_odo = driving_car["odometer"]
                 assigned_car_id = driving_car["car_id"]
                 if driving_car.get("lat") and driving_car.get("lng"):
@@ -489,6 +492,18 @@ class WebhookService:
 
                     if car_lat and car_lng:
                         cache["audi_gps"] = {"lat": car_lat, "lng": car_lng, "timestamp": timestamp}
+
+                    # If odometer is None, use last_odo as fallback
+                    if current_odo is None:
+                        current_odo = cache.get("last_odo")
+                        if current_odo:
+                            logger.info(f"End event: API returned no odometer, using last_odo={current_odo}")
+
+                    # Still no odometer? Let safety net handle it
+                    if current_odo is None:
+                        logger.info("End event: no odometer data, deferring to safety net")
+                        set_trip_cache(cache, user_id)
+                        return {"status": "pending", "reason": "no_odometer", "user": user_id}
 
                     total_km = current_odo - start_odo
                     car_gps = cache.get("audi_gps")
@@ -778,7 +793,16 @@ class WebhookService:
                     distance_source = "gps"
 
                 car_gps = gps_events[-1] if gps_events else None
-                current_odo = start_odo + total_km if total_km else start_odo
+
+                # Use last_odo if available (from when API was working mid-trip)
+                # Final odometer should never be less than confirmed last_odo
+                last_odo = cache.get("last_odo")
+                estimated_odo = start_odo + total_km if total_km else start_odo
+                if last_odo is not None and last_odo > estimated_odo:
+                    current_odo = last_odo
+                    logger.info(f"Safety net: using last_odo {last_odo} (higher than estimated {estimated_odo:.1f})")
+                else:
+                    current_odo = estimated_odo
 
                 logger.info(f"Safety net: GPS fallback distance for {user_id}: {total_km:.1f} km (source: {distance_source})")
 

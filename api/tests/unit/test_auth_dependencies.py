@@ -131,9 +131,23 @@ class TestVerifyApiToken:
         # Create a valid token that token_service will accept
         from datetime import datetime, timezone
         import jwt
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
 
-        with patch("services.token_service._get_jwt_secret") as mock_secret:
-            mock_secret.return_value = "test-secret"
+        # Generate test RSA keys
+        private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        private_key = private_key_obj.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode("utf-8")
+        public_key = private_key_obj.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("utf-8")
+
+        with patch("services.token_service._get_jwt_keys") as mock_keys:
+            mock_keys.return_value = (private_key, public_key)
 
             payload = {
                 "sub": "api@example.com",
@@ -142,7 +156,7 @@ class TestVerifyApiToken:
                 "iat": datetime.now(timezone.utc),
                 "exp": datetime.now(timezone.utc).timestamp() + 3600,
             }
-            token = jwt.encode(payload, "test-secret", algorithm="HS256")
+            token = jwt.encode(payload, private_key, algorithm="RS256")
 
             from auth.dependencies import _verify_api_token
             result = _verify_api_token(token)
@@ -205,13 +219,27 @@ class TestAuthIntegration:
         """Complete auth flow with JWT token."""
         from datetime import datetime, timezone
         import jwt
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        # Generate test RSA keys
+        private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        private_key = private_key_obj.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode("utf-8")
+        public_key = private_key_obj.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("utf-8")
 
         with patch("auth.dependencies.AUTH_ENABLED", True), \
-             patch("services.token_service._get_jwt_secret") as mock_secret:
+             patch("services.token_service._get_jwt_keys") as mock_keys:
 
-            mock_secret.return_value = "test-secret"
+            mock_keys.return_value = (private_key, public_key)
 
-            # Create a valid JWT
+            # Create a valid JWT with RS256
             payload = {
                 "sub": "integration@example.com",
                 "email": "integration@example.com",
@@ -219,7 +247,7 @@ class TestAuthIntegration:
                 "iat": datetime.now(timezone.utc),
                 "exp": datetime.now(timezone.utc).timestamp() + 3600,
             }
-            token = jwt.encode(payload, "test-secret", algorithm="HS256")
+            token = jwt.encode(payload, private_key, algorithm="RS256")
 
             # Create mock credentials
             creds = MagicMock(spec=HTTPAuthorizationCredentials)

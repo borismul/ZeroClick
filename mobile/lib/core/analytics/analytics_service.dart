@@ -7,10 +7,16 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../services/debug_log_service.dart';
+
 /// Wrapper for Firebase Analytics with static methods.
 /// Safe to call before Firebase is initialized - calls are no-ops until ready.
 class AnalyticsService {
   AnalyticsService._();
+
+  static void _log(String message) {
+    DebugLogService.instance.addLog('Analytics', message);
+  }
 
   static FirebaseAnalytics? _instance;
   static FirebaseAnalytics? get _analytics {
@@ -31,12 +37,17 @@ class AnalyticsService {
   static Future<void> init() async {
     if (_initialized) return;
     final analytics = _analytics;
-    if (analytics == null) return;
+    if (analytics == null) {
+      _log('⚠️ Firebase not ready, skipping init');
+      return;
+    }
 
     // Disable analytics collection in debug mode
     if (kDebugMode) {
+      _log('🔧 Debug mode: collection disabled, logging only');
       await analytics.setAnalyticsCollectionEnabled(false);
     } else {
+      _log('✅ Release mode: analytics enabled');
       // Generate or retrieve anonymous user ID
       final prefs = await SharedPreferences.getInstance();
       var anonymousId = prefs.getString(_anonymousIdKey);
@@ -54,6 +65,7 @@ class AnalyticsService {
   /// Set user ID based on email (hashed for privacy).
   /// Call when user logs in to get consistent ID across reinstalls.
   static Future<void> setLoggedInUser(String email) async {
+    _log('🔐 User logged in: ${email.split('@').first}@...');
     if (kDebugMode) return;
     final analytics = _analytics;
     if (analytics == null) return;
@@ -72,6 +84,7 @@ class AnalyticsService {
 
   /// Clear user ID (revert to anonymous).
   static Future<void> clearUser() async {
+    _log('🔓 User logged out');
     if (kDebugMode) return;
     final analytics = _analytics;
     if (analytics == null) return;
@@ -87,6 +100,8 @@ class AnalyticsService {
     String name, {
     Map<String, Object>? parameters,
   }) async {
+    final params = parameters?.isNotEmpty == true ? ' $parameters' : '';
+    _log('📊 Event: $name$params');
     if (kDebugMode) return;
     final analytics = _analytics;
     if (analytics == null) return;
@@ -95,6 +110,7 @@ class AnalyticsService {
 
   /// Log a screen view.
   static Future<void> logScreenView(String screenName) async {
+    _log('📱 Screen: $screenName');
     if (kDebugMode) return;
     final analytics = _analytics;
     if (analytics == null) return;
@@ -103,6 +119,7 @@ class AnalyticsService {
 
   /// Set a user property.
   static Future<void> setUserProperty(String name, String? value) async {
+    _log('👤 Property: $name = $value');
     if (kDebugMode) return;
     final analytics = _analytics;
     if (analytics == null) return;

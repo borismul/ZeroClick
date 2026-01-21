@@ -10,6 +10,8 @@ resource "google_project_service" "apis" {
     "directions-backend.googleapis.com",
     "identitytoolkit.googleapis.com",
     "iam.googleapis.com",
+    "secretmanager.googleapis.com",
+    "cloudkms.googleapis.com",
   ])
 
   service            = each.value

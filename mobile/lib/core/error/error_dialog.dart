@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'error_handler.dart';
 
 class ErrorDialog extends StatelessWidget {
@@ -42,14 +43,14 @@ class ErrorDialog extends StatelessWidget {
               Navigator.of(context).pop();
               errorInfo.onRetry!();
             },
-            child: const Text('Opnieuw proberen'),
+            child: Text(AppLocalizations.of(context)!.retry),
           ),
         TextButton(
           onPressed: () {
             Navigator.of(context).pop();
             onDismiss?.call();
           },
-          child: const Text('OK'),
+          child: Text(AppLocalizations.of(context)!.ok),
         ),
       ],
     );

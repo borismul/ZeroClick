@@ -1,5 +1,6 @@
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../api/api_exception.dart';
 import '../logging/app_logger.dart';
 
@@ -24,12 +25,20 @@ class ErrorInfo {
 class ErrorHandler {
   static const _logger = AppLogger('ErrorHandler');
 
-  static ErrorInfo categorize(dynamic error, {VoidCallback? onRetry}) {
+  /// Categorize an error and return localized ErrorInfo
+  /// Use this when you have a BuildContext available
+  static ErrorInfo categorizeLocalized(
+    BuildContext context,
+    dynamic error, {
+    VoidCallback? onRetry,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+
     // Network errors - can retry
     if (error is NetworkException) {
       return ErrorInfo(
-        title: 'Geen verbinding',
-        message: 'Controleer je internetverbinding en probeer opnieuw.',
+        title: l10n.noConnection,
+        message: l10n.checkInternetConnection,
         severity: ErrorSeverity.warning,
         canRetry: true,
         onRetry: onRetry,
@@ -39,8 +48,8 @@ class ErrorHandler {
     // Auth errors - need re-login
     if (error is UnauthorizedException) {
       return ErrorInfo(
-        title: 'Sessie verlopen',
-        message: 'Log opnieuw in om door te gaan.',
+        title: l10n.sessionExpired,
+        message: l10n.loginAgainToContinue,
         severity: ErrorSeverity.warning,
         canRetry: false,
       );
@@ -49,8 +58,8 @@ class ErrorHandler {
     // Server errors - can retry
     if (error is ServerException) {
       return ErrorInfo(
-        title: 'Serverfout',
-        message: 'Er is iets misgegaan. Probeer het later opnieuw.',
+        title: l10n.serverError,
+        message: l10n.tryAgainLater,
         severity: ErrorSeverity.error,
         canRetry: true,
         onRetry: onRetry,
@@ -60,7 +69,73 @@ class ErrorHandler {
     // Validation errors - user needs to fix input
     if (error is ValidationException) {
       return ErrorInfo(
-        title: 'Ongeldige invoer',
+        title: l10n.invalidInput,
+        message: error.message,
+        severity: ErrorSeverity.info,
+        canRetry: false,
+      );
+    }
+
+    // Timeout - can retry
+    if (error is TimeoutException) {
+      return ErrorInfo(
+        title: l10n.timeout,
+        message: l10n.serverNotResponding,
+        severity: ErrorSeverity.warning,
+        canRetry: true,
+        onRetry: onRetry,
+      );
+    }
+
+    // Unknown error
+    return ErrorInfo(
+      title: l10n.error,
+      message: l10n.unexpectedError,
+      severity: ErrorSeverity.error,
+      canRetry: true,
+      onRetry: onRetry,
+    );
+  }
+
+  /// Legacy method - use categorizeLocalized when context is available
+  @Deprecated('Use categorizeLocalized instead')
+  static ErrorInfo categorize(dynamic error, {VoidCallback? onRetry}) {
+    // Network errors - can retry
+    if (error is NetworkException) {
+      return ErrorInfo(
+        title: 'No connection',
+        message: 'Check your internet connection and try again.',
+        severity: ErrorSeverity.warning,
+        canRetry: true,
+        onRetry: onRetry,
+      );
+    }
+
+    // Auth errors - need re-login
+    if (error is UnauthorizedException) {
+      return ErrorInfo(
+        title: 'Session expired',
+        message: 'Log in again to continue.',
+        severity: ErrorSeverity.warning,
+        canRetry: false,
+      );
+    }
+
+    // Server errors - can retry
+    if (error is ServerException) {
+      return ErrorInfo(
+        title: 'Server error',
+        message: 'Something went wrong. Please try again later.',
+        severity: ErrorSeverity.error,
+        canRetry: true,
+        onRetry: onRetry,
+      );
+    }
+
+    // Validation errors - user needs to fix input
+    if (error is ValidationException) {
+      return ErrorInfo(
+        title: 'Invalid input',
         message: error.message,
         severity: ErrorSeverity.info,
         canRetry: false,
@@ -71,7 +146,7 @@ class ErrorHandler {
     if (error is TimeoutException) {
       return ErrorInfo(
         title: 'Timeout',
-        message: 'De server reageert niet. Probeer opnieuw.',
+        message: 'The server is not responding. Please try again.',
         severity: ErrorSeverity.warning,
         canRetry: true,
         onRetry: onRetry,
@@ -80,8 +155,8 @@ class ErrorHandler {
 
     // Unknown error
     return ErrorInfo(
-      title: 'Fout',
-      message: 'Er is een onverwachte fout opgetreden.',
+      title: 'Error',
+      message: 'An unexpected error occurred.',
       severity: ErrorSeverity.error,
       canRetry: true,
       onRetry: onRetry,

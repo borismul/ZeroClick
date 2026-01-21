@@ -5,11 +5,15 @@ Includes:
 - Token exchange (Google ID token -> API tokens)
 - Token refresh
 - Auth status
+
+Rate limiting is applied to prevent brute force attacks.
 """
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from config import AUTH_ENABLED
 from auth.dependencies import get_current_user
@@ -26,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["auth"])
 
+# Rate limiter - uses app.state.limiter from main.py
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/auth/me")
 def get_me(user: str = Depends(get_current_user)):
@@ -40,7 +47,8 @@ def get_auth_status():
 
 
 @router.post("/auth/token", response_model=TokenResponse)
-def exchange_token(request: TokenRequest):
+@limiter.limit("5/minute")  # Max 5 token requests per minute per IP
+def exchange_token(request: Request, token_request: TokenRequest):
     """
     Exchange a Google ID token for API access and refresh tokens.
 
@@ -54,7 +62,7 @@ def exchange_token(request: TokenRequest):
     """
     try:
         # Verify the Google ID token
-        user_info = verify_google_token(request.google_token)
+        user_info = verify_google_token(token_request.google_token)
         user_email = user_info["email"]
         logger.info(f"Token exchange for user: {user_email}")
 
@@ -68,12 +76,14 @@ def exchange_token(request: TokenRequest):
         )
 
     except ValueError as e:
+        # Log full details internally, return generic message to client
         logger.warning(f"Token exchange failed: {e}")
-        raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 
 
 @router.post("/auth/refresh", response_model=RefreshTokenResponse)
-def refresh_token(request: RefreshTokenRequest):
+@limiter.limit("10/minute")  # Max 10 refresh requests per minute per IP
+def refresh_token(request: Request, refresh_request: RefreshTokenRequest):
     """
     Refresh an expired access token using a refresh token.
 
@@ -83,7 +93,7 @@ def refresh_token(request: RefreshTokenRequest):
 
     Returns a new access_token. The refresh_token remains valid.
     """
-    result = token_service.refresh_access_token(request.refresh_token)
+    result = token_service.refresh_access_token(refresh_request.refresh_token)
 
     if not result:
         raise HTTPException(
@@ -173,5 +183,6 @@ def delete_account(user: str = Depends(get_current_user)):
         }
 
     except Exception as e:
-        logger.error(f"Failed to delete account {user}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete account: {e}")
+        # Log full details internally, return generic message to client
+        logger.error(f"Failed to delete account {user}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete account")

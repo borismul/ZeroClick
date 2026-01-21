@@ -9,6 +9,31 @@ import '../core/logging/app_logger.dart';
 /// Callback when user taps a notification
 typedef NotificationTapCallback = void Function(String? payload);
 
+/// Localized strings for notifications
+class NotificationStrings {
+  final String channelName;
+  final String channelDescription;
+  final String newCarDetected;
+  final String isCarToTrack; // Contains {deviceName} placeholder
+  final String tripStarted;
+  final String tripTracking;
+  final String tripTrackingWithCar; // Contains {carName} placeholder
+  final String carLinked;
+  final String carLinkedBody; // Contains {deviceName} and {carName} placeholders
+
+  const NotificationStrings({
+    this.channelName = 'Car Detection',
+    this.channelDescription = 'Notifications for car detection and trip registration',
+    this.newCarDetected = 'New car detected',
+    this.isCarToTrack = 'Is "{deviceName}" a car you want to track?',
+    this.tripStarted = 'Trip Started',
+    this.tripTracking = 'Your trip is now being tracked',
+    this.tripTrackingWithCar = 'Your trip with {carName} is now being tracked',
+    this.carLinked = 'Car Linked',
+    this.carLinkedBody = '"{deviceName}" is now linked to {carName}',
+  });
+}
+
 class NotificationService {
   NotificationService();
 
@@ -17,16 +42,25 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   NotificationTapCallback? _onTap;
+  NotificationStrings _strings = const NotificationStrings();
 
   /// Notification channel IDs
   static const _channelId = 'car_detection';
-  static const _channelName = 'Auto Detectie';
-  static const _channelDescription = 'Meldingen voor auto detectie en ritregistratie';
+
+  String get _channelName => _strings.channelName;
+  String get _channelDescription => _strings.channelDescription;
 
   /// Notification IDs
   static const _unknownDeviceNotificationId = 1;
   static const _tripStartedNotificationId = 2;
   static const _carLinkedNotificationId = 3;
+
+  /// Set localized strings for notifications
+  /// Call this when the app starts with localization context available
+  void setLocalizedStrings(NotificationStrings strings) {
+    _strings = strings;
+    _log.info('Notification strings updated');
+  }
 
   /// Initialize the notification service
   Future<void> init() async {
@@ -136,8 +170,8 @@ class NotificationService {
 
     await _plugin.show(
       _unknownDeviceNotificationId,
-      'Nieuwe auto gedetecteerd',
-      'Is "$deviceName" een auto die je wilt tracken?',
+      _strings.newCarDetected,
+      _strings.isCarToTrack.replaceAll('{deviceName}', deviceName),
       details,
       payload: 'unknown_device:$deviceName',
     );
@@ -173,12 +207,12 @@ class NotificationService {
     );
 
     final body = carName != null
-        ? 'Je rit met $carName wordt nu getrackt'
-        : 'Je rit wordt nu getrackt';
+        ? _strings.tripTrackingWithCar.replaceAll('{carName}', carName)
+        : _strings.tripTracking;
 
     await _plugin.show(
       _tripStartedNotificationId,
-      'Rit Gestart',
+      _strings.tripStarted,
       body,
       details,
       payload: 'trip_started',
@@ -216,8 +250,10 @@ class NotificationService {
 
     await _plugin.show(
       _carLinkedNotificationId,
-      'Auto Gekoppeld',
-      '"$deviceName" is nu gekoppeld aan $carName',
+      _strings.carLinked,
+      _strings.carLinkedBody
+          .replaceAll('{deviceName}', deviceName)
+          .replaceAll('{carName}', carName),
       details,
       payload: 'car_linked:$carName',
     );

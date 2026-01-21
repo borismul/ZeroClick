@@ -14,6 +14,22 @@ from datetime import datetime, timezone
 import hashlib
 import time
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+
+# Generate test RSA keys once for all tests
+_test_private_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+TEST_PRIVATE_KEY = _test_private_key_obj.private_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption(),
+).decode("utf-8")
+TEST_PUBLIC_KEY = _test_private_key_obj.public_key().public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+).decode("utf-8")
+
 
 class TestCreateTokens:
     """Tests for create_tokens JWT and refresh token generation."""
@@ -41,13 +57,13 @@ class TestCreateTokens:
             yield {"storage": storage, "collection": mock_collection}
 
     @pytest.fixture
-    def mock_jwt_secret(self):
-        """Mock JWT secret for consistent testing."""
-        with patch("services.token_service._get_jwt_secret") as mock:
-            mock.return_value = "test-secret-key-for-jwt"
+    def mock_jwt_keys(self):
+        """Mock JWT keys for consistent testing."""
+        with patch("services.token_service._get_jwt_keys") as mock:
+            mock.return_value = (TEST_PRIVATE_KEY, TEST_PUBLIC_KEY)
             yield mock
 
-    def test_create_tokens_returns_tuple(self, mock_db, mock_jwt_secret):
+    def test_create_tokens_returns_tuple(self, mock_db, mock_jwt_keys):
         """create_tokens returns (access_token, refresh_token, expires_in)."""
         from services.token_service import token_service
 
@@ -60,20 +76,20 @@ class TestCreateTokens:
         assert isinstance(refresh_token, str)
         assert isinstance(expires_in, int)
 
-    def test_create_tokens_jwt_is_valid(self, mock_db, mock_jwt_secret):
+    def test_create_tokens_jwt_is_valid(self, mock_db, mock_jwt_keys):
         """create_tokens generates a valid JWT."""
         import jwt
         from services.token_service import token_service
 
         access_token, _, _ = token_service.create_tokens("test@example.com")
 
-        # Decode and verify
-        payload = jwt.decode(access_token, "test-secret-key-for-jwt", algorithms=["HS256"])
+        # Decode and verify with RS256
+        payload = jwt.decode(access_token, TEST_PUBLIC_KEY, algorithms=["RS256"])
         assert payload["email"] == "test@example.com"
         assert payload["sub"] == "test@example.com"
         assert payload["type"] == "access"
 
-    def test_create_tokens_stores_refresh_hash(self, mock_db, mock_jwt_secret):
+    def test_create_tokens_stores_refresh_hash(self, mock_db, mock_jwt_keys):
         """create_tokens stores hashed refresh token in Firestore."""
         from services.token_service import token_service
 
@@ -88,7 +104,7 @@ class TestCreateTokens:
         assert stored["token_hash"] != refresh_token
         assert stored["token_hash"] == hashlib.sha256(refresh_token.encode()).hexdigest()
 
-    def test_create_tokens_sets_expiry(self, mock_db, mock_jwt_secret):
+    def test_create_tokens_sets_expiry(self, mock_db, mock_jwt_keys):
         """create_tokens sets correct expiry on refresh token."""
         from services.token_service import token_service, REFRESH_TOKEN_EXPIRE_SECONDS
 
@@ -99,7 +115,7 @@ class TestCreateTokens:
         # Allow 5 second tolerance
         assert abs(stored["expires_at"] - expected_expiry) < 5
 
-    def test_create_tokens_returns_expiry_seconds(self, mock_db, mock_jwt_secret):
+    def test_create_tokens_returns_expiry_seconds(self, mock_db, mock_jwt_keys):
         """create_tokens returns correct expiry time in seconds."""
         from services.token_service import token_service, ACCESS_TOKEN_EXPIRE_SECONDS
 
@@ -112,18 +128,18 @@ class TestVerifyAccessToken:
     """Tests for verify_access_token JWT validation."""
 
     @pytest.fixture
-    def mock_jwt_secret(self):
-        """Mock JWT secret."""
-        with patch("services.token_service._get_jwt_secret") as mock:
-            mock.return_value = "test-secret-key-for-jwt"
+    def mock_jwt_keys(self):
+        """Mock JWT keys."""
+        with patch("services.token_service._get_jwt_keys") as mock:
+            mock.return_value = (TEST_PRIVATE_KEY, TEST_PUBLIC_KEY)
             yield mock
 
-    def test_verify_valid_token(self, mock_jwt_secret):
+    def test_verify_valid_token(self, mock_jwt_keys):
         """verify_access_token returns payload for valid JWT."""
         import jwt
         from services.token_service import token_service
 
-        # Create a valid token
+        # Create a valid token with RS256
         payload = {
             "sub": "test@example.com",
             "email": "test@example.com",
@@ -131,14 +147,14 @@ class TestVerifyAccessToken:
             "iat": datetime.now(timezone.utc),
             "exp": datetime.now(timezone.utc).timestamp() + 3600,
         }
-        token = jwt.encode(payload, "test-secret-key-for-jwt", algorithm="HS256")
+        token = jwt.encode(payload, TEST_PRIVATE_KEY, algorithm="RS256")
 
         result = token_service.verify_access_token(token)
 
         assert result is not None
         assert result["email"] == "test@example.com"
 
-    def test_verify_expired_token_returns_none(self, mock_jwt_secret):
+    def test_verify_expired_token_returns_none(self, mock_jwt_keys):
         """verify_access_token returns None for expired JWT."""
         import jwt
         from services.token_service import token_service
@@ -151,18 +167,26 @@ class TestVerifyAccessToken:
             "iat": datetime.now(timezone.utc),
             "exp": datetime.now(timezone.utc).timestamp() - 100,  # Expired
         }
-        token = jwt.encode(payload, "test-secret-key-for-jwt", algorithm="HS256")
+        token = jwt.encode(payload, TEST_PRIVATE_KEY, algorithm="RS256")
 
         result = token_service.verify_access_token(token)
 
         assert result is None
 
-    def test_verify_invalid_signature_returns_none(self, mock_jwt_secret):
+    def test_verify_invalid_signature_returns_none(self, mock_jwt_keys):
         """verify_access_token returns None for wrong signature."""
         import jwt
         from services.token_service import token_service
 
-        # Create token with different secret
+        # Generate a different private key for wrong signature
+        other_key_obj = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        other_private_key = other_key_obj.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode("utf-8")
+
+        # Create token with different key
         payload = {
             "sub": "test@example.com",
             "email": "test@example.com",
@@ -170,13 +194,13 @@ class TestVerifyAccessToken:
             "iat": datetime.now(timezone.utc),
             "exp": datetime.now(timezone.utc).timestamp() + 3600,
         }
-        token = jwt.encode(payload, "wrong-secret", algorithm="HS256")
+        token = jwt.encode(payload, other_private_key, algorithm="RS256")
 
         result = token_service.verify_access_token(token)
 
         assert result is None
 
-    def test_verify_non_access_token_returns_none(self, mock_jwt_secret):
+    def test_verify_non_access_token_returns_none(self, mock_jwt_keys):
         """verify_access_token returns None if type is not 'access'."""
         import jwt
         from services.token_service import token_service
@@ -189,13 +213,13 @@ class TestVerifyAccessToken:
             "iat": datetime.now(timezone.utc),
             "exp": datetime.now(timezone.utc).timestamp() + 3600,
         }
-        token = jwt.encode(payload, "test-secret-key-for-jwt", algorithm="HS256")
+        token = jwt.encode(payload, TEST_PRIVATE_KEY, algorithm="RS256")
 
         result = token_service.verify_access_token(token)
 
         assert result is None
 
-    def test_verify_malformed_token_returns_none(self, mock_jwt_secret):
+    def test_verify_malformed_token_returns_none(self, mock_jwt_keys):
         """verify_access_token returns None for malformed token."""
         from services.token_service import token_service
 
@@ -240,11 +264,11 @@ class TestRefreshAccessToken:
         mock_collection.where.return_value = mock_query
 
         with patch("services.token_service.get_db") as mock_get_db, \
-             patch("services.token_service._get_jwt_secret") as mock_secret:
+             patch("services.token_service._get_jwt_keys") as mock_keys:
             mock_db = MagicMock()
             mock_db.collection.return_value = mock_collection
             mock_get_db.return_value = mock_db
-            mock_secret.return_value = "test-secret-key-for-jwt"
+            mock_keys.return_value = (TEST_PRIVATE_KEY, TEST_PUBLIC_KEY)
 
             yield {
                 "refresh_token": refresh_token,

@@ -6,6 +6,7 @@ Supports two token types:
 2. Google ID tokens (legacy, for backward compatibility)
 """
 
+import hashlib
 import logging
 from fastapi import HTTPException, Header, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -14,6 +15,11 @@ from config import AUTH_ENABLED
 from .google import verify_google_token
 
 log = logging.getLogger(__name__)
+
+
+def _token_fingerprint(token: str) -> str:
+    """Generate a short hash fingerprint for logging (doesn't expose token)."""
+    return hashlib.sha256(token.encode()).hexdigest()[:8]
 
 
 def _verify_api_token(token: str) -> str | None:
@@ -75,7 +81,7 @@ def get_current_user(
 
     # Try API JWT first (fast, local validation)
     token = credentials.credentials
-    log.info(f"Verifying token: {token[:50]}...")
+    log.debug(f"Verifying token fingerprint: {_token_fingerprint(token)}")
 
     email = _verify_api_token(token)
     if email:
@@ -88,8 +94,9 @@ def get_current_user(
         log.info(f"Google token verified for user: {user_info['email']}")
         return user_info["email"]
     except ValueError as e:
+        # Log full details internally, return generic message to client
         log.error(f"Token verification failed: {e}")
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 
 def get_user_from_header(x_user_email: str | None = Header(None)) -> str:

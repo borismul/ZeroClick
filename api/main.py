@@ -18,6 +18,9 @@ import os
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from auth.middleware import AuthMiddleware
 from auth.dependencies import get_current_user
@@ -46,13 +49,25 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="mileage-tracker-api")
 
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS middleware for frontend
+# Specify allowed origins instead of "*" for security when credentials are enabled
+ALLOWED_ORIGINS = [
+    os.getenv("FRONTEND_URL", "https://mileage-tracker-frontend-xh7qepmwva-ez.a.run.app"),
+    "http://localhost:3000",  # Local development
+    "http://127.0.0.1:3000",  # Local development
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-User-Email"],
 )
 
 # Auth middleware

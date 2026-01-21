@@ -8,17 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
-		74858FC71ED2DC5600515822 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FC81ED2DC5600515822 /* Logger.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
-		TEST001001ED2DC5600515830 /* MockLocationTrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */; };
-		TEST001003ED2DC5600515831 /* MockMotionActivityHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */; };
-		TEST001005ED2DC5600515832 /* MockLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */; };
-		TEST001007ED2DC5600515833 /* MockWatchConnectivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */; };
-		TEST001009ED2DC5600515834 /* DriveSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100AED2DC5600515834 /* DriveSimulator.swift */; };
-		TEST00100BED2DC5600515835 /* TestableAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */; };
-		TEST00100DED2DC5600515836 /* TripLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */; };
-		TEST00100FED2DC5600515837 /* DistanceCalculationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */; };
-		TEST00101GED2DC5600515838 /* MotionDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */; };
 		3713AAE495A5215351C4D944 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2517A0D1A0011B4414A0C8F1 /* Pods_RunnerTests.framework */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -32,13 +22,24 @@
 		74858FBF1ED2DC5600515819 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FC01ED2DC5600515819 /* LiveActivityManager.swift */; };
 		74858FC21ED2DC5600515820 /* WatchConnectivityServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FC31ED2DC5600515820 /* WatchConnectivityServiceProtocol.swift */; };
 		74858FC41ED2DC5600515821 /* WatchConnectivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FC51ED2DC5600515821 /* WatchConnectivityService.swift */; };
+		74858FC71ED2DC5600515822 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FC81ED2DC5600515822 /* Logger.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A13423BF2F202E1400B23B90 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A13423BE2F202E1400B23B90 /* GoogleService-Info.plist */; };
 		A1B3D5DB2F106F0200637139 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B3D5DA2F106F0200637139 /* WidgetKit.framework */; };
 		A1B3D5DD2F106F0200637139 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B3D5DC2F106F0200637139 /* SwiftUI.framework */; };
 		A1B3D5EE2F106F0400637139 /* TripLiveActivityExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B3D5D92F106F0200637139 /* TripLiveActivityExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CAA3F896C4C4721D204AE0C6 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7FC76DA318D9EF150C2A5493 /* Pods_Runner.framework */; };
+		TEST001001ED2DC5600515830 /* MockLocationTrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */; };
+		TEST001003ED2DC5600515831 /* MockMotionActivityHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */; };
+		TEST001005ED2DC5600515832 /* MockLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */; };
+		TEST001007ED2DC5600515833 /* MockWatchConnectivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */; };
+		TEST001009ED2DC5600515834 /* DriveSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100AED2DC5600515834 /* DriveSimulator.swift */; };
+		TEST00100BED2DC5600515835 /* TestableAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */; };
+		TEST00100DED2DC5600515836 /* TripLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */; };
+		TEST00100FED2DC5600515837 /* DistanceCalculationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */; };
+		TEST00101GED2DC5600515838 /* MotionDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,15 +91,6 @@
 		2517A0D1A0011B4414A0C8F1 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLocationTrackingService.swift; sourceTree = "<group>"; };
-		TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockMotionActivityHandler.swift; sourceTree = "<group>"; };
-		TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLiveActivityManager.swift; sourceTree = "<group>"; };
-		TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockWatchConnectivityService.swift; sourceTree = "<group>"; };
-		TEST00100AED2DC5600515834 /* DriveSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSimulator.swift; sourceTree = "<group>"; };
-		TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestableAppDelegate.swift; sourceTree = "<group>"; };
-		TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLifecycleTests.swift; sourceTree = "<group>"; };
-		TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DistanceCalculationTests.swift; sourceTree = "<group>"; };
-		TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionDetectionTests.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -124,11 +116,21 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9F82DA476B50C77B5869B89C /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
+		A13423BE2F202E1400B23B90 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A1B3D5D92F106F0200637139 /* TripLiveActivityExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TripLiveActivityExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B3D5DA2F106F0200637139 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		A1B3D5DC2F106F0200637139 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		C2B73407D217BFDB2F634A09 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		F514D6D53321745717B27835 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
+		TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLocationTrackingService.swift; sourceTree = "<group>"; };
+		TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockMotionActivityHandler.swift; sourceTree = "<group>"; };
+		TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLiveActivityManager.swift; sourceTree = "<group>"; };
+		TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockWatchConnectivityService.swift; sourceTree = "<group>"; };
+		TEST00100AED2DC5600515834 /* DriveSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSimulator.swift; sourceTree = "<group>"; };
+		TEST00100CED2DC5600515835 /* TestableAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestableAppDelegate.swift; sourceTree = "<group>"; };
+		TEST00100EED2DC5600515836 /* TripLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripLifecycleTests.swift; sourceTree = "<group>"; };
+		TEST00101HED2DC5600515838 /* MotionDetectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionDetectionTests.swift; sourceTree = "<group>"; };
+		TEST00101OED2DC5600515837 /* DistanceCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DistanceCalculationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -199,15 +201,20 @@
 			path = RunnerTests;
 			sourceTree = "<group>";
 		};
-		TEST0010MOCKS00515837 /* Mocks */ = {
+		74858FB81ED2DC5600515815 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */,
-				TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */,
-				TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */,
-				TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */,
+				74858FC81ED2DC5600515822 /* Logger.swift */,
+				74858FB51ED2DC5600515813 /* LocationTrackingServiceProtocol.swift */,
+				74858FB71ED2DC5600515814 /* LocationTrackingService.swift */,
+				74858FBA1ED2DC5600515816 /* MotionActivityHandlerProtocol.swift */,
+				74858FBC1ED2DC5600515817 /* MotionActivityHandler.swift */,
+				74858FBE1ED2DC5600515818 /* LiveActivityManagerProtocol.swift */,
+				74858FC01ED2DC5600515819 /* LiveActivityManager.swift */,
+				74858FC31ED2DC5600515820 /* WatchConnectivityServiceProtocol.swift */,
+				74858FC51ED2DC5600515821 /* WatchConnectivityService.swift */,
 			);
-			path = Mocks;
+			path = Services;
 			sourceTree = "<group>";
 		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
@@ -224,6 +231,7 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				A13423BE2F202E1400B23B90 /* GoogleService-Info.plist */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				A1B3D5DE2F106F0200637139 /* TripLiveActivityExtension */,
@@ -286,20 +294,15 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		74858FB81ED2DC5600515815 /* Services */ = {
+		TEST0010MOCKS00515837 /* Mocks */ = {
 			isa = PBXGroup;
 			children = (
-				74858FC81ED2DC5600515822 /* Logger.swift */,
-				74858FB51ED2DC5600515813 /* LocationTrackingServiceProtocol.swift */,
-				74858FB71ED2DC5600515814 /* LocationTrackingService.swift */,
-				74858FBA1ED2DC5600515816 /* MotionActivityHandlerProtocol.swift */,
-				74858FBC1ED2DC5600515817 /* MotionActivityHandler.swift */,
-				74858FBE1ED2DC5600515818 /* LiveActivityManagerProtocol.swift */,
-				74858FC01ED2DC5600515819 /* LiveActivityManager.swift */,
-				74858FC31ED2DC5600515820 /* WatchConnectivityServiceProtocol.swift */,
-				74858FC51ED2DC5600515821 /* WatchConnectivityService.swift */,
+				TEST001002ED2DC5600515830 /* MockLocationTrackingService.swift */,
+				TEST001004ED2DC5600515831 /* MockMotionActivityHandler.swift */,
+				TEST001006ED2DC5600515832 /* MockLiveActivityManager.swift */,
+				TEST001008ED2DC5600515833 /* MockWatchConnectivityService.swift */,
 			);
-			path = Services;
+			path = Mocks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -427,6 +430,7 @@
 			files = (
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
+				A13423BF2F202E1400B23B90 /* GoogleService-Info.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 			);

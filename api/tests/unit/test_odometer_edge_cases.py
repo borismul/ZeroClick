@@ -229,3 +229,70 @@ class TestOdometerBackwards:
         # Should handle gracefully, keeping last good odo
         cache = mock_db["set"].call_args[0][0]
         assert cache["last_odo"] == 50010  # Unchanged
+
+    def test_last_odo_none_then_api_returns_real_value(
+        self, mock_db, mock_car_service, mock_location_service
+    ):
+        """
+        Regression test for 2026-01-21 bug: TypeError when comparing float > None.
+
+        Scenario (exact reproduction):
+        1. Trip starts, but car API returns odo=None (state=unknown) for early pings
+        2. last_odo in cache is set to None (key exists with None value)
+        3. Later, car API suddenly returns real odometer value (e.g., 1398.0)
+        4. Bug: cache.get("last_odo", 0) returns None (not 0!) because key exists
+        5. Comparison current_odo > None raises TypeError
+
+        Fix: Use (cache.get("last_odo") or 0) instead of cache.get("last_odo", 0)
+        """
+        from services.webhook_service import webhook_service
+
+        # Cache state after ~20 minutes of driving with odo=None from API
+        # This is exactly what happened: last_odo was explicitly set to None
+        cache_with_none_odo = {
+            "active": True,
+            "user_id": "test@example.com",
+            "car_id": "car-123",
+            "car_name": "Audi Q4 e-tron",
+            "start_time": "2026-01-21T06:40:00Z",
+            "start_odo": None,  # Never got a valid start odometer
+            "last_odo": None,   # KEY BUG: This is None, not missing!
+            "no_driving_count": 0,
+            "parked_count": 0,
+            "api_error_count": 0,
+            "skip_pause_count": 0,
+            "gps_events": [
+                {"lat": 52.046, "lng": 4.483, "timestamp": "2026-01-21T07:10:00Z", "is_skip": False}
+            ] * 121,  # ~20 minutes of GPS events
+            "gps_trail": [],
+        }
+
+        mock_db["get"].return_value = cache_with_none_odo.copy()
+
+        mock_car_service.get_cars_with_credentials.return_value = [
+            {"car_id": "car-123", "name": "Audi Q4 e-tron", "brand": "audi"}
+        ]
+        # NOW the API suddenly returns a real odometer value!
+        # This is what triggered the crash at 07:11:33
+        mock_car_service.check_car_driving_status.return_value = {
+            "car_id": "car-123",
+            "name": "Audi Q4 e-tron",
+            "odometer": 1398.0,  # Real value after returning None for 20 min
+            "is_parked": False,
+            "state": "driving",
+            "lat": 52.046,
+            "lng": 4.483,
+        }
+
+        # This should NOT raise TypeError: '>' not supported between float and NoneType
+        result = webhook_service.handle_ping(
+            user_id="test@example.com",
+            lat=52.046,
+            lng=4.483,
+        )
+
+        # Should handle gracefully (no TypeError crash!) and update last_odo
+        # Status may be trip_started if logic re-evaluates, that's fine
+        assert "status" in result
+        cache = mock_db["set"].call_args[0][0]
+        assert cache["last_odo"] == 1398.0  # Now properly set

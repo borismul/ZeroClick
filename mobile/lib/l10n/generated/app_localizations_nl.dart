@@ -565,10 +565,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get invalidDistance => 'Ongeldige afstand';
 
   @override
-  String get language => 'Language';
+  String get language => 'Taal';
 
   @override
-  String get systemDefault => 'System default';
+  String get systemDefault => 'Systeemstandaard';
 
   @override
   String get languageEnglish => 'English';
@@ -926,4 +926,230 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get termsOfServiceContent =>
       'ALGEMENE VOORWAARDEN\n\nDoor Zero Click (\'de app\') te gebruiken, ga je akkoord met deze voorwaarden.\n\nSERVICEBESCHRIJVING\n\nZero Click is een persoonlijke ritregistratie-app die automatisch detecteert wanneer je rijdt en ritten registreert. De app gebruikt bewegingsdetectie, GPS en optioneel de API van je auto voor kilometergegevens.\n\nGEBRUIKERSVERANTWOORDELIJKHEDEN\n\n• Correcte setup: Je bent verantwoordelijk voor het correct configureren van je auto\'s en accounts\n• Rechtmatig gebruik: Gebruik de app alleen voor legale doeleinden\n• Gegevensnauwkeurigheid: Controleer belangrijke ritgegevens voordat je deze gebruikt voor belasting of zakelijke doeleinden\n\nGEGEVENSNAAUWKEURIGHEID DISCLAIMER\n\n• GPS-gebaseerde afstanden kunnen afwijken van werkelijke afstanden\n• Kilometerstanden zijn afhankelijk van de nauwkeurigheid van de API van je auto\n• Automatische ritdetectie kan af en toe ritten missen of valse positieven creëren\n• Controleer altijd je ritten op nauwkeurigheid\n\nSERVICEBESCHIKBAARHEID\n\n• Zero Click is een persoonlijk project en garandeert geen uptime\n• De service kan onbeschikbaar zijn voor onderhoud of updates\n• Functies kunnen op elk moment veranderen of worden verwijderd\n\nACCOUNTBEËINDIGING\n\n• Je kunt je account op elk moment verwijderen in Instellingen\n• Accountverwijdering verwijdert permanent al je gegevens\n• We kunnen accounts beëindigen die deze voorwaarden schenden\n\nAANSPRAKELIJKHEIDSBEPERKING\n\n• De app wordt geleverd \'zoals het is\' zonder garanties\n• We zijn niet aansprakelijk voor onnauwkeurige ritgegevens of gemiste ritten\n• We zijn niet aansprakelijk voor schade door gebruik van de app\n• Maximale aansprakelijkheid is beperkt tot het bedrag dat je hebt betaald (nul, de app is gratis)\n\nWIJZIGINGEN IN VOORWAARDEN\n\nWe kunnen deze voorwaarden op elk moment bijwerken. Voortgezet gebruik na wijzigingen betekent acceptatie.\n\nCONTACT\n\nVoor vragen over deze voorwaarden, neem contact op: support@zeroclick.app';
+
+  @override
+  String get retry => 'Opnieuw proberen';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get noConnection => 'Geen verbinding';
+
+  @override
+  String get checkInternetConnection =>
+      'Controleer je internetverbinding en probeer opnieuw.';
+
+  @override
+  String get sessionExpired => 'Sessie verlopen';
+
+  @override
+  String get loginAgainToContinue => 'Log opnieuw in om door te gaan.';
+
+  @override
+  String get serverError => 'Serverfout';
+
+  @override
+  String get tryAgainLater =>
+      'Er is iets misgegaan. Probeer het later opnieuw.';
+
+  @override
+  String get invalidInput => 'Ongeldige invoer';
+
+  @override
+  String get timeout => 'Timeout';
+
+  @override
+  String get serverNotResponding => 'De server reageert niet. Probeer opnieuw.';
+
+  @override
+  String get error => 'Fout';
+
+  @override
+  String get unexpectedError => 'Er is een onverwachte fout opgetreden.';
+
+  @override
+  String get setupCarTitle => 'Stel je auto in voor de beste ervaring:';
+
+  @override
+  String get setupCarApiStep => '🔗 Auto-API koppelen';
+
+  @override
+  String get setupCarApiDescription =>
+      'Ga naar Auto\'s → kies je auto → koppel je account. Hiermee krijg je toegang tot kilometerstand en meer.';
+
+  @override
+  String get setupBluetoothStep => '📱 Bluetooth koppelen';
+
+  @override
+  String get setupBluetoothDescription =>
+      'Verbind je telefoon via Bluetooth met je auto, open deze app en koppel in de melding. Dit zorgt voor betrouwbare ritdetectie.';
+
+  @override
+  String get setupTip => 'Tip: Stel beide in voor de beste betrouwbaarheid!';
+
+  @override
+  String get developer => 'Developer';
+
+  @override
+  String get debugLogs => 'Debug Logs';
+
+  @override
+  String get viewNativeLogs => 'Bekijk native iOS logs';
+
+  @override
+  String get copyAllLogs => 'Kopieer alle logs';
+
+  @override
+  String get logsCopied => 'Logs gekopieerd naar klembord';
+
+  @override
+  String get loggedOut => 'Uitgelogd';
+
+  @override
+  String get loginWithAudiId => 'Inloggen met Audi ID';
+
+  @override
+  String get loginWithAudiDescription => 'Log in met je myAudi account';
+
+  @override
+  String get loginWithVolkswagenId => 'Inloggen met Volkswagen ID';
+
+  @override
+  String get loginWithVolkswagenDescription =>
+      'Log in met je Volkswagen ID account';
+
+  @override
+  String get loginWithSkodaId => 'Inloggen met Skoda ID';
+
+  @override
+  String get loginWithSkodaDescription => 'Log in met je Skoda ID account';
+
+  @override
+  String get loginWithSeatId => 'Inloggen met SEAT ID';
+
+  @override
+  String get loginWithSeatDescription => 'Log in met je SEAT ID account';
+
+  @override
+  String get loginWithCupraId => 'Inloggen met CUPRA ID';
+
+  @override
+  String get loginWithCupraDescription => 'Log in met je CUPRA ID account';
+
+  @override
+  String get loginWithRenaultId => 'Inloggen met Renault ID';
+
+  @override
+  String get loginWithRenaultDescription => 'Log in met je MY Renault account';
+
+  @override
+  String get myRenault => 'MY Renault';
+
+  @override
+  String get myRenaultConnected => 'MY Renault verbonden';
+
+  @override
+  String get accountLinkedSuccess => 'Je account is succesvol gekoppeld';
+
+  @override
+  String brandConnected(String brand) {
+    return '$brand verbonden';
+  }
+
+  @override
+  String connectBrand(String brand) {
+    return '$brand koppelen';
+  }
+
+  @override
+  String get email => 'E-mail';
+
+  @override
+  String get countryNetherlands => 'Nederland';
+
+  @override
+  String get countryBelgium => 'België';
+
+  @override
+  String get countryGermany => 'Duitsland';
+
+  @override
+  String get countryFrance => 'Frankrijk';
+
+  @override
+  String get countryUnitedKingdom => 'Verenigd Koninkrijk';
+
+  @override
+  String get countrySpain => 'Spanje';
+
+  @override
+  String get countryItaly => 'Italië';
+
+  @override
+  String get countryPortugal => 'Portugal';
+
+  @override
+  String get enterEmailAndPassword => 'Vul je e-mail en wachtwoord in';
+
+  @override
+  String get couldNotGetLoginUrl => 'Kon login URL niet ophalen';
+
+  @override
+  String brandLinked(String brand) {
+    return '$brand gekoppeld';
+  }
+
+  @override
+  String brandLinkedWithVin(String brand, String vin) {
+    return '$brand gekoppeld (VIN: $vin)';
+  }
+
+  @override
+  String brandLinkFailed(String brand) {
+    return '$brand koppelen mislukt';
+  }
+
+  @override
+  String get changesInNameColorIcon =>
+      'Wijzigingen in naam/kleur/icoon? Druk terug en wijzig.';
+
+  @override
+  String get notificationChannelCarDetection => 'Auto Detectie';
+
+  @override
+  String get notificationChannelDescription =>
+      'Meldingen voor auto detectie en ritregistratie';
+
+  @override
+  String get notificationNewCarDetected => 'Nieuwe auto gedetecteerd';
+
+  @override
+  String notificationIsCarToTrack(String deviceName) {
+    return 'Is \"$deviceName\" een auto die je wilt tracken?';
+  }
+
+  @override
+  String get notificationTripStarted => 'Rit Gestart';
+
+  @override
+  String get notificationTripTracking => 'Je rit wordt nu getrackt';
+
+  @override
+  String notificationTripTrackingWithCar(String carName) {
+    return 'Je rit met $carName wordt nu getrackt';
+  }
+
+  @override
+  String get notificationCarLinked => 'Auto Gekoppeld';
+
+  @override
+  String notificationCarLinkedBody(String deviceName, String carName) {
+    return '\"$deviceName\" is nu gekoppeld aan $carName';
+  }
+
+  @override
+  String locationError(String error) {
+    return 'Locatiefout: $error';
+  }
 }

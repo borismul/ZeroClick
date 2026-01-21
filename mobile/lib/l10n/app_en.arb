@@ -655,5 +655,206 @@
   "@privacyPolicyContent": {"description": "Full privacy policy text"},
 
   "termsOfServiceContent": "TERMS OF SERVICE\n\nBy using Zero Click ('the app'), you agree to these terms.\n\nSERVICE DESCRIPTION\n\nZero Click is a personal trip tracking app that automatically detects when you drive and registers trips. The app uses motion detection, GPS, and optionally your car's API for mileage data.\n\nUSER RESPONSIBILITIES\n\n• Accurate setup: You are responsible for correctly configuring your cars and accounts\n• Lawful use: Use the app only for legal purposes\n• Data accuracy: Verify important trip data before using it for tax or business purposes\n\nDATA ACCURACY DISCLAIMER\n\n• GPS-based distances may vary from actual distances\n• Odometer readings depend on your car's API accuracy\n• Automatic trip detection may occasionally miss trips or create false positives\n• Always review your trips for accuracy\n\nSERVICE AVAILABILITY\n\n• Zero Click is a personal project and does not guarantee uptime\n• The service may be unavailable for maintenance or updates\n• Features may change or be removed at any time\n\nACCOUNT TERMINATION\n\n• You can delete your account at any time in Settings\n• Account deletion permanently removes all your data\n• We may terminate accounts that violate these terms\n\nLIMITATION OF LIABILITY\n\n• The app is provided 'as is' without warranties\n• We are not liable for inaccurate trip data or missed trips\n• We are not liable for any damages arising from use of the app\n• Maximum liability is limited to the amount you paid (which is zero, as the app is free)\n\nCHANGES TO TERMS\n\nWe may update these terms at any time. Continued use after changes constitutes acceptance.\n\nCONTACT\n\nFor questions about these terms, contact: support@zeroclick.app",
-  "@termsOfServiceContent": {"description": "Full terms of service text"}
+  "@termsOfServiceContent": {"description": "Full terms of service text"},
+
+  "retry": "Retry",
+  "@retry": {"description": "Retry button text"},
+
+  "ok": "OK",
+  "@ok": {"description": "OK button text"},
+
+  "noConnection": "No connection",
+  "@noConnection": {"description": "Error title when offline"},
+
+  "checkInternetConnection": "Check your internet connection and try again.",
+  "@checkInternetConnection": {"description": "Error message when offline"},
+
+  "sessionExpired": "Session expired",
+  "@sessionExpired": {"description": "Error title when session expired"},
+
+  "loginAgainToContinue": "Log in again to continue.",
+  "@loginAgainToContinue": {"description": "Error message when session expired"},
+
+  "serverError": "Server error",
+  "@serverError": {"description": "Error title for server errors"},
+
+  "tryAgainLater": "Something went wrong. Please try again later.",
+  "@tryAgainLater": {"description": "Generic server error message"},
+
+  "invalidInput": "Invalid input",
+  "@invalidInput": {"description": "Error title for validation errors"},
+
+  "timeout": "Timeout",
+  "@timeout": {"description": "Error title for timeout"},
+
+  "serverNotResponding": "The server is not responding. Please try again.",
+  "@serverNotResponding": {"description": "Timeout error message"},
+
+  "error": "Error",
+  "@error": {"description": "Generic error title"},
+
+  "unexpectedError": "An unexpected error occurred.",
+  "@unexpectedError": {"description": "Generic error message"},
+
+  "setupCarTitle": "Set up your car for the best experience:",
+  "@setupCarTitle": {"description": "Settings screen setup guidance title"},
+
+  "setupCarApiStep": "Connect Car API",
+  "@setupCarApiStep": {"description": "Setup step for car API"},
+
+  "setupCarApiDescription": "Go to Cars → choose your car → link your account. This gives you access to odometer readings and more.",
+  "@setupCarApiDescription": {"description": "Setup step description for car API"},
+
+  "setupBluetoothStep": "Connect Bluetooth",
+  "@setupBluetoothStep": {"description": "Setup step for Bluetooth"},
+
+  "setupBluetoothDescription": "Connect your phone via Bluetooth to your car, open this app and link in the notification. This ensures reliable trip detection.",
+  "@setupBluetoothDescription": {"description": "Setup step description for Bluetooth"},
+
+  "setupTip": "Tip: Set up both for the best reliability!",
+  "@setupTip": {"description": "Setup tip text"},
+
+  "developer": "Developer",
+  "@developer": {"description": "Developer section header"},
+
+  "debugLogs": "Debug Logs",
+  "@debugLogs": {"description": "Debug logs menu item"},
+
+  "viewNativeLogs": "View native iOS logs",
+  "@viewNativeLogs": {"description": "Debug logs subtitle"},
+
+  "copyAllLogs": "Copy all logs",
+  "@copyAllLogs": {"description": "Copy logs button tooltip"},
+
+  "logsCopied": "Logs copied to clipboard",
+  "@logsCopied": {"description": "Logs copied confirmation"},
+
+  "loggedOut": "Logged out",
+  "@loggedOut": {"description": "Logged out confirmation"},
+
+  "loginWithAudiId": "Log in with Audi ID",
+  "@loginWithAudiId": {"description": "Audi login button"},
+
+  "loginWithAudiDescription": "Log in with your myAudi account",
+  "@loginWithAudiDescription": {"description": "Audi login description"},
+
+  "loginWithVolkswagenId": "Log in with Volkswagen ID",
+  "@loginWithVolkswagenId": {"description": "Volkswagen login button"},
+
+  "loginWithVolkswagenDescription": "Log in with your Volkswagen ID account",
+  "@loginWithVolkswagenDescription": {"description": "Volkswagen login description"},
+
+  "loginWithSkodaId": "Log in with Skoda ID",
+  "@loginWithSkodaId": {"description": "Skoda login button"},
+
+  "loginWithSkodaDescription": "Log in with your Skoda ID account",
+  "@loginWithSkodaDescription": {"description": "Skoda login description"},
+
+  "loginWithSeatId": "Log in with SEAT ID",
+  "@loginWithSeatId": {"description": "SEAT login button"},
+
+  "loginWithSeatDescription": "Log in with your SEAT ID account",
+  "@loginWithSeatDescription": {"description": "SEAT login description"},
+
+  "loginWithCupraId": "Log in with CUPRA ID",
+  "@loginWithCupraId": {"description": "CUPRA login button"},
+
+  "loginWithCupraDescription": "Log in with your CUPRA ID account",
+  "@loginWithCupraDescription": {"description": "CUPRA login description"},
+
+  "loginWithRenaultId": "Log in with Renault ID",
+  "@loginWithRenaultId": {"description": "Renault login button"},
+
+  "loginWithRenaultDescription": "Log in with your MY Renault account",
+  "@loginWithRenaultDescription": {"description": "Renault login description"},
+
+  "myRenault": "MY Renault",
+  "@myRenault": {"description": "MY Renault title"},
+
+  "myRenaultConnected": "MY Renault connected",
+  "@myRenaultConnected": {"description": "Renault connected status"},
+
+  "accountLinkedSuccess": "Your account has been successfully linked",
+  "@accountLinkedSuccess": {"description": "Account linked success message"},
+
+  "brandConnected": "{brand} connected",
+  "@brandConnected": {"description": "Brand connected status", "placeholders": {"brand": {"type": "String"}}},
+
+  "connectBrand": "Connect {brand}",
+  "@connectBrand": {"description": "Connect brand button", "placeholders": {"brand": {"type": "String"}}},
+
+  "email": "Email",
+  "@email": {"description": "Email field label"},
+
+  "countryNetherlands": "Netherlands",
+  "@countryNetherlands": {"description": "Country name"},
+
+  "countryBelgium": "Belgium",
+  "@countryBelgium": {"description": "Country name"},
+
+  "countryGermany": "Germany",
+  "@countryGermany": {"description": "Country name"},
+
+  "countryFrance": "France",
+  "@countryFrance": {"description": "Country name"},
+
+  "countryUnitedKingdom": "United Kingdom",
+  "@countryUnitedKingdom": {"description": "Country name"},
+
+  "countrySpain": "Spain",
+  "@countrySpain": {"description": "Country name"},
+
+  "countryItaly": "Italy",
+  "@countryItaly": {"description": "Country name"},
+
+  "countryPortugal": "Portugal",
+  "@countryPortugal": {"description": "Country name"},
+
+  "enterEmailAndPassword": "Enter your email and password",
+  "@enterEmailAndPassword": {"description": "Validation message for login form"},
+
+  "couldNotGetLoginUrl": "Could not retrieve login URL",
+  "@couldNotGetLoginUrl": {"description": "Error when getting OAuth URL fails"},
+
+  "brandLinked": "{brand} linked",
+  "@brandLinked": {"description": "Brand linked success message", "placeholders": {"brand": {"type": "String"}}},
+
+  "brandLinkedWithVin": "{brand} linked (VIN: {vin})",
+  "@brandLinkedWithVin": {"description": "Brand linked with VIN success message", "placeholders": {"brand": {"type": "String"}, "vin": {"type": "String"}}},
+
+  "brandLinkFailed": "{brand} linking failed",
+  "@brandLinkFailed": {"description": "Brand link failed message", "placeholders": {"brand": {"type": "String"}}},
+
+  "changesInNameColorIcon": "Changes to name/color/icon? Press back and edit.",
+  "@changesInNameColorIcon": {"description": "Hint about editing car details"},
+
+  "notificationChannelCarDetection": "Car Detection",
+  "@notificationChannelCarDetection": {"description": "Notification channel name"},
+
+  "notificationChannelDescription": "Notifications for car detection and trip registration",
+  "@notificationChannelDescription": {"description": "Notification channel description"},
+
+  "notificationNewCarDetected": "New car detected",
+  "@notificationNewCarDetected": {"description": "New car notification title"},
+
+  "notificationIsCarToTrack": "Is \"{deviceName}\" a car you want to track?",
+  "@notificationIsCarToTrack": {"description": "New car notification body", "placeholders": {"deviceName": {"type": "String"}}},
+
+  "notificationTripStarted": "Trip Started",
+  "@notificationTripStarted": {"description": "Trip started notification title"},
+
+  "notificationTripTracking": "Your trip is now being tracked",
+  "@notificationTripTracking": {"description": "Trip tracking notification body"},
+
+  "notificationTripTrackingWithCar": "Your trip with {carName} is now being tracked",
+  "@notificationTripTrackingWithCar": {"description": "Trip tracking with car name notification body", "placeholders": {"carName": {"type": "String"}}},
+
+  "notificationCarLinked": "Car Linked",
+  "@notificationCarLinked": {"description": "Car linked notification title"},
+
+  "notificationCarLinkedBody": "\"{deviceName}\" is now linked to {carName}",
+  "@notificationCarLinkedBody": {"description": "Car linked notification body", "placeholders": {"deviceName": {"type": "String"}, "carName": {"type": "String"}}},
+
+  "locationError": "Location error: {error}",
+  "@locationError": {"description": "Location error message", "placeholders": {"error": {"type": "String"}}}
 }

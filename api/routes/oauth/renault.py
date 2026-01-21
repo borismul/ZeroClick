@@ -113,8 +113,9 @@ def renault_direct_login(request: RenaultLoginRequest, user_id: str = Depends(ge
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Renault login failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        # Log full details internally, return generic message to client
+        logger.error(f"Renault login failed: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail="Renault login failed")
 
 
 @router.post("/url")
@@ -224,5 +225,6 @@ def handle_renault_callback(request: RenaultCallbackRequest, user_id: str = Depe
         }
 
     except Exception as e:
-        logger.error(f"Renault OAuth failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        # Log full details internally, return generic message to client
+        logger.error(f"Renault OAuth failed: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail="Renault OAuth failed")

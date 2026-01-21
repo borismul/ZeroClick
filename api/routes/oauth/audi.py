@@ -98,9 +98,13 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
     oauth_state = state_doc.to_dict()
     code_verifier = oauth_state.get("code_verifier")
 
-    # Validate state
+    # Validate state (CSRF protection)
     if params.get("state") and oauth_state.get("state") != params["state"]:
-        logger.warning(f"State mismatch for car {request.car_id}")
+        logger.warning(f"OAuth state mismatch for car {request.car_id} - possible CSRF attack")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid OAuth state parameter"
+        )
 
     # Check if we have a code (PKCE flow) or tokens (legacy hybrid flow)
     code = params.get("code")
@@ -203,5 +207,5 @@ def handle_audi_callback(request: AudiCallbackRequest, user_id: str = Depends(ge
             return {"status": "success", "vehicles_found": 0}
 
     except Exception as e:
-        logger.error(f"Failed to verify Audi tokens: {e}")
-        return {"status": "success", "warning": f"Tokens stored but verification failed: {str(e)}"}
+        logger.error(f"Failed to verify Audi tokens: {e}", exc_info=True)
+        return {"status": "success", "warning": "Tokens stored but verification failed"}

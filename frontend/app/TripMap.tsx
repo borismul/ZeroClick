@@ -24,9 +24,16 @@ interface Trip {
   google_maps_km?: number | null
 }
 
+interface TripMapTranslations {
+  routeLoading: string
+  expected: string
+  drivenRoute: string
+}
+
 interface TripMapProps {
   trip: Trip
   onClose: () => void
+  translations?: TripMapTranslations
 }
 
 // Custom markers
@@ -63,7 +70,14 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
   return null
 }
 
-export default function TripMap({ trip, onClose }: TripMapProps) {
+const defaultTranslations: TripMapTranslations = {
+  routeLoading: 'Loading route...',
+  expected: 'Expected',
+  drivenRoute: 'Driven',
+}
+
+export default function TripMap({ trip, onClose, translations = defaultTranslations }: TripMapProps) {
+  const t = translations
   const [actualRoute, setActualRoute] = useState<[number, number][] | null>(null)
   const [expectedRoute, setExpectedRoute] = useState<[number, number][] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -189,7 +203,7 @@ export default function TripMap({ trip, onClose }: TripMapProps) {
           {loading && (
             <div className="map-loading">
               <div className="spinner"></div>
-              <span>Route laden...</span>
+              <span>{t.routeLoading}</span>
             </div>
           )}
           <MapContainer
@@ -260,11 +274,11 @@ export default function TripMap({ trip, onClose }: TripMapProps) {
           <div className="map-legend">
             <div className="legend-item">
               <span className="legend-line" style={{ backgroundColor: '#f97316' }}></span>
-              <span>Verwacht ({trip.google_maps_km?.toFixed(1) ?? '?'} km)</span>
+              <span>{t.expected} ({trip.google_maps_km?.toFixed(1) ?? '?'} km)</span>
             </div>
             <div className="legend-item">
               <span className="legend-line" style={{ backgroundColor: '#3b82f6' }}></span>
-              <span>Gereden ({trip.distance_km.toFixed(1)} km)</span>
+              <span>{t.drivenRoute} ({trip.distance_km.toFixed(1)} km)</span>
             </div>
           </div>
         </div>
